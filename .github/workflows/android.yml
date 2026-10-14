@@ -59,7 +59,9 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest
+          script: |
+            ./gradlew connectedDebugAndroidTest
+            python3 scripts/android-system-check.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -67,6 +69,7 @@ jobs:
           path: |
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+            app/build/reports/system-check/
 
       - uses: actions/upload-artifact@v4
         if: always()
