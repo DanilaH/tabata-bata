@@ -23,7 +23,7 @@ class ResilienceTest {
     private val context
         get() = instrumentation.targetContext
 
-    private fun text(id: Int) = context.getString(id)
+    private fun text(id: Int) = compose.activity.getString(id)
 
     private fun await(timeout: Long = 8000, condition: () -> Boolean) {
         val deadline = SystemClock.elapsedRealtime() + timeout
@@ -43,7 +43,10 @@ class ResilienceTest {
             .use { it.readText() }
 
     private fun clean() {
-        if (TimerService.state.value?.status in listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)) {
+        if (
+            TimerService.state.value?.status in
+                listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
+        ) {
             TimerService.command(context, "stop")
             await { TimerService.state.value?.status == Status.STOPPED }
         }
@@ -166,11 +169,12 @@ class ResilienceTest {
             shell("settings put system font_scale 1.5")
             compose.activityRule.scenario.recreate()
             compose.onNodeWithText(text(R.string.quick)).performClick()
+            compose.waitForIdle()
             compose.runOnUiThread {
                 compose.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             }
             compose.waitUntil(10000) {
-                context.resources.configuration.orientation ==
+                compose.activity.resources.configuration.orientation ==
                     android.content.res.Configuration.ORIENTATION_LANDSCAPE
             }
             compose
