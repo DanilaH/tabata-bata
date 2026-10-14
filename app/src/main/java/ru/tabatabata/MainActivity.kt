@@ -21,6 +21,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,6 +45,7 @@ private val Palette =
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        volumeControlStream = android.media.AudioManager.STREAM_MUSIC
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
@@ -599,9 +601,12 @@ private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
             color = color,
         )
         BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            val clock = formatTime(s.remaining)
+            val fit = maxWidth.value / (clock.length * 0.65f * LocalDensity.current.fontScale)
             Text(
-                formatTime(s.remaining),
-                fontSize = if (maxWidth < 360.dp || s.remaining >= 3600000) 62.sp else 88.sp,
+                clock,
+                fontSize =
+                    minOf(if (maxWidth < 360.dp || s.remaining >= 3600000) 62f else 88f, fit).sp,
                 fontWeight = FontWeight.Bold,
                 color = color,
                 maxLines = 1,
@@ -803,5 +808,51 @@ private fun Settings(
         }
         Text(stringResource(R.string.about), style = MaterialTheme.typography.titleLarge)
         Text(stringResource(R.string.about_body))
+        if (BuildConfig.SUPPORT_EMAIL.isNotBlank())
+            OutlinedButton(
+                onClick = {
+                    runCatching {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_SENDTO,
+                                    android.net.Uri.fromParts(
+                                        "mailto",
+                                        BuildConfig.SUPPORT_EMAIL,
+                                        null,
+                                    ),
+                                )
+                            )
+                        }
+                        .onFailure {
+                            scope.launch {
+                                snackbar.showSnackbar(context.getString(R.string.link_error))
+                            }
+                        }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.support))
+            }
+        if (BuildConfig.PRIVACY_URL.isNotBlank())
+            TextButton(
+                onClick = {
+                    runCatching {
+                            context.startActivity(
+                                android.content.Intent(
+                                    android.content.Intent.ACTION_VIEW,
+                                    android.net.Uri.parse(BuildConfig.PRIVACY_URL),
+                                )
+                            )
+                        }
+                        .onFailure {
+                            scope.launch {
+                                snackbar.showSnackbar(context.getString(R.string.link_error))
+                            }
+                        }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.privacy))
+            }
     }
 }

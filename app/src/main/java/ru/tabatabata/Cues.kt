@@ -12,7 +12,7 @@ class Cues(context: Context, private val onFocusLoss: () -> Unit) {
             .setMaxStreams(2)
             .setAudioAttributes(
                 AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
             )
@@ -32,9 +32,7 @@ class Cues(context: Context, private val onFocusLoss: () -> Unit) {
     private val focus =
         AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
             .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-                    .build()
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).build()
             )
             .setOnAudioFocusChangeListener {
                 if (

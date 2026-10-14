@@ -29,6 +29,16 @@ android {
             "INTERSTITIAL_ID",
             "\"${providers.gradleProperty("interstitialId").orElse("").get()}\"",
         )
+        buildConfigField(
+            "String",
+            "SUPPORT_EMAIL",
+            "\"${providers.gradleProperty("supportEmail").orElse("").get()}\"",
+        )
+        buildConfigField(
+            "String",
+            "PRIVACY_URL",
+            "\"${providers.gradleProperty("privacyUrl").orElse("").get()}\"",
+        )
     }
     val keyPath = providers.environmentVariable("TABATA_KEYSTORE_PATH").orNull
     if (!keyPath.isNullOrBlank()) {

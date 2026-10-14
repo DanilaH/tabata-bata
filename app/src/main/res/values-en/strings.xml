@@ -77,4 +77,4 @@
  <string name="limit">Up to 500 timers for file-size safety.</string>
  <string name="sound_hint">Short cues for short intervals. Check your system media volume.</string>
  <string name="focus_hint">Ducking depends on the music app. Disconnecting headphones pauses the timer.</string>
-</resources>
+<string name="support">Contact developer</string><string name="privacy">Privacy policy</string><string name="link_error">Could not open an app for this link</string></resources>

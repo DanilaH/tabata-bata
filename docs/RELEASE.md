@@ -39,3 +39,5 @@ AppMetrica: `-PappMetricaKey=<test-app-key>`. Использовать отде�
 Gradle читает `TABATA_KEYSTORE_PATH`, `TABATA_STORE_PASSWORD`, `TABATA_KEY_ALIAS` (по умолчанию `tabata-bata`) и `TABATA_KEY_PASSWORD` из окружения. При наличии этих значений `assembleRelease` создаёт подписанный APK; без них release остаётся unsigned и не подходит для установки/модерации. Production APK перед отправкой должен пройти проверку `apksigner verify`.
 
 Для постоянного ключа создан архив `tabata-bata-signing-backup.zip` с keystore и конфигурацией. Это секретный материал: хранить приватно, не загружать в публичный репозиторий. Debug APK из GitHub Actions использует отдельный тестовый ключ; она не является обновлением подписанной production-ключом версии.
+
+Контакт и ссылка на политику подключаются через `-PsupportEmail=<email>` и `-PprivacyUrl=<https-url>`. При непустых значениях настройки показывают кнопки почты и политики; пустые значения не создают неработающие кнопки. Эти данные требуется заполнить перед публичной сборкой.
