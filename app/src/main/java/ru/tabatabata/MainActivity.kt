@@ -59,7 +59,7 @@ private val DarkPalette =
 
 @Composable
 private fun TabataTheme(content: @Composable () -> Unit) {
-    val activity = LocalContext.current as ComponentActivity
+    val activity = requireNotNull(LocalActivity.current) as ComponentActivity
     val store = remember { Store(activity) }
     val options by store.options.collectAsStateWithLifecycle(Options())
     val dark =
@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App() {
     val context = LocalContext.current
-    val activity = context as ComponentActivity
+    val activity = requireNotNull(LocalActivity.current) as ComponentActivity
     val store = remember { Store(context) }
     val scope = rememberCoroutineScope()
     val lastPlan by store.lastPlan.collectAsStateWithLifecycle<Plan?>(null)
