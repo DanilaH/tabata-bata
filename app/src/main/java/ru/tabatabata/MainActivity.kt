@@ -1,0 +1,800 @@
+package ru.tabatabata
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.os.*
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.*
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.*
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.*
+
+private val Ink = Color(0xFF101B19)
+private val Lime = Color(0xFFBDF56D)
+private val Palette =
+    darkColorScheme(
+        primary = Lime,
+        onPrimary = Ink,
+        background = Ink,
+        surface = Color(0xFF1C2A26),
+        surfaceVariant = Color(0xFF283932),
+        onSurface = Color(0xFFE9F1E8),
+        onBackground = Color(0xFFE9F1E8),
+    )
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContent { MaterialTheme(colorScheme = Palette) { App() } }
+    }
+}
+
+@Composable
+private fun App() {
+    val context = LocalContext.current
+    val activity = context as ComponentActivity
+    val store = remember { Store(context) }
+    val scope = rememberCoroutineScope()
+    val lastPlan by store.lastPlan.collectAsStateWithLifecycle<Plan?>(null)
+    val presets by store.presets.collectAsStateWithLifecycle(emptyList())
+    val options by store.options.collectAsStateWithLifecycle(Options())
+    val snapshot by TimerService.state.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    val ads = remember(activity) { Ads(activity) }
+    DisposableEffect(ads) { onDispose { ads.close() } }
+    LaunchedEffect(snapshot?.sessionId, snapshot?.status) {
+        if (snapshot?.status == Status.COMPLETED) ads.completed(snapshot!!.sessionId)
+    }
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var editor by remember { mutableStateOf<Preset?>(null) }
+    var editorOpen by rememberSaveable { mutableStateOf(false) }
+    var recovery by remember {
+        mutableStateOf(
+            snapshot == null &&
+                context.getSharedPreferences("session", Context.MODE_PRIVATE).contains("active")
+        )
+    }
+    var notificationPrompt by remember { mutableStateOf(false) }
+    var pendingPlan by remember { mutableStateOf<Plan?>(null) }
+    val permission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+            pendingPlan?.let { TimerService.command(context, "start", it) }
+            pendingPlan = null
+        }
+    fun launch(plan: Plan) {
+        scope.launch { store.saveLastPlan(plan) }
+        if (
+            Build.VERSION.SDK_INT >= 33 &&
+                context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED &&
+                !context
+                    .getSharedPreferences("ui", Context.MODE_PRIVATE)
+                    .getBoolean("notificationAsked", false)
+        ) {
+            pendingPlan = plan
+            notificationPrompt = true
+        } else TimerService.command(context, "start", plan)
+    }
+    val running = snapshot?.status in listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
+    DisposableEffect(running, options.keepScreen) {
+        if (running && options.keepScreen)
+            activity.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose { activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+    }
+    Scaffold(
+        containerColor = Ink,
+        bottomBar = {
+            if (
+                (snapshot == null && !editorOpen && tab == 0) ||
+                    snapshot?.status == Status.COMPLETED
+            )
+                AdBanner(ads)
+        },
+        snackbarHost = { SnackbarHost(snackbar) },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            if (snapshot != null)
+                Workout(
+                    snapshot!!,
+                    onClose = {
+                        TimerService.clearResult()
+                        ads.maybeShow()
+                    },
+                    onRepeat = {
+                        val p = snapshot!!.plan
+                        TimerService.clearResult()
+                        launch(p)
+                    },
+                )
+            else if (editorOpen)
+                Editor(
+                    editor,
+                    onCancel = { editorOpen = false },
+                    onSave = { p ->
+                        scope.launch {
+                            if (presets.size >= 500 && presets.none { it.id == p.id })
+                                snackbar.showSnackbar(context.getString(R.string.limit))
+                            else {
+                                store.updatePreset(p)
+                                editorOpen = false
+                                snackbar.showSnackbar(context.getString(R.string.saved_ok))
+                            }
+                        }
+                    },
+                    onStart = {
+                        launch(it)
+                        editorOpen = false
+                    },
+                )
+            else
+                Column(Modifier.fillMaxSize()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(R.string.app_name),
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text("0.1", color = Lime)
+                    }
+                    PrimaryTabRow(tab) {
+                        listOf(R.string.saved, R.string.quick, R.string.settings).forEachIndexed {
+                            i,
+                            r ->
+                            Tab(
+                                selected = tab == i,
+                                onClick = { tab = i },
+                                text = { Text(stringResource(r)) },
+                            )
+                        }
+                    }
+                    when (tab) {
+                        0 ->
+                            Saved(
+                                presets,
+                                onNew = {
+                                    editor = null
+                                    editorOpen = true
+                                },
+                                onStart = { launch(it.plan) },
+                                onEdit = {
+                                    editor = it
+                                    editorOpen = true
+                                },
+                                onCopy = { p ->
+                                    scope.launch {
+                                        if (presets.size < 500)
+                                            store.updatePreset(
+                                                p.copy(
+                                                    id = java.util.UUID.randomUUID().toString(),
+                                                    name =
+                                                        (p.name +
+                                                                context.getString(
+                                                                    R.string.copy_suffix
+                                                                ))
+                                                            .take(100),
+                                                )
+                                            )
+                                    }
+                                },
+                                onDelete = { p ->
+                                    scope.launch {
+                                        store.remove(p.id)
+                                        if (
+                                            snackbar.showSnackbar(
+                                                context.getString(R.string.deleted),
+                                                context.getString(R.string.undo),
+                                                duration = SnackbarDuration.Long,
+                                            ) == SnackbarResult.ActionPerformed
+                                        )
+                                            store.updatePreset(p)
+                                    }
+                                },
+                                onMove = { from, to ->
+                                    scope.launch {
+                                        val list = presets.toMutableList()
+                                        if (to in list.indices) {
+                                            list.add(to, list.removeAt(from))
+                                            store.savePresets(list)
+                                        }
+                                    }
+                                },
+                            )
+                        1 ->
+                            if (lastPlan == null) CircularProgressIndicator()
+                            else
+                                Editor(
+                                    null,
+                                    initialPlan = lastPlan,
+                                    onCancel = null,
+                                    onSave = { p ->
+                                        scope.launch {
+                                            if (presets.size < 500) {
+                                                store.updatePreset(p)
+                                                tab = 0
+                                            } else
+                                                snackbar.showSnackbar(
+                                                    context.getString(R.string.limit)
+                                                )
+                                        }
+                                    },
+                                    onStart = { launch(it) },
+                                )
+                        2 ->
+                            Settings(options, presets, store, snackbar) { o ->
+                                scope.launch { store.saveOptions(o) }
+                            }
+                    }
+                }
+        }
+    }
+    if (recovery)
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text(stringResource(R.string.recovery_title)) },
+            text = { Text(stringResource(R.string.recovery_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        recovery = false
+                        TimerService.command(context, "recover")
+                    }
+                ) {
+                    Text(stringResource(R.string.recover))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        context
+                            .getSharedPreferences("session", Context.MODE_PRIVATE)
+                            .edit()
+                            .remove("active")
+                            .apply()
+                        recovery = false
+                    }
+                ) {
+                    Text(stringResource(R.string.discard))
+                }
+            },
+        )
+    if (notificationPrompt && Build.VERSION.SDK_INT >= 33)
+        AlertDialog(
+            onDismissRequest = {
+                notificationPrompt = false
+                pendingPlan?.let { TimerService.command(context, "start", it) }
+                pendingPlan = null
+            },
+            title = { Text(stringResource(R.string.notification_title)) },
+            text = { Text(stringResource(R.string.notification_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        notificationPrompt = false
+                        context
+                            .getSharedPreferences("ui", Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("notificationAsked", true)
+                            .apply()
+                        permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                ) {
+                    Text(stringResource(R.string.allow))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        notificationPrompt = false
+                        context
+                            .getSharedPreferences("ui", Context.MODE_PRIVATE)
+                            .edit()
+                            .putBoolean("notificationAsked", true)
+                            .apply()
+                        pendingPlan?.let { TimerService.command(context, "start", it) }
+                        pendingPlan = null
+                    }
+                ) {
+                    Text(stringResource(R.string.later))
+                }
+            },
+        )
+}
+
+@Composable
+private fun Saved(
+    presets: List<Preset>,
+    onNew: () -> Unit,
+    onStart: (Preset) -> Unit,
+    onEdit: (Preset) -> Unit,
+    onCopy: (Preset) -> Unit,
+    onDelete: (Preset) -> Unit,
+    onMove: (Int, Int) -> Unit,
+) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+        Button(
+            onClick = onNew,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).heightIn(min = 52.dp),
+        ) {
+            Text("+ " + stringResource(R.string.new_timer))
+        }
+        if (presets.isEmpty())
+            Column(
+                Modifier.fillMaxWidth().padding(top = 48.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Text(
+                    stringResource(R.string.empty_title),
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = Lime,
+                )
+                Text(
+                    stringResource(R.string.empty_body),
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            }
+        LazyColumn(
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 20.dp),
+        ) {
+            itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
+                var menu by remember { mutableStateOf(false) }
+                Card(Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                p.name,
+                                style = MaterialTheme.typography.titleLarge,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Box {
+                                TextButton(onClick = { menu = true }) { Text("•••") }
+                                DropdownMenu(menu, { menu = false }) {
+                                    listOf(
+                                            R.string.edit to { onEdit(p) },
+                                            R.string.copy to { onCopy(p) },
+                                            R.string.up to { onMove(index, index - 1) },
+                                            R.string.down to { onMove(index, index + 1) },
+                                            R.string.delete to { onDelete(p) },
+                                        )
+                                        .forEach { (r, f) ->
+                                            DropdownMenuItem(
+                                                text = { Text(stringResource(r)) },
+                                                onClick = {
+                                                    menu = false
+                                                    f()
+                                                },
+                                            )
+                                        }
+                                }
+                            }
+                        }
+                        Text(
+                            "${p.plan.work}/${p.plan.rest} · ${p.plan.reps} × ${p.plan.sets} · ${formatTime(p.plan.durationMs())}",
+                            color = Lime,
+                        )
+                        Button(onClick = { onStart(p) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.start))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Editor(
+    preset: Preset?,
+    initialPlan: Plan? = null,
+    onCancel: (() -> Unit)?,
+    onSave: (Preset) -> Unit,
+    onStart: (Plan) -> Unit,
+) {
+    BackHandler(enabled = onCancel != null) { onCancel?.invoke() }
+    val p = preset?.plan ?: initialPlan ?: Plan()
+    var name by rememberSaveable(preset?.id) { mutableStateOf(preset?.name ?: "") }
+    var prepare by rememberSaveable(preset?.id) { mutableStateOf(p.prepare.toString()) }
+    var work by rememberSaveable(preset?.id) { mutableStateOf(p.work.toString()) }
+    var rest by rememberSaveable(preset?.id) { mutableStateOf(p.rest.toString()) }
+    var reps by rememberSaveable(preset?.id) { mutableStateOf(p.reps.toString()) }
+    var sets by rememberSaveable(preset?.id) { mutableStateOf(p.sets.toString()) }
+    var between by rememberSaveable(preset?.id) { mutableStateOf(p.between.toString()) }
+    var cool by rememberSaveable(preset?.id) { mutableStateOf(p.cool.toString()) }
+    var last by rememberSaveable(preset?.id) { mutableStateOf(p.lastRest) }
+    var advanced by
+        rememberSaveable(preset?.id) { mutableStateOf(p.sets > 1 || p.cool > 0 || p.lastRest) }
+    val plan =
+        runCatching {
+                Plan(
+                        prepare.toInt(),
+                        work.toInt(),
+                        rest.toInt(),
+                        reps.toInt(),
+                        sets.toInt(),
+                        between.toInt(),
+                        cool.toInt(),
+                        last,
+                    )
+                    .also { it.validate() }
+            }
+            .getOrNull()
+    val context = LocalContext.current
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        onCancel?.let { TextButton(onClick = it) { Text("← " + stringResource(R.string.saved)) } }
+        OutlinedTextField(
+            name,
+            { if (it.length <= 100) name = it },
+            label = { Text(stringResource(R.string.name)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Text(
+            stringResource(R.string.seconds),
+            style = MaterialTheme.typography.labelLarge,
+            color = Lime,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NumberField(R.string.prepare, prepare, Modifier.weight(1f)) { prepare = it }
+            NumberField(R.string.work, work, Modifier.weight(1f)) { work = it }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            NumberField(R.string.rest, rest, Modifier.weight(1f)) { rest = it }
+            NumberField(R.string.reps, reps, Modifier.weight(1f)) { reps = it }
+        }
+        TextButton(onClick = { advanced = !advanced }) {
+            Text(stringResource(R.string.advanced) + if (advanced) " −" else " +")
+        }
+        if (advanced) {
+            NumberField(R.string.sets, sets) { sets = it }
+            NumberField(R.string.between, between) { between = it }
+            NumberField(R.string.cool, cool) { cool = it }
+            Toggle(R.string.last_rest, last) { last = it }
+        }
+        if (plan == null)
+            Text(stringResource(R.string.invalid), color = MaterialTheme.colorScheme.error)
+        else {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.total))
+                    Text(
+                        formatTime(plan.durationMs()),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Lime,
+                    )
+                    Text(
+                        stringResource(R.string.plan_preview),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    Text(
+                        plan.stages().take(8).joinToString(" → ") {
+                            "${context.getString(stageString(it.stage))} ${it.duration/1000}"
+                        } + if (plan.stages().size > 8) " …" else ""
+                    )
+                }
+            }
+        }
+        Button(
+            enabled = plan != null,
+            onClick = { plan?.let(onStart) },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        ) {
+            Text(stringResource(R.string.start))
+        }
+        OutlinedButton(
+            enabled = plan != null,
+            onClick = {
+                plan?.let {
+                    onSave(
+                        Preset(
+                            preset?.id ?: java.util.UUID.randomUUID().toString(),
+                            name.trim().ifEmpty { context.getString(R.string.default_name) },
+                            it,
+                        )
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.save))
+        }
+    }
+}
+
+@Composable
+private fun NumberField(
+    label: Int,
+    value: String,
+    modifier: Modifier = Modifier,
+    onChange: (String) -> Unit,
+) {
+    OutlinedTextField(
+        value,
+        { if (it.length <= 4 && it.all(Char::isDigit)) onChange(it) },
+        label = { Text(stringResource(label)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = modifier.fillMaxWidth(),
+    )
+}
+
+@Composable
+private fun Toggle(label: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(label), modifier = Modifier.weight(1f))
+        Switch(checked, onChange)
+    }
+}
+
+@Composable
+private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
+    val context = LocalContext.current
+    var locked by rememberSaveable { mutableStateOf(false) }
+    var exit by remember { mutableStateOf(false) }
+    val active = s.status in listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
+    BackHandler {
+        if (active) {
+            if (!locked) exit = true
+        } else onClose()
+    }
+    val color =
+        when (s.interval?.stage) {
+            Stage.WORK -> Lime
+            Stage.REST,
+            Stage.BETWEEN -> Color(0xFF83D9EB)
+            else -> Color(0xFFF4CA7B)
+        }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(
+                if (s.status == Status.COMPLETED) R.string.completed
+                else if (s.status == Status.STOPPED) R.string.stopped
+                else stageString(s.interval?.stage)
+            ),
+            style = MaterialTheme.typography.headlineMedium,
+            color = color,
+        )
+        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Text(
+                formatTime(s.remaining),
+                fontSize = if (maxWidth < 360.dp || s.remaining >= 3600000) 62.sp else 88.sp,
+                fontWeight = FontWeight.Bold,
+                color = color,
+                maxLines = 1,
+            )
+        }
+        if (active) {
+            Text(
+                "${stringResource(R.string.reps)} ${s.interval?.rep ?: 0}/${s.plan.reps} · ${stringResource(R.string.sets)} ${s.interval?.set ?: 0}/${s.plan.sets}"
+            )
+            LinearProgressIndicator(
+                progress = { 1f - s.totalRemaining.toFloat() / s.plan.durationMs() },
+                modifier = Modifier.fillMaxWidth(),
+                color = color,
+            )
+            Text("${stringResource(R.string.remaining)} ${formatTime(s.totalRemaining)}")
+            s.next?.let {
+                Text(
+                    "${stringResource(R.string.next)}: ${stringResource(stageString(it.stage))} · ${formatTime(it.duration)}"
+                )
+            }
+            if (s.status != Status.RUNNING)
+                Text(
+                    stringResource(
+                        if (s.status == Status.INTERRUPTED) R.string.interrupted
+                        else R.string.paused
+                    ),
+                    color = color,
+                )
+            if (locked) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    shape = MaterialTheme.shapes.large,
+                    modifier =
+                        Modifier.fillMaxWidth().pointerInput(Unit) {
+                            detectTapGestures(onLongPress = { locked = false })
+                        },
+                ) {
+                    Text(stringResource(R.string.unlock), Modifier.padding(24.dp))
+                }
+            } else {
+                Button(
+                    onClick = {
+                        TimerService.command(
+                            context,
+                            if (s.status == Status.RUNNING) "pause" else "resume",
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+                ) {
+                    Text(
+                        stringResource(
+                            if (s.status == Status.RUNNING) R.string.pause else R.string.resume
+                        )
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { TimerService.command(context, "previous") },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.previous))
+                    }
+                    OutlinedButton(
+                        onClick = { TimerService.command(context, "next") },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(R.string.next))
+                    }
+                }
+                OutlinedButton(onClick = { locked = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.lock))
+                }
+                TextButton(onClick = { exit = true }) { Text(stringResource(R.string.stop)) }
+            }
+        } else {
+            Text(stringResource(R.string.done_body))
+            Button(onClick = onRepeat, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.repeat))
+            }
+            OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.home))
+            }
+        }
+    }
+    if (exit)
+        AlertDialog(
+            onDismissRequest = { exit = false },
+            title = { Text(stringResource(R.string.exit_title)) },
+            text = { Text(stringResource(R.string.exit_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        exit = false
+                        TimerService.command(context, "stop")
+                    }
+                ) {
+                    Text(stringResource(R.string.stop))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { exit = false }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+}
+
+@Composable
+private fun Settings(
+    o: Options,
+    presets: List<Preset>,
+    store: Store,
+    snackbar: SnackbarHostState,
+    onChange: (Options) -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val cues = remember { Cues(context) {} }
+    DisposableEffect(Unit) { onDispose { cues.close() } }
+    val export =
+        rememberLauncherForActivityResult(
+            ActivityResultContracts.CreateDocument("application/json")
+        ) { uri ->
+            if (uri != null)
+                scope.launch {
+                    val ok =
+                        withContext(Dispatchers.IO) {
+                            runCatching {
+                                    context.contentResolver.openOutputStream(uri)?.use {
+                                        it.write(store.export(presets).toByteArray())
+                                    } ?: error("No stream")
+                                }
+                                .isSuccess
+                        }
+                    snackbar.showSnackbar(
+                        context.getString(if (ok) R.string.export_ok else R.string.file_error)
+                    )
+                }
+        }
+    val importLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null)
+                scope.launch {
+                    val imported =
+                        withContext(Dispatchers.IO) {
+                            runCatching {
+                                    context.contentResolver
+                                        .openInputStream(uri)
+                                        ?.bufferedReader()
+                                        ?.use { reader ->
+                                            val chars = CharArray(1_000_001)
+                                            var n = 0
+                                            while (n < chars.size) {
+                                                val r = reader.read(chars, n, chars.size - n)
+                                                if (r < 0) break
+                                                n += r
+                                            }
+                                            require(n <= 1_000_000)
+                                            store.import(String(chars, 0, n))
+                                        } ?: error("No stream")
+                                }
+                                .getOrNull()
+                        }
+                    if (imported != null && presets.size + imported.size <= 500) {
+                        store.savePresets(presets + imported)
+                        snackbar.showSnackbar(context.getString(R.string.import_ok))
+                    } else snackbar.showSnackbar(context.getString(R.string.import_error))
+                }
+        }
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(stringResource(R.string.volume), style = MaterialTheme.typography.titleLarge)
+        Slider(o.volume, onValueChange = { onChange(o.copy(volume = it)) })
+        OutlinedButton(onClick = { cues.play(Stage.WORK, o) }) {
+            Text(stringResource(R.string.test_sound))
+        }
+        Text(stringResource(R.string.sound_hint), style = MaterialTheme.typography.bodySmall)
+        Toggle(R.string.vibrate, o.vibrate) { onChange(o.copy(vibrate = it)) }
+        Toggle(R.string.countdown, o.countdown) { onChange(o.copy(countdown = it)) }
+        Text(stringResource(R.string.countdown_hint), style = MaterialTheme.typography.bodySmall)
+        Toggle(R.string.keep_screen, o.keepScreen) { onChange(o.copy(keepScreen = it)) }
+        Toggle(R.string.duck_music, o.duckMusic) { onChange(o.copy(duckMusic = it)) }
+        Text(stringResource(R.string.focus_hint), style = MaterialTheme.typography.bodySmall)
+        HorizontalDivider()
+        OutlinedButton(
+            onClick = { export.launch("tabata-bata-timers.json") },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.export))
+        }
+        OutlinedButton(
+            onClick = {
+                importLauncher.launch(
+                    arrayOf("application/json", "text/plain", "application/octet-stream")
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.import_timers))
+        }
+        Text(stringResource(R.string.about), style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.about_body))
+    }
+}

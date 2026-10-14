@@ -1,0 +1,161 @@
+package ru.tabatabata
+
+enum class Stage {
+    PREPARE,
+    WORK,
+    REST,
+    BETWEEN,
+    COOL,
+}
+
+data class Plan(
+    val prepare: Int = 5,
+    val work: Int = 20,
+    val rest: Int = 10,
+    val reps: Int = 8,
+    val sets: Int = 1,
+    val between: Int = 60,
+    val cool: Int = 0,
+    val lastRest: Boolean = false,
+) {
+    fun validate() {
+        require(
+            prepare in 0..3600 &&
+                work in 1..3600 &&
+                rest in 0..3600 &&
+                reps in 1..200 &&
+                sets in 1..20 &&
+                between in 0..3600 &&
+                cool in 0..3600
+        )
+        require(durationMs() <= 24 * 60 * 60 * 1000L)
+    }
+
+    fun stages(): List<Interval> = buildList {
+        fun stage(type: Stage, seconds: Int, rep: Int = 0, set: Int = 0) {
+            if (seconds > 0) add(Interval(type, seconds * 1000L, rep, set))
+        }
+        stage(Stage.PREPARE, prepare)
+        for (s in 1..sets) {
+            for (r in 1..reps) {
+                stage(Stage.WORK, work, r, s)
+                if (r < reps || (s == sets && lastRest)) stage(Stage.REST, rest, r, s)
+            }
+            if (s < sets) stage(Stage.BETWEEN, between, reps, s)
+        }
+        stage(Stage.COOL, cool)
+    }
+
+    fun durationMs(): Long =
+        prepare * 1000L +
+            sets * (reps * work * 1000L + (reps - 1) * rest * 1000L) +
+            (sets - 1) * between * 1000L +
+            cool * 1000L +
+            if (lastRest) rest * 1000L else 0L
+}
+
+data class Interval(val stage: Stage, val duration: Long, val rep: Int, val set: Int)
+
+enum class Status {
+    RUNNING,
+    PAUSED,
+    COMPLETED,
+    STOPPED,
+    INTERRUPTED,
+}
+
+data class Snapshot(
+    val status: Status,
+    val index: Int,
+    val remaining: Long,
+    val totalRemaining: Long,
+    val interval: Interval?,
+    val next: Interval?,
+    val plan: Plan,
+    val sessionId: String,
+)
+
+/** All time is injected from a monotonic clock. Rendering never advances the timer. */
+class TimerEngine(
+    val plan: Plan,
+    now: Long,
+    val sessionId: String = java.util.UUID.randomUUID().toString(),
+) {
+    private val intervals = plan.stages()
+    private var index = 0
+    private var deadline = now + intervals.first().duration
+    private var pausedRemaining = intervals.first().duration
+    private var status = Status.RUNNING
+
+    init {
+        plan.validate()
+    }
+
+    fun snapshot(now: Long): Snapshot {
+        if (status == Status.RUNNING) {
+            while (index < intervals.size && now >= deadline) {
+                index++
+                if (index < intervals.size) deadline += intervals[index].duration
+                else status = Status.COMPLETED
+            }
+        }
+        val current = intervals.getOrNull(index)
+        val left =
+            when (status) {
+                Status.RUNNING -> (deadline - now).coerceAtLeast(0)
+                Status.PAUSED,
+                Status.INTERRUPTED -> pausedRemaining
+                else -> 0
+            }
+        return Snapshot(
+            status,
+            index,
+            left,
+            if (current == null || status == Status.STOPPED) 0
+            else left + intervals.drop(index + 1).sumOf { it.duration },
+            current,
+            intervals.getOrNull(index + 1),
+            plan,
+            sessionId,
+        )
+    }
+
+    fun pause(now: Long) {
+        val s = snapshot(now)
+        if (status == Status.RUNNING) {
+            pausedRemaining = s.remaining
+            status = Status.PAUSED
+        }
+    }
+
+    fun resume(now: Long) {
+        if (status == Status.PAUSED || status == Status.INTERRUPTED) {
+            deadline = now + pausedRemaining
+            status = Status.RUNNING
+        }
+    }
+
+    fun skip(delta: Int, now: Long) {
+        snapshot(now)
+        if (status != Status.RUNNING && status != Status.PAUSED && status != Status.INTERRUPTED)
+            return
+        if (status == Status.INTERRUPTED) status = Status.PAUSED
+        index = (index + delta).coerceIn(0, intervals.size)
+        if (index == intervals.size) {
+            status = Status.COMPLETED
+            return
+        }
+        pausedRemaining = intervals[index].duration
+        deadline = now + pausedRemaining
+    }
+
+    fun stop() {
+        status = Status.STOPPED
+    }
+
+    fun restore(index: Int, remaining: Long) {
+        this.index = index.coerceIn(0, intervals.lastIndex)
+        pausedRemaining = remaining.coerceIn(1, intervals[this.index].duration)
+        status = Status.INTERRUPTED
+    }
+}
