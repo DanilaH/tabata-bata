@@ -1,7 +1,10 @@
 package ru.tabatabata
 
 import android.Manifest
+import android.app.LocaleManager
 import android.graphics.Bitmap
+import android.os.Build
+import android.os.LocaleList
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -10,12 +13,25 @@ import androidx.test.rule.GrantPermissionRule
 import java.io.File
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.ExternalResource
 
 class WorkoutSmokeTest {
     @get:Rule(order = 0)
     val permission: GrantPermissionRule =
         GrantPermissionRule.grant(Manifest.permission.POST_NOTIFICATIONS)
-    @get:Rule(order = 1) val compose = createAndroidComposeRule<MainActivity>()
+    @get:Rule(order = 1)
+    val russianLocale: ExternalResource =
+        object : ExternalResource() {
+            override fun before() {
+                if (Build.VERSION.SDK_INT >= 33) {
+                    InstrumentationRegistry.getInstrumentation()
+                        .targetContext
+                        .getSystemService(LocaleManager::class.java)
+                        .applicationLocales = LocaleList.forLanguageTags("ru")
+                }
+            }
+        }
+    @get:Rule(order = 2) val compose = createAndroidComposeRule<MainActivity>()
 
     private fun text(id: Int) = compose.activity.getString(id)
 

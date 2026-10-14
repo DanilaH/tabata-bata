@@ -64,15 +64,19 @@ class Ads(private val activity: Activity) {
                 .apply()
     }
 
-    fun maybeShow(): Boolean {
+    fun maybeShow(result: Status): Boolean {
         val now = System.currentTimeMillis()
         if (
             !ready ||
                 dead ||
                 activity.isFinishing ||
                 activity.isDestroyed ||
-                prefs.getInt("completed", 0) <= 1 ||
-                now - prefs.getLong("last-shown", 0) < 86400000
+                !AdPolicy.mayShow(
+                    result,
+                    prefs.getInt("completed", 0),
+                    prefs.getLong("last-shown", 0),
+                    now,
+                )
         )
             return false
         val loaded = ad ?: return false

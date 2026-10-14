@@ -6,11 +6,11 @@ import android.content.pm.PackageManager
 import android.os.*
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.*
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -20,7 +20,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -45,7 +44,11 @@ private val Palette =
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
+        if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
         setContent { MaterialTheme(colorScheme = Palette) { App() } }
     }
 }
@@ -119,8 +122,9 @@ private fun App() {
                 Workout(
                     snapshot!!,
                     onClose = {
+                        val result = snapshot?.status ?: Status.STOPPED
                         TimerService.clearResult()
-                        ads.maybeShow()
+                        ads.maybeShow(result)
                     },
                     onRepeat = {
                         val p = snapshot!!.plan
@@ -420,6 +424,7 @@ private fun Editor(
     onStart: (Plan) -> Unit,
 ) {
     BackHandler(enabled = onCancel != null) { onCancel?.invoke() }
+    var preview by rememberSaveable(preset?.id) { mutableStateOf(false) }
     val p = preset?.plan ?: initialPlan ?: Plan()
     var name by rememberSaveable(preset?.id) { mutableStateOf(preset?.name ?: "") }
     var prepare by rememberSaveable(preset?.id) { mutableStateOf(p.prepare.toString()) }
@@ -485,23 +490,26 @@ private fun Editor(
         if (plan == null)
             Text(stringResource(R.string.invalid), color = MaterialTheme.colorScheme.error)
         else {
-            Card(Modifier.fillMaxWidth()) {
+            Card(onClick = { preview = !preview }, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(stringResource(R.string.total))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.total), modifier = Modifier.weight(1f))
+                        Text(
+                            formatTime(plan.durationMs()),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = Lime,
+                        )
+                    }
                     Text(
-                        formatTime(plan.durationMs()),
-                        style = MaterialTheme.typography.headlineMedium,
-                        color = Lime,
-                    )
-                    Text(
-                        stringResource(R.string.plan_preview),
+                        stringResource(R.string.plan_preview) + if (preview) " ▴" else " ▾",
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    Text(
-                        plan.stages().take(8).joinToString(" → ") {
-                            "${context.getString(stageString(it.stage))} ${it.duration/1000}"
-                        } + if (plan.stages().size > 8) " …" else ""
-                    )
+                    if (preview)
+                        Text(
+                            plan.stages().take(8).joinToString(" → ") {
+                                "${context.getString(stageString(it.stage))} ${it.duration/1000}"
+                            } + if (plan.stages().size > 8) " …" else ""
+                        )
                 }
             }
         }
@@ -576,9 +584,9 @@ private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
             else -> Color(0xFFF4CA7B)
         }
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Spacer(Modifier.height(8.dp))
         Text(
@@ -627,9 +635,8 @@ private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
                     color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = MaterialTheme.shapes.large,
                     modifier =
-                        Modifier.fillMaxWidth().pointerInput(Unit) {
-                            detectTapGestures(onLongPress = { locked = false })
-                        },
+                        Modifier.fillMaxWidth()
+                            .combinedClickable(onClick = {}, onLongClick = { locked = false }),
                 ) {
                     Text(stringResource(R.string.unlock), Modifier.padding(24.dp))
                 }

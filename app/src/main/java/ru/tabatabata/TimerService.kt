@@ -309,7 +309,7 @@ class TimerService : Service() {
             )
         val running = s?.status == Status.RUNNING
         return Notification.Builder(this, "workout")
-            .setSmallIcon(R.drawable.ic_timer)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.app_name))
             .setContentText(
                 "${getString(stageString(s?.interval?.stage))} · ${formatTime(s?.remaining ?: 0)}"
