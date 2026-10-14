@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import java.io.File
+import kotlinx.coroutines.flow.first
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.ExternalResource
@@ -72,5 +73,37 @@ class WorkoutSmokeTest {
         capture("stopped")
         compose.onNodeWithText(text(R.string.home)).performClick()
         compose.onNodeWithText(text(R.string.app_name)).assertExists()
+    }
+
+    @Test
+    fun editingPresetSurvivesActivityRecreation() {
+        val store = Store(InstrumentationRegistry.getInstrumentation().targetContext)
+        val before = kotlinx.coroutines.runBlocking { store.presets.first() }
+        try {
+            val preset = Preset(name = "Rotation test", plan = Plan())
+            kotlinx.coroutines.runBlocking { store.savePresets(listOf(preset)) }
+            compose.waitUntil(10000) {
+                compose.onAllNodesWithText(preset.name).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("•••").performClick()
+            compose.onNodeWithText(text(R.string.edit)).performClick()
+            compose
+                .onAllNodes(hasSetTextAction())
+                .onFirst()
+                .performTextReplacement("Rotation edited")
+            compose.activityRule.scenario.recreate()
+            compose.waitForIdle()
+            compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+            compose.waitUntil(10000) {
+                kotlinx.coroutines.runBlocking {
+                    store.presets.first().singleOrNull()?.name == "Rotation edited"
+                }
+            }
+            val saved = kotlinx.coroutines.runBlocking { store.presets.first() }
+            org.junit.Assert.assertEquals(1, saved.size)
+            org.junit.Assert.assertEquals(preset.id, saved.single().id)
+        } finally {
+            kotlinx.coroutines.runBlocking { store.savePresets(before) }
+        }
     }
 }

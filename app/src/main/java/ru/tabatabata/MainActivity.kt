@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
@@ -72,7 +73,32 @@ private fun App() {
         if (snapshot?.status == Status.COMPLETED) ads.completed(snapshot!!.sessionId)
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    var editor by remember { mutableStateOf<Preset?>(null) }
+    val editorSaver = remember {
+        Saver<Preset?, String>(
+            save = { preset ->
+                preset?.let {
+                    org.json
+                        .JSONObject()
+                        .put("id", it.id)
+                        .put("name", it.name)
+                        .put("plan", it.plan.json())
+                        .toString()
+                }
+            },
+            restore = { raw ->
+                runCatching {
+                        val obj = org.json.JSONObject(raw)
+                        Preset(
+                            obj.getString("id"),
+                            obj.getString("name"),
+                            obj.getJSONObject("plan").plan(),
+                        )
+                    }
+                    .getOrNull()
+            },
+        )
+    }
+    var editor by rememberSaveable(stateSaver = editorSaver) { mutableStateOf<Preset?>(null) }
     var editorOpen by rememberSaveable { mutableStateOf(false) }
     var recovery by remember {
         mutableStateOf(
@@ -119,12 +145,13 @@ private fun App() {
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
             if (snapshot != null)
                 Workout(
                     snapshot!!,
                     onClose = {
                         val result = snapshot?.status ?: Status.STOPPED
+                        tab = 0
                         TimerService.clearResult()
                         ads.maybeShow(result)
                     },
