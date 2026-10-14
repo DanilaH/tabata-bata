@@ -167,7 +167,8 @@ class ResilienceTest {
         val original = shell("settings get system font_scale").trim()
         try {
             shell("settings put system font_scale 1.5")
-            compose.activityRule.scenario.recreate()
+            compose.waitUntil(10000) { compose.activity.resources.configuration.fontScale >= 1.49f }
+            compose.waitForIdle()
             compose.onNodeWithText(text(R.string.quick)).performClick()
             compose.waitForIdle()
             compose.runOnUiThread {
@@ -177,6 +178,10 @@ class ResilienceTest {
                 compose.activity.resources.configuration.orientation ==
                     android.content.res.Configuration.ORIENTATION_LANDSCAPE
             }
+            compose.waitUntil(10000) {
+                compose.onAllNodesWithText(text(R.string.start)).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onRoot().printToLog("LargeFontLandscape")
             compose
                 .onNodeWithText(text(R.string.start))
                 .performScrollTo()
