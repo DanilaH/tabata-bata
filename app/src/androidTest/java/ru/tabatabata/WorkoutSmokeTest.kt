@@ -51,6 +51,38 @@ class WorkoutSmokeTest {
     }
 
     @Test
+    fun themesPersistAndRender() {
+        val store = Store(InstrumentationRegistry.getInstrumentation().targetContext)
+        val original = kotlinx.coroutines.runBlocking { store.options.first() }
+        try {
+            for (theme in listOf("light", "dark")) {
+                kotlinx.coroutines.runBlocking { store.saveOptions(original.copy(theme = theme)) }
+                compose.activityRule.scenario.recreate()
+                compose.waitForIdle()
+                capture("home-$theme")
+                compose.onNodeWithText(text(R.string.settings)).performClick()
+                compose
+                    .onNodeWithText(
+                        text(if (theme == "light") R.string.theme_light else R.string.theme_dark)
+                    )
+                    .assertExists()
+                capture("settings-$theme")
+                compose.activityRule.scenario.recreate()
+                org.junit.Assert.assertEquals(
+                    theme,
+                    kotlinx.coroutines.runBlocking { store.options.first().theme },
+                )
+                compose.onNodeWithText(text(R.string.app_name)).assertExists()
+                // Settings retains its navigation state across recreation.
+                compose.onNodeWithText("← " + text(R.string.saved)).performClick()
+                compose.waitForIdle()
+            }
+        } finally {
+            kotlinx.coroutines.runBlocking { store.saveOptions(original) }
+        }
+    }
+
+    @Test
     fun startPauseResumeAndStop() {
         capture("home")
         compose.onNodeWithText(text(R.string.quick)).performClick()

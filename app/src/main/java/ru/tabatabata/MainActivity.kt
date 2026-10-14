@@ -30,18 +30,68 @@ import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.*
 
-private val Ink = Color(0xFF101B19)
-private val Lime = Color(0xFFBDF56D)
-private val Palette =
-    darkColorScheme(
-        primary = Lime,
-        onPrimary = Ink,
-        background = Ink,
-        surface = Color(0xFF1C2A26),
-        surfaceVariant = Color(0xFF283932),
-        onSurface = Color(0xFFE9F1E8),
-        onBackground = Color(0xFFE9F1E8),
+private val LightPalette =
+    lightColorScheme(
+        primary = Color(0xFF244D3B),
+        onPrimary = Color(0xFFFAFBF6),
+        background = Color(0xFFF0F0E9),
+        surface = Color(0xFFF0F0E9),
+        surfaceVariant = Color(0xFFE3E6DD),
+        onSurface = Color(0xFF202624),
+        onBackground = Color(0xFF202624),
+        onSurfaceVariant = Color(0xFF58625B),
+        outline = Color(0xFF747C73),
+        secondary = Color(0xFF58625B),
     )
+private val DarkPalette =
+    darkColorScheme(
+        primary = Color(0xFFA8CCB2),
+        onPrimary = Color(0xFF163526),
+        background = Color(0xFF1B201D),
+        surface = Color(0xFF1B201D),
+        surfaceVariant = Color(0xFF303932),
+        onSurface = Color(0xFFE3E7DF),
+        onBackground = Color(0xFFE3E7DF),
+        onSurfaceVariant = Color(0xFFB5BFB4),
+        outline = Color(0xFF849083),
+        secondary = Color(0xFFB5BFB4),
+    )
+
+@Composable
+private fun TabataTheme(content: @Composable () -> Unit) {
+    val activity = LocalContext.current as ComponentActivity
+    val store = remember { Store(activity) }
+    val options by store.options.collectAsStateWithLifecycle(Options())
+    val dark =
+        when (options.theme) {
+            "light" -> false
+            "dark" -> true
+            else -> isSystemInDarkTheme()
+        }
+    SideEffect {
+        val style =
+            if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            else
+                SystemBarStyle.light(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT,
+                )
+        activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        if (Build.VERSION.SDK_INT >= 29) activity.window.isNavigationBarContrastEnforced = false
+    }
+    MaterialTheme(
+        colorScheme = if (dark) DarkPalette else LightPalette,
+        shapes =
+            Shapes(
+                androidx.compose.foundation.shape.RoundedCornerShape(4.dp),
+                androidx.compose.foundation.shape.RoundedCornerShape(6.dp),
+                androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+                androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+            ),
+        content = content,
+    )
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,7 +102,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
-        setContent { MaterialTheme(colorScheme = Palette) { App() } }
+        setContent { TabataTheme { App() } }
     }
 }
 
@@ -73,6 +123,7 @@ private fun App() {
         if (snapshot?.status == Status.COMPLETED) ads.completed(snapshot!!.sessionId)
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    BackHandler(enabled = tab == 2 && snapshot == null) { tab = 0 }
     val editorSaver = remember {
         Saver<Preset?, String>(
             save = { preset ->
@@ -135,7 +186,7 @@ private fun App() {
         onDispose { activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
     }
     Scaffold(
-        containerColor = Ink,
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (
                 (snapshot == null && !editorOpen && tab == 0) ||
@@ -184,28 +235,32 @@ private fun App() {
             else
                 Column(Modifier.fillMaxSize()) {
                     Row(
-                        Modifier.fillMaxWidth().padding(20.dp),
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             stringResource(R.string.app_name),
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f),
                         )
-                        Text("0.1", color = Lime)
-                    }
-                    PrimaryTabRow(tab) {
-                        listOf(R.string.saved, R.string.quick, R.string.settings).forEachIndexed {
-                            i,
-                            r ->
-                            Tab(
-                                selected = tab == i,
-                                onClick = { tab = i },
-                                text = { Text(stringResource(r)) },
+                        TextButton(onClick = { tab = if (tab == 2) 0 else 2 }) {
+                            Text(
+                                if (tab == 2) "← " + stringResource(R.string.saved)
+                                else stringResource(R.string.settings)
                             )
                         }
                     }
+                    if (tab != 2)
+                        PrimaryTabRow(tab) {
+                            listOf(R.string.saved, R.string.quick).forEachIndexed { i, r ->
+                                Tab(
+                                    selected = tab == i,
+                                    onClick = { tab = i },
+                                    text = { Text(stringResource(r)) },
+                                )
+                            }
+                        }
                     when (tab) {
                         0 ->
                             Saved(
@@ -369,74 +424,130 @@ private fun Saved(
     onDelete: (Preset) -> Unit,
     onMove: (Int, Int) -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
-        Button(
-            onClick = onNew,
-            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp).heightIn(min = 52.dp),
-        ) {
-            Text("+ " + stringResource(R.string.new_timer))
-        }
-        if (presets.isEmpty())
-            Column(
-                Modifier.fillMaxWidth().padding(top = 48.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+    val defaultName = stringResource(R.string.classic_tabata)
+    val ready = Preset(id = "builtin-classic", name = defaultName, plan = Plan())
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(top = 20.dp, bottom = 20.dp),
+    ) {
+        item {
+            Text(
+                stringResource(R.string.ready_mode),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                defaultName,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 6.dp, bottom = 16.dp),
+            )
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface)
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    stringResource(R.string.empty_title),
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = Lime,
+                    formatTime(ready.plan.durationMs()),
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
                 )
                 Text(
-                    stringResource(R.string.empty_body),
-                    style = MaterialTheme.typography.bodyLarge,
+                    stringResource(R.string.total),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 20.dp),
-        ) {
-            itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
-                var menu by remember { mutableStateOf(false) }
-                Card(Modifier.fillMaxWidth()) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+            HorizontalDivider()
+            Row(Modifier.fillMaxWidth().padding(vertical = 18.dp)) {
+                listOf(R.string.work to "20", R.string.rest to "10", R.string.reps to "8")
+                    .forEach { (label, value) ->
+                        Column(Modifier.weight(1f)) {
                             Text(
-                                p.name,
-                                style = MaterialTheme.typography.titleLarge,
-                                modifier = Modifier.weight(1f),
+                                value +
+                                    if (label == R.string.reps) ""
+                                    else " " + stringResource(R.string.seconds_short),
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Medium,
                             )
-                            Box {
-                                TextButton(onClick = { menu = true }) { Text("•••") }
-                                DropdownMenu(menu, { menu = false }) {
-                                    listOf(
-                                            R.string.edit to { onEdit(p) },
-                                            R.string.copy to { onCopy(p) },
-                                            R.string.up to { onMove(index, index - 1) },
-                                            R.string.down to { onMove(index, index + 1) },
-                                            R.string.delete to { onDelete(p) },
+                            Text(
+                                stringResource(label),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+            }
+            Button(
+                onClick = { onStart(ready) },
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            ) {
+                Text(stringResource(R.string.start_workout))
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(top = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(R.string.saved),
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onNew) { Text("+ " + stringResource(R.string.new_timer)) }
+            }
+            if (presets.isEmpty())
+                Text(
+                    stringResource(R.string.no_saved),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+        }
+        itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
+            var menu by remember { mutableStateOf(false) }
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            p.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Box {
+                            TextButton(onClick = { menu = true }) { Text("•••") }
+                            DropdownMenu(menu, { menu = false }) {
+                                listOf(
+                                        R.string.edit to { onEdit(p) },
+                                        R.string.copy to { onCopy(p) },
+                                        R.string.up to { onMove(index, index - 1) },
+                                        R.string.down to { onMove(index, index + 1) },
+                                        R.string.delete to { onDelete(p) },
+                                    )
+                                    .forEach { (r, f) ->
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(r)) },
+                                            onClick = {
+                                                menu = false
+                                                f()
+                                            },
                                         )
-                                        .forEach { (r, f) ->
-                                            DropdownMenuItem(
-                                                text = { Text(stringResource(r)) },
-                                                onClick = {
-                                                    menu = false
-                                                    f()
-                                                },
-                                            )
-                                        }
-                                }
+                                    }
                             }
                         }
-                        Text(
-                            "${p.plan.work}/${p.plan.rest} · ${p.plan.reps} × ${p.plan.sets} · ${formatTime(p.plan.durationMs())}",
-                            color = Lime,
-                        )
-                        Button(onClick = { onStart(p) }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.start))
-                        }
+                    }
+                    Text(
+                        "${p.plan.work}/${p.plan.rest} · ${p.plan.reps} × ${p.plan.sets} · ${formatTime(p.plan.durationMs())}",
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Button(
+                        shape = MaterialTheme.shapes.small,
+                        onClick = { onStart(p) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.start))
                     }
                 }
             }
@@ -495,9 +606,9 @@ private fun Editor(
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            stringResource(R.string.seconds),
+            stringResource(R.string.intervals),
             style = MaterialTheme.typography.labelLarge,
-            color = Lime,
+            color = MaterialTheme.colorScheme.primary,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             NumberField(R.string.prepare, prepare, Modifier.weight(1f)) { prepare = it }
@@ -526,7 +637,7 @@ private fun Editor(
                         Text(
                             formatTime(plan.durationMs()),
                             style = MaterialTheme.typography.headlineMedium,
-                            color = Lime,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
                     Text(
@@ -543,6 +654,7 @@ private fun Editor(
             }
         }
         Button(
+            shape = MaterialTheme.shapes.small,
             enabled = plan != null,
             onClick = { plan?.let(onStart) },
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
@@ -550,6 +662,7 @@ private fun Editor(
             Text(stringResource(R.string.start))
         }
         OutlinedButton(
+            shape = MaterialTheme.shapes.small,
             enabled = plan != null,
             onClick = {
                 plan?.let {
@@ -579,7 +692,23 @@ private fun NumberField(
     OutlinedTextField(
         value,
         { if (it.length <= 4 && it.all(Char::isDigit)) onChange(it) },
-        label = { Text(stringResource(label)) },
+        label = {
+            Text(
+                stringResource(label) +
+                    if (
+                        label in
+                            listOf(
+                                R.string.prepare,
+                                R.string.work,
+                                R.string.rest,
+                                R.string.between,
+                                R.string.cool,
+                            )
+                    )
+                        " · " + stringResource(R.string.seconds_short)
+                    else ""
+            )
+        },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
         modifier = modifier.fillMaxWidth(),
@@ -607,10 +736,10 @@ private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
     }
     val color =
         when (s.interval?.stage) {
-            Stage.WORK -> Lime
+            Stage.WORK -> MaterialTheme.colorScheme.primary
             Stage.REST,
-            Stage.BETWEEN -> Color(0xFF83D9EB)
-            else -> Color(0xFFF4CA7B)
+            Stage.BETWEEN -> MaterialTheme.colorScheme.secondary
+            else -> MaterialTheme.colorScheme.onSurface
         }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
@@ -637,6 +766,7 @@ private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 color = color,
                 maxLines = 1,
+                style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
             )
         }
         if (active) {
@@ -674,6 +804,7 @@ private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
                 }
             } else {
                 Button(
+                    shape = MaterialTheme.shapes.small,
                     onClick = {
                         TimerService.command(
                             context,
@@ -690,12 +821,14 @@ private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(
+                        shape = MaterialTheme.shapes.small,
                         onClick = { TimerService.command(context, "previous") },
                         modifier = Modifier.weight(1f),
                     ) {
                         Text(stringResource(R.string.previous))
                     }
                     OutlinedButton(
+                        shape = MaterialTheme.shapes.small,
                         onClick = { TimerService.command(context, "next") },
                         modifier = Modifier.weight(1f),
                     ) {
@@ -804,6 +937,25 @@ private fun Settings(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Text(stringResource(R.string.appearance), style = MaterialTheme.typography.titleMedium)
+        listOf(
+                "system" to R.string.theme_system,
+                "light" to R.string.theme_light,
+                "dark" to R.string.theme_dark,
+            )
+            .forEach { (value, label) ->
+                Row(
+                    Modifier.fillMaxWidth().clickable { onChange(o.copy(theme = value)) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = o.theme == value,
+                        onClick = { onChange(o.copy(theme = value)) },
+                    )
+                    Text(stringResource(label), modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+        HorizontalDivider()
         Text(stringResource(R.string.volume), style = MaterialTheme.typography.titleLarge)
         Slider(o.volume, onValueChange = { onChange(o.copy(volume = it)) })
         OutlinedButton(onClick = { cues.play(Stage.WORK, o) }) {
@@ -818,12 +970,14 @@ private fun Settings(
         Text(stringResource(R.string.focus_hint), style = MaterialTheme.typography.bodySmall)
         HorizontalDivider()
         OutlinedButton(
+            shape = MaterialTheme.shapes.small,
             onClick = { export.launch("tabata-bata-timers.json") },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.export))
         }
         OutlinedButton(
+            shape = MaterialTheme.shapes.small,
             onClick = {
                 importLauncher.launch(
                     arrayOf("application/json", "text/plain", "application/octet-stream")
@@ -837,6 +991,7 @@ private fun Settings(
         Text(stringResource(R.string.about_body))
         if (BuildConfig.SUPPORT_EMAIL.isNotBlank())
             OutlinedButton(
+                shape = MaterialTheme.shapes.small,
                 onClick = {
                     runCatching {
                             context.startActivity(

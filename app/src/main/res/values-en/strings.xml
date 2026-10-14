@@ -77,4 +77,14 @@
  <string name="limit">Up to 500 timers for file-size safety.</string>
  <string name="sound_hint">Short cues for short intervals. Check your system media volume.</string>
  <string name="focus_hint">Ducking depends on the music app. Disconnecting headphones pauses the timer.</string>
-<string name="support">Contact developer</string><string name="privacy">Privacy policy</string><string name="link_error">Could not open an app for this link</string></resources>
+<string name="support">Contact developer</string><string name="privacy">Privacy policy</string><string name="link_error">Could not open an app for this link</string><string name="classic_tabata">Classic Tabata</string>
+<string name="ready_mode">Ready to start</string>
+<string name="seconds_short">s</string>
+<string name="start_workout">Start workout</string>
+<string name="no_saved">No saved timers yet. Add your own or start the ready-made workout.</string>
+<string name="intervals">Intervals and repetitions</string>
+<string name="appearance">Appearance</string>
+<string name="theme_system">System default</string>
+<string name="theme_light">Light</string>
+<string name="theme_dark">Dark</string>
+</resources>

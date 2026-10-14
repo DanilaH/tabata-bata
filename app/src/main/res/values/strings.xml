@@ -77,4 +77,14 @@
  <string name="limit">Можно хранить до 500 режимов. Это защитное ограничение размера файла.</string>
  <string name="sound_hint">Для коротких интервалов — короткие сигналы. Проверь системную громкость мультимедиа.</string>
  <string name="focus_hint">Приглушение зависит от музыкального приложения. После отключения наушников таймер ставится на паузу.</string>
-<string name="support">Связаться с разработчиком</string><string name="privacy">Политика данных</string><string name="link_error">Не удалось открыть приложение для ссылки</string></resources>
+<string name="support">Связаться с разработчиком</string><string name="privacy">Политика данных</string><string name="link_error">Не удалось открыть приложение для ссылки</string><string name="classic_tabata">Классическая табата</string>
+<string name="ready_mode">Готовый режим</string>
+<string name="seconds_short">с</string>
+<string name="start_workout">Начать тренировку</string>
+<string name="no_saved">Сохранённых режимов пока нет. Добавьте свой или запустите готовый.</string>
+<string name="intervals">Интервалы и повторения</string>
+<string name="appearance">Оформление</string>
+<string name="theme_system">Как в системе</string>
+<string name="theme_light">Светлое</string>
+<string name="theme_dark">Тёмное</string>
+</resources>
