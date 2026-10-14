@@ -41,6 +41,12 @@ private val LightPalette =
         onBackground = Color(0xFF202624),
         onSurfaceVariant = Color(0xFF58625B),
         outline = Color(0xFF747C73),
+        outlineVariant = Color(0xFFC9CBC4),
+        surfaceContainer = Color(0xFFE8EBE2),
+        surfaceContainerLow = Color(0xFFECEEE6),
+        surfaceContainerHigh = Color(0xFFE3E6DD),
+        surfaceContainerHighest = Color(0xFFDEE2D8),
+        secondaryContainer = Color(0xFFE3E6DD),
         secondary = Color(0xFF58625B),
     )
 private val DarkPalette =
@@ -54,6 +60,12 @@ private val DarkPalette =
         onBackground = Color(0xFFE3E7DF),
         onSurfaceVariant = Color(0xFFB5BFB4),
         outline = Color(0xFF849083),
+        outlineVariant = Color(0xFF454F46),
+        surfaceContainer = Color(0xFF262D28),
+        surfaceContainerLow = Color(0xFF222824),
+        surfaceContainerHigh = Color(0xFF303932),
+        surfaceContainerHighest = Color(0xFF38423A),
+        secondaryContainer = Color(0xFF303932),
         secondary = Color(0xFFB5BFB4),
     )
 
@@ -835,7 +847,11 @@ private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
                         Text(stringResource(R.string.next))
                     }
                 }
-                OutlinedButton(onClick = { locked = true }, modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    shape = MaterialTheme.shapes.small,
+                    onClick = { locked = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
                     Text(stringResource(R.string.lock))
                 }
                 TextButton(onClick = { exit = true }) { Text(stringResource(R.string.stop)) }
@@ -845,7 +861,11 @@ private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
             Button(onClick = onRepeat, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.repeat))
             }
-            OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                shape = MaterialTheme.shapes.small,
+                onClick = onClose,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(stringResource(R.string.home))
             }
         }
@@ -958,7 +978,7 @@ private fun Settings(
         HorizontalDivider()
         Text(stringResource(R.string.volume), style = MaterialTheme.typography.titleLarge)
         Slider(o.volume, onValueChange = { onChange(o.copy(volume = it)) })
-        OutlinedButton(onClick = { cues.play(Stage.WORK, o) }) {
+        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = { cues.play(Stage.WORK, o) }) {
             Text(stringResource(R.string.test_sound))
         }
         Text(stringResource(R.string.sound_hint), style = MaterialTheme.typography.bodySmall)
