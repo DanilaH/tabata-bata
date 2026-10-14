@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.rule.GrantPermissionRule
 import java.io.File
 import org.junit.Rule
@@ -20,7 +21,13 @@ class WorkoutSmokeTest {
 
     private fun capture(name: String) {
         val image = compose.onRoot().captureToImage().asAndroidBitmap()
-        val dir = File(compose.activity.filesDir, "screenshots").apply { mkdirs() }
+        val output =
+            requireNotNull(
+                InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")
+            ) {
+                "Gradle additional test output directory is required"
+            }
+        val dir = File(output, "screenshots").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use {
             image.compress(Bitmap.CompressFormat.PNG, 100, it)
         }

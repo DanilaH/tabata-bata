@@ -30,6 +30,18 @@ android {
             "\"${providers.gradleProperty("interstitialId").orElse("").get()}\"",
         )
     }
+    val keyPath = providers.environmentVariable("TABATA_KEYSTORE_PATH").orNull
+    if (!keyPath.isNullOrBlank()) {
+        val production =
+            signingConfigs.create("production") {
+                storeFile = file(keyPath)
+                storePassword = providers.environmentVariable("TABATA_STORE_PASSWORD").get()
+                keyAlias =
+                    providers.environmentVariable("TABATA_KEY_ALIAS").orElse("tabata-bata").get()
+                keyPassword = providers.environmentVariable("TABATA_KEY_PASSWORD").get()
+            }
+        buildTypes.getByName("release").signingConfig = production
+    }
     buildFeatures {
         compose = true
         buildConfig = true
