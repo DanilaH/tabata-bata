@@ -266,6 +266,7 @@ private fun App() {
                                 snackbar.showSnackbar(context.getString(R.string.limit))
                             else {
                                 store.updatePreset(p)
+                                EditorDrafts(context).clear(editor?.id ?: "new")
                                 editorOpen = false
                                 snackbar.showSnackbar(context.getString(R.string.saved_ok))
                             }
@@ -365,6 +366,7 @@ private fun App() {
                                         scope.launch {
                                             if (presets.size < 500) {
                                                 store.updatePreset(p)
+                                                EditorDrafts(context).clear("quick")
                                                 tab = 0
                                             } else
                                                 snackbar.showSnackbar(
@@ -753,6 +755,7 @@ private fun Settings(
         Text(stringResource(R.string.countdown_hint), style = MaterialTheme.typography.bodySmall)
         HorizontalDivider()
         Text(stringResource(R.string.behavior), style = MaterialTheme.typography.titleMedium)
+        Toggle(R.string.keep_screen, o.keepScreen) { onChange(o.copy(keepScreen = it)) }
         Toggle(R.string.duck_music, o.duckMusic) { onChange(o.copy(duckMusic = it)) }
         Text(stringResource(R.string.focus_hint), style = MaterialTheme.typography.bodySmall)
         HorizontalDivider()
@@ -776,7 +779,6 @@ private fun Settings(
             }
         HorizontalDivider()
         Toggle(R.string.show_stages, o.showStages) { onChange(o.copy(showStages = it)) }
-        Toggle(R.string.keep_screen, o.keepScreen) { onChange(o.copy(keepScreen = it)) }
         HorizontalDivider()
         Text(stringResource(R.string.data_section), style = MaterialTheme.typography.titleMedium)
         OutlinedButton(

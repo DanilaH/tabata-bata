@@ -130,7 +130,6 @@ internal fun Editor(
     var preview by rememberSaveable { mutableStateOf(false) }
     fun save() {
         plan?.let {
-            drafts.clear(key)
             onSave(
                 Preset(
                     preset?.id ?: java.util.UUID.randomUUID().toString(),
@@ -183,7 +182,7 @@ internal fun Editor(
                     TextButton(onClick = { advanced = !advanced }) {
                         Text(stringResource(R.string.advanced) + if (advanced) " −" else " +")
                     }
-                if (i < 4 || advanced) {
+                if (i < 4 || advanced || valid.drop(4).any { !it }) {
                     val title = stringResource(labels[i])
                     Column {
                         Row(

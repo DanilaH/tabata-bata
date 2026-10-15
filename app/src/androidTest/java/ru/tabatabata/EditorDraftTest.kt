@@ -59,4 +59,53 @@ class EditorDraftTest {
             EditorDrafts(context).clear(p.id)
         }
     }
+
+    @Test
+    fun startingEditedModeReturnsToItsDraftAndCanSave() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+            .uiAutomation
+            .executeShellCommand(
+                "pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS"
+            )
+            .close()
+        val store = Store(context)
+        val before = runBlocking { store.presets.first() }
+        val lastPlan = runBlocking { store.lastPlan.first() }
+        val p = Preset(name = "Launch draft", plan = Plan())
+        try {
+            runBlocking { store.savePresets(listOf(p)) }
+            compose.waitUntil(10000) {
+                compose.onAllNodesWithText(p.name).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText(p.name).performClick()
+            compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:45")
+            compose.onNodeWithText(text(R.string.start)).performClick()
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
+            assertEquals(p, runBlocking { store.presets.first().single() })
+            compose.runOnUiThread { TimerService.command(context, "stop") }
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.STOPPED }
+            compose.onNodeWithText(text(R.string.return_draft)).performClick()
+            compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:45")
+            compose.onNodeWithText(text(R.string.save)).performClick()
+            compose.waitUntil(10000) {
+                runBlocking { store.presets.first().single().plan.work == 45 }
+            }
+            assertFalse(EditorDrafts(context).has(p.id))
+        } finally {
+            if (
+                TimerService.state.value?.status in
+                    listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
+            ) {
+                compose.runOnUiThread { TimerService.command(context, "stop") }
+                compose.waitUntil(10000) { TimerService.state.value?.status == Status.STOPPED }
+            }
+            TimerService.clearResult()
+            runBlocking {
+                store.savePresets(before)
+                store.saveLastPlan(lastPlan)
+            }
+            EditorDrafts(context).clear(p.id)
+        }
+    }
 }

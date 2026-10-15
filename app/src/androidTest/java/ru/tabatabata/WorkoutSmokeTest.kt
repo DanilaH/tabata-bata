@@ -61,6 +61,7 @@ class WorkoutSmokeTest {
                 compose.waitForIdle()
                 capture("home-$theme")
                 compose.onNodeWithText(text(R.string.settings)).performClick()
+                capture("settings-signals-$theme")
                 compose
                     .onNodeWithText(
                         text(if (theme == "light") R.string.theme_light else R.string.theme_dark)
@@ -194,6 +195,30 @@ class WorkoutSmokeTest {
             org.junit.Assert.assertEquals(preset.id, saved.single().id)
         } finally {
             kotlinx.coroutines.runBlocking { store.savePresets(before) }
+        }
+    }
+
+    @Test
+    fun completedResultShowsActualRoundsAndTime() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        try {
+            compose.runOnUiThread {
+                TimerService.command(
+                    context,
+                    "start",
+                    Plan(prepare = 0, work = 1, rest = 0, reps = 1),
+                )
+            }
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
+            compose
+                .onNodeWithText(compose.activity.getString(R.string.result_rounds, 1, 1))
+                .assertExists()
+            compose
+                .onNodeWithText(compose.activity.getString(R.string.result_time, "0:01"))
+                .assertExists()
+            capture("completed")
+        } finally {
+            TimerService.clearResult()
         }
     }
 }
