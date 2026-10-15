@@ -16,8 +16,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
 
-internal fun workoutClock(ms: Long): String =
-    if (ms < 60000) ((ms.coerceAtLeast(0) + 999) / 1000).toString() else formatTime(ms)
+internal fun workoutClock(ms: Long): String {
+    val seconds = (ms.coerceAtLeast(0) + 999) / 1000
+    return if (seconds < 60) seconds.toString() else formatTime(ms)
+}
 
 @Composable
 internal fun Workout(s: Snapshot, options: Options, onClose: () -> Unit, onRepeat: () -> Unit) {

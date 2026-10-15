@@ -100,10 +100,12 @@ class WorkoutSmokeTest {
                     )
                 }
                 compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
+                compose.waitForIdle()
+                capture("work-$theme")
                 compose.onNodeWithText(text(R.string.pause)).performClick()
                 compose.waitUntil(5000) { TimerService.state.value?.status == Status.PAUSED }
                 compose.waitForIdle()
-                capture("work-$theme")
+                capture("paused-$theme")
                 compose.onNodeWithText(text(R.string.lock_short)).performClick()
                 compose.onNodeWithText(text(R.string.resume)).assertIsNotEnabled()
                 compose.onNodeWithContentDescription(text(R.string.next)).assertIsNotEnabled()
@@ -139,6 +141,10 @@ class WorkoutSmokeTest {
         compose.onNodeWithText(text(R.string.quick)).performClick()
         compose.waitForIdle()
         capture("editor")
+        compose.onNodeWithContentDescription("+ " + text(R.string.work)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("21")
+        compose.onNodeWithContentDescription("− " + text(R.string.work)).performClick()
+        compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("20")
         compose.onNodeWithText(text(R.string.start)).performClick()
         compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
         capture("workout")
