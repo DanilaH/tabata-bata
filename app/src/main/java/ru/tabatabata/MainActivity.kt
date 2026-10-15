@@ -460,6 +460,17 @@ private fun Saved(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(top = 20.dp, bottom = 20.dp),
     ) {
+        if (presets.isNotEmpty())
+            item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.saved),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onNew) { Text("+ " + stringResource(R.string.new_timer)) }
+                }
+            }
         if (presets.isEmpty())
             item {
                 Text(
@@ -576,6 +587,11 @@ private fun Saved(
                             else "",
                         color = MaterialTheme.colorScheme.primary,
                     )
+                    Text(
+                        formatTime(p.plan.durationMs()),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Button(
                         shape = MaterialTheme.shapes.small,
                         onClick = { onStart(p) },
@@ -588,14 +604,6 @@ private fun Saved(
         }
         if (presets.isNotEmpty())
             item {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.saved),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = onNew) { Text("+ " + stringResource(R.string.new_timer)) }
-                }
                 OutlinedButton(
                     onClick = { onStart(ready) },
                     shape = MaterialTheme.shapes.small,
