@@ -83,12 +83,63 @@ class WorkoutSmokeTest {
     }
 
     @Test
+    fun workoutThemesQueueAndTouchLock() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = Store(context)
+        val original = kotlinx.coroutines.runBlocking { store.options.first() }
+        try {
+            for (theme in listOf("light", "dark")) {
+                kotlinx.coroutines.runBlocking {
+                    store.saveOptions(original.copy(theme = theme, showStages = true))
+                }
+                compose.runOnUiThread {
+                    TimerService.command(
+                        context,
+                        "start",
+                        Plan(prepare = 0, work = 30, rest = 10, reps = 8),
+                    )
+                }
+                compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
+                compose.onNodeWithText(text(R.string.pause)).performClick()
+                compose.waitUntil(5000) { TimerService.state.value?.status == Status.PAUSED }
+                compose.waitForIdle()
+                capture("work-$theme")
+                compose.onNodeWithText(text(R.string.lock_short)).performClick()
+                compose.onNodeWithText(text(R.string.resume)).assertIsNotEnabled()
+                compose.onNodeWithContentDescription(text(R.string.next)).assertIsNotEnabled()
+                capture("locked-$theme")
+                compose.onNodeWithContentDescription(text(R.string.unlock)).performTouchInput {
+                    longClick()
+                }
+                compose.onNodeWithText(text(R.string.resume)).assertIsEnabled()
+                compose.onNodeWithContentDescription(text(R.string.next)).performClick()
+                compose.waitUntil(5000) { TimerService.state.value?.interval?.stage == Stage.REST }
+                capture("rest-$theme")
+                compose.runOnUiThread { TimerService.command(context, "stop") }
+                compose.waitUntil(5000) { TimerService.state.value?.status == Status.STOPPED }
+                TimerService.clearResult()
+                compose.waitForIdle()
+            }
+        } finally {
+            if (
+                TimerService.state.value?.status in
+                    listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
+            ) {
+                compose.runOnUiThread { TimerService.command(context, "stop") }
+                compose.waitUntil(5000) { TimerService.state.value?.status == Status.STOPPED }
+            }
+            TimerService.clearResult()
+            kotlinx.coroutines.runBlocking { store.saveOptions(original) }
+        }
+    }
+
+    @Test
     fun startPauseResumeAndStop() {
         capture("home")
         compose.onNodeWithText(text(R.string.quick)).performClick()
         compose.waitForIdle()
         capture("editor")
-        compose.onNodeWithText(text(R.string.start)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.start)).performClick()
         compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
         capture("workout")
         compose.onNodeWithText(text(R.string.pause)).performClick()
@@ -97,7 +148,7 @@ class WorkoutSmokeTest {
         capture("paused")
         compose.onNodeWithText(text(R.string.resume)).performClick()
         compose.waitUntil(5000) { TimerService.state.value?.status == Status.RUNNING }
-        compose.onNodeWithText(text(R.string.stop)).performScrollTo().performClick()
+        compose.onNodeWithText(text(R.string.stop)).performClick()
         compose.onNodeWithText(text(R.string.exit_title)).assertExists()
         compose.onAllNodesWithText(text(R.string.stop)).onLast().performClick()
         compose.waitUntil(5000) { TimerService.state.value?.status == Status.STOPPED }
@@ -125,7 +176,7 @@ class WorkoutSmokeTest {
                 .performTextReplacement("Rotation edited")
             compose.activityRule.scenario.recreate()
             compose.waitForIdle()
-            compose.onNodeWithText(text(R.string.save)).performScrollTo().performClick()
+            compose.onNodeWithText(text(R.string.save)).performClick()
             compose.waitUntil(10000) {
                 kotlinx.coroutines.runBlocking {
                     store.presets.first().singleOrNull()?.name == "Rotation edited"

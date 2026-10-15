@@ -154,7 +154,7 @@ class ResilienceTest {
             SystemClock.sleep(1200)
             assertEquals(4321L, frozen)
             assertEquals(frozen, TimerService.state.value!!.remaining)
-            compose.onNodeWithText(text(R.string.resume)).performScrollTo().performClick()
+            compose.onNodeWithText(text(R.string.resume)).performClick()
             await { TimerService.state.value?.status == Status.RUNNING }
         } finally {
             clean()
@@ -182,19 +182,13 @@ class ResilienceTest {
                 compose.onAllNodesWithText(text(R.string.start)).fetchSemanticsNodes().isNotEmpty()
             }
             compose.onRoot().printToLog("LargeFontLandscape")
-            compose
-                .onNodeWithText(text(R.string.start))
-                .performScrollTo()
-                .assertIsDisplayed()
-                .performClick()
+            compose.onNodeWithText(text(R.string.start)).assertIsDisplayed().performClick()
+
             await { TimerService.state.value?.status == Status.RUNNING }
-            compose
-                .onNodeWithText(text(R.string.pause))
-                .performScrollTo()
-                .assertIsDisplayed()
-                .performClick()
+            compose.onNodeWithText(text(R.string.pause)).assertIsDisplayed().performClick()
+
             await { TimerService.state.value?.status == Status.PAUSED }
-            compose.onNodeWithText(text(R.string.stop)).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.stop)).assertIsDisplayed()
         } finally {
             shell("settings put system font_scale ${original.toFloatOrNull() ?: 1f}")
             compose.runOnUiThread {

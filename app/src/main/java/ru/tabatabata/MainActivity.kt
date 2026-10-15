@@ -22,8 +22,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
@@ -212,6 +213,7 @@ private fun App() {
             if (snapshot != null)
                 Workout(
                     snapshot!!,
+                    options,
                     onClose = {
                         val result = snapshot?.status ?: Status.STOPPED
                         tab = 0
@@ -443,81 +445,83 @@ private fun Saved(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(top = 20.dp, bottom = 20.dp),
     ) {
-        item {
-            Text(
-                stringResource(R.string.ready_mode),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                defaultName,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 6.dp, bottom = 16.dp),
-            )
-            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface)
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        if (presets.isEmpty())
+            item {
                 Text(
-                    formatTime(ready.plan.durationMs()),
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
-                )
-                Text(
-                    stringResource(R.string.total),
+                    stringResource(R.string.ready_mode),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-            HorizontalDivider()
-            Row(Modifier.fillMaxWidth().padding(vertical = 18.dp)) {
-                listOf(R.string.work to "20", R.string.rest to "10", R.string.reps to "8")
-                    .forEach { (label, value) ->
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                value +
-                                    if (label == R.string.reps) ""
-                                    else " " + stringResource(R.string.seconds_short),
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Medium,
-                            )
-                            Text(
-                                stringResource(label),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                Text(
+                    defaultName,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 6.dp, bottom = 16.dp),
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface)
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        formatTime(ready.plan.durationMs()),
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f),
+                        style =
+                            MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
+                    )
+                    Text(
+                        stringResource(R.string.total),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth().padding(vertical = 18.dp)) {
+                    listOf(R.string.work to "20", R.string.rest to "10", R.string.reps to "8")
+                        .forEach { (label, value) ->
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    value +
+                                        if (label == R.string.reps) ""
+                                        else " " + stringResource(R.string.seconds_short),
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Medium,
+                                )
+                                Text(
+                                    stringResource(label),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
-                    }
+                }
+                Button(
+                    onClick = { onStart(ready) },
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                ) {
+                    Text(stringResource(R.string.start_workout))
+                }
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        stringResource(R.string.saved),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onNew) { Text("+ " + stringResource(R.string.new_timer)) }
+                }
+                if (presets.isEmpty())
+                    Text(
+                        stringResource(R.string.no_saved),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
             }
-            Button(
-                onClick = { onStart(ready) },
-                shape = MaterialTheme.shapes.small,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            ) {
-                Text(stringResource(R.string.start_workout))
-            }
-            Row(
-                Modifier.fillMaxWidth().padding(top = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(R.string.saved),
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.weight(1f),
-                )
-                TextButton(onClick = onNew) { Text("+ " + stringResource(R.string.new_timer)) }
-            }
-            if (presets.isEmpty())
-                Text(
-                    stringResource(R.string.no_saved),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
-        }
         itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
             var menu by remember { mutableStateOf(false) }
             Card(Modifier.fillMaxWidth()) {
@@ -551,7 +555,10 @@ private fun Saved(
                         }
                     }
                     Text(
-                        "${p.plan.work}/${p.plan.rest} · ${p.plan.reps} × ${p.plan.sets} · ${formatTime(p.plan.durationMs())}",
+                        "${p.plan.work} ${stringResource(R.string.seconds_short)} ${stringResource(R.string.work).lowercase()} · ${p.plan.rest} ${stringResource(R.string.seconds_short)} ${stringResource(R.string.rest).lowercase()} · ${p.plan.reps} ${stringResource(R.string.reps).lowercase()}" +
+                            if (p.plan.sets > 1)
+                                " · ${p.plan.sets} ${stringResource(R.string.sets).lowercase()}"
+                            else "",
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Button(
@@ -564,6 +571,24 @@ private fun Saved(
                 }
             }
         }
+        if (presets.isNotEmpty())
+            item {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        stringResource(R.string.saved),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(onClick = onNew) { Text("+ " + stringResource(R.string.new_timer)) }
+                }
+                OutlinedButton(
+                    onClick = { onStart(ready) },
+                    shape = MaterialTheme.shapes.small,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(defaultName + " · 20/10 × 8")
+                }
+            }
     }
 }
 
@@ -605,91 +630,102 @@ private fun Editor(
             }
             .getOrNull()
     val context = LocalContext.current
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        onCancel?.let { TextButton(onClick = it) { Text("← " + stringResource(R.string.saved)) } }
-        OutlinedTextField(
-            name,
-            { if (it.length <= 100) name = it },
-            label = { Text(stringResource(R.string.name)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            stringResource(R.string.intervals),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NumberField(R.string.prepare, prepare, Modifier.weight(1f)) { prepare = it }
-            NumberField(R.string.work, work, Modifier.weight(1f)) { work = it }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            NumberField(R.string.rest, rest, Modifier.weight(1f)) { rest = it }
-            NumberField(R.string.reps, reps, Modifier.weight(1f)) { reps = it }
-        }
-        TextButton(onClick = { advanced = !advanced }) {
-            Text(stringResource(R.string.advanced) + if (advanced) " −" else " +")
-        }
-        if (advanced) {
-            NumberField(R.string.sets, sets) { sets = it }
-            NumberField(R.string.between, between) { between = it }
-            NumberField(R.string.cool, cool) { cool = it }
-            Toggle(R.string.last_rest, last) { last = it }
-        }
-        if (plan == null)
-            Text(stringResource(R.string.invalid), color = MaterialTheme.colorScheme.error)
-        else {
-            Card(onClick = { preview = !preview }, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.total), modifier = Modifier.weight(1f))
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            onCancel?.let {
+                TextButton(onClick = it) { Text("← " + stringResource(R.string.saved)) }
+            }
+            OutlinedTextField(
+                name,
+                { if (it.length <= 100) name = it },
+                label = { Text(stringResource(R.string.name)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                stringResource(R.string.intervals),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            NumberField(R.string.prepare, prepare) { prepare = it }
+            NumberField(R.string.work, work) { work = it }
+            NumberField(R.string.rest, rest) { rest = it }
+            NumberField(R.string.reps, reps) { reps = it }
+            TextButton(onClick = { advanced = !advanced }) {
+                Text(stringResource(R.string.advanced) + if (advanced) " −" else " +")
+            }
+            if (advanced) {
+                NumberField(R.string.sets, sets) { sets = it }
+                NumberField(R.string.between, between) { between = it }
+                NumberField(R.string.cool, cool) { cool = it }
+                Toggle(R.string.last_rest, last) { last = it }
+            }
+            if (plan == null)
+                Text(stringResource(R.string.invalid), color = MaterialTheme.colorScheme.error)
+            else {
+                Card(onClick = { preview = !preview }, modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(R.string.total), modifier = Modifier.weight(1f))
+                            Text(
+                                formatTime(plan.durationMs()),
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
                         Text(
-                            formatTime(plan.durationMs()),
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            stringResource(R.string.plan_preview) + if (preview) " ▴" else " ▾",
+                            style = MaterialTheme.typography.labelLarge,
                         )
+                        if (preview)
+                            Text(
+                                plan.stages().take(8).joinToString(" → ") {
+                                    "${context.getString(stageString(it.stage))} ${it.duration/1000}"
+                                } + if (plan.stages().size > 8) " …" else ""
+                            )
                     }
-                    Text(
-                        stringResource(R.string.plan_preview) + if (preview) " ▴" else " ▾",
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                    if (preview)
-                        Text(
-                            plan.stages().take(8).joinToString(" → ") {
-                                "${context.getString(stageString(it.stage))} ${it.duration/1000}"
-                            } + if (plan.stages().size > 8) " …" else ""
-                        )
                 }
             }
         }
-        Button(
-            shape = MaterialTheme.shapes.small,
-            enabled = plan != null,
-            onClick = { plan?.let(onStart) },
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+        HorizontalDivider()
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text(stringResource(R.string.start))
-        }
-        OutlinedButton(
-            shape = MaterialTheme.shapes.small,
-            enabled = plan != null,
-            onClick = {
-                plan?.let {
-                    onSave(
-                        Preset(
-                            preset?.id ?: java.util.UUID.randomUUID().toString(),
-                            name.trim().ifEmpty { context.getString(R.string.default_name) },
-                            it,
+            Button(
+                shape = MaterialTheme.shapes.small,
+                enabled = plan != null,
+                onClick = { plan?.let(onStart) },
+                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+            ) {
+                Text(stringResource(R.string.start))
+            }
+            OutlinedButton(
+                shape = MaterialTheme.shapes.small,
+                enabled = plan != null,
+                onClick = {
+                    plan?.let {
+                        onSave(
+                            Preset(
+                                preset?.id ?: java.util.UUID.randomUUID().toString(),
+                                name.trim().ifEmpty { context.getString(R.string.default_name) },
+                                it,
+                            )
                         )
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.save))
+                    }
+                },
+                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+            ) {
+                Text(stringResource(R.string.save))
+            }
         }
     }
 }
@@ -701,30 +737,51 @@ private fun NumberField(
     modifier: Modifier = Modifier,
     onChange: (String) -> Unit,
 ) {
-    OutlinedTextField(
-        value,
-        { if (it.length <= 4 && it.all(Char::isDigit)) onChange(it) },
-        label = {
-            Text(
-                stringResource(label) +
-                    if (
-                        label in
-                            listOf(
-                                R.string.prepare,
-                                R.string.work,
-                                R.string.rest,
-                                R.string.between,
-                                R.string.cool,
-                            )
-                    )
-                        " · " + stringResource(R.string.seconds_short)
-                    else ""
-            )
-        },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = modifier.fillMaxWidth(),
-    )
+    val seconds =
+        label in
+            listOf(R.string.prepare, R.string.work, R.string.rest, R.string.between, R.string.cool)
+    val max =
+        when (label) {
+            R.string.reps -> 200
+            R.string.sets -> 20
+            else -> 3600
+        }
+    val min = if (label in listOf(R.string.work, R.string.reps, R.string.sets)) 1 else 0
+    val title = stringResource(label)
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            title + if (seconds) " · " + stringResource(R.string.seconds_short) else "",
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        IconButton(
+            onClick = {
+                onChange(((value.toIntOrNull() ?: min) - 1).coerceIn(min, max).toString())
+            },
+            modifier = Modifier.semantics { contentDescription = "− $title" },
+        ) {
+            Text("−")
+        }
+        OutlinedTextField(
+            value,
+            { if (it.length <= 4 && it.all(Char::isDigit)) onChange(it) },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.width(76.dp).semantics { contentDescription = title },
+            textStyle =
+                MaterialTheme.typography.bodyLarge.copy(
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                ),
+        )
+        IconButton(
+            onClick = {
+                onChange(((value.toIntOrNull() ?: min) + 1).coerceIn(min, max).toString())
+            },
+            modifier = Modifier.semantics { contentDescription = "+ $title" },
+        ) {
+            Text("+")
+        }
+    }
 }
 
 @Composable
@@ -733,162 +790,6 @@ private fun Toggle(label: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
         Text(stringResource(label), modifier = Modifier.weight(1f))
         Switch(checked, onChange)
     }
-}
-
-@Composable
-private fun Workout(s: Snapshot, onClose: () -> Unit, onRepeat: () -> Unit) {
-    val context = LocalContext.current
-    var locked by rememberSaveable { mutableStateOf(false) }
-    var exit by remember { mutableStateOf(false) }
-    val active = s.status in listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
-    BackHandler {
-        if (active) {
-            if (!locked) exit = true
-        } else onClose()
-    }
-    val color =
-        when (s.interval?.stage) {
-            Stage.WORK -> MaterialTheme.colorScheme.primary
-            Stage.REST,
-            Stage.BETWEEN -> MaterialTheme.colorScheme.secondary
-            else -> MaterialTheme.colorScheme.onSurface
-        }
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Spacer(Modifier.height(8.dp))
-        Text(
-            stringResource(
-                if (s.status == Status.COMPLETED) R.string.completed
-                else if (s.status == Status.STOPPED) R.string.stopped
-                else stageString(s.interval?.stage)
-            ),
-            style = MaterialTheme.typography.headlineMedium,
-            color = color,
-        )
-        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            val clock = formatTime(s.remaining)
-            val fit = maxWidth.value / (clock.length * 0.65f * LocalDensity.current.fontScale)
-            Text(
-                clock,
-                fontSize =
-                    minOf(if (maxWidth < 360.dp || s.remaining >= 3600000) 62f else 88f, fit).sp,
-                fontWeight = FontWeight.Bold,
-                color = color,
-                maxLines = 1,
-                style = androidx.compose.ui.text.TextStyle(fontFeatureSettings = "tnum"),
-            )
-        }
-        if (active) {
-            Text(
-                "${stringResource(R.string.reps)} ${s.interval?.rep ?: 0}/${s.plan.reps} · ${stringResource(R.string.sets)} ${s.interval?.set ?: 0}/${s.plan.sets}"
-            )
-            LinearProgressIndicator(
-                progress = { 1f - s.totalRemaining.toFloat() / s.plan.durationMs() },
-                modifier = Modifier.fillMaxWidth(),
-                color = color,
-            )
-            Text("${stringResource(R.string.remaining)} ${formatTime(s.totalRemaining)}")
-            s.next?.let {
-                Text(
-                    "${stringResource(R.string.next)}: ${stringResource(stageString(it.stage))} · ${formatTime(it.duration)}"
-                )
-            }
-            if (s.status != Status.RUNNING)
-                Text(
-                    stringResource(
-                        if (s.status == Status.INTERRUPTED) R.string.interrupted
-                        else R.string.paused
-                    ),
-                    color = color,
-                )
-            if (locked) {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.large,
-                    modifier =
-                        Modifier.fillMaxWidth()
-                            .combinedClickable(onClick = {}, onLongClick = { locked = false }),
-                ) {
-                    Text(stringResource(R.string.unlock), Modifier.padding(24.dp))
-                }
-            } else {
-                Button(
-                    shape = MaterialTheme.shapes.small,
-                    onClick = {
-                        TimerService.command(
-                            context,
-                            if (s.status == Status.RUNNING) "pause" else "resume",
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
-                ) {
-                    Text(
-                        stringResource(
-                            if (s.status == Status.RUNNING) R.string.pause else R.string.resume
-                        )
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        shape = MaterialTheme.shapes.small,
-                        onClick = { TimerService.command(context, "previous") },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(stringResource(R.string.previous))
-                    }
-                    OutlinedButton(
-                        shape = MaterialTheme.shapes.small,
-                        onClick = { TimerService.command(context, "next") },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(stringResource(R.string.next))
-                    }
-                }
-                OutlinedButton(
-                    shape = MaterialTheme.shapes.small,
-                    onClick = { locked = true },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.lock))
-                }
-                TextButton(onClick = { exit = true }) { Text(stringResource(R.string.stop)) }
-            }
-        } else {
-            Text(stringResource(R.string.done_body))
-            Button(onClick = onRepeat, modifier = Modifier.fillMaxWidth()) {
-                Text(stringResource(R.string.repeat))
-            }
-            OutlinedButton(
-                shape = MaterialTheme.shapes.small,
-                onClick = onClose,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.home))
-            }
-        }
-    }
-    if (exit)
-        AlertDialog(
-            onDismissRequest = { exit = false },
-            title = { Text(stringResource(R.string.exit_title)) },
-            text = { Text(stringResource(R.string.exit_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        exit = false
-                        TimerService.command(context, "stop")
-                    }
-                ) {
-                    Text(stringResource(R.string.stop))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { exit = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
 }
 
 @Composable
@@ -976,19 +877,38 @@ private fun Settings(
                 }
             }
         HorizontalDivider()
-        Text(stringResource(R.string.volume), style = MaterialTheme.typography.titleLarge)
+        Toggle(R.string.show_stages, o.showStages) { onChange(o.copy(showStages = it)) }
+        Toggle(R.string.keep_screen, o.keepScreen) { onChange(o.copy(keepScreen = it)) }
+        HorizontalDivider()
+        Text(stringResource(R.string.signals), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.volume), style = MaterialTheme.typography.titleSmall)
         Slider(o.volume, onValueChange = { onChange(o.copy(volume = it)) })
-        OutlinedButton(shape = MaterialTheme.shapes.small, onClick = { cues.play(Stage.WORK, o) }) {
-            Text(stringResource(R.string.test_sound))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf(
+                    Stage.WORK to R.string.work,
+                    Stage.REST to R.string.rest,
+                    null to R.string.completed,
+                )
+                .forEach { (stage, label) ->
+                    OutlinedButton(
+                        onClick = { cues.play(stage, o) },
+                        shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(stringResource(label), maxLines = 2)
+                    }
+                }
         }
         Text(stringResource(R.string.sound_hint), style = MaterialTheme.typography.bodySmall)
         Toggle(R.string.vibrate, o.vibrate) { onChange(o.copy(vibrate = it)) }
         Toggle(R.string.countdown, o.countdown) { onChange(o.copy(countdown = it)) }
         Text(stringResource(R.string.countdown_hint), style = MaterialTheme.typography.bodySmall)
-        Toggle(R.string.keep_screen, o.keepScreen) { onChange(o.copy(keepScreen = it)) }
+        HorizontalDivider()
+        Text(stringResource(R.string.behavior), style = MaterialTheme.typography.titleMedium)
         Toggle(R.string.duck_music, o.duckMusic) { onChange(o.copy(duckMusic = it)) }
         Text(stringResource(R.string.focus_hint), style = MaterialTheme.typography.bodySmall)
         HorizontalDivider()
+        Text(stringResource(R.string.data_section), style = MaterialTheme.typography.titleMedium)
         OutlinedButton(
             shape = MaterialTheme.shapes.small,
             onClick = { export.launch("tabata-bata-timers.json") },

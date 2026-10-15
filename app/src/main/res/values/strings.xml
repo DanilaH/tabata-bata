@@ -87,4 +87,10 @@
 <string name="theme_system">Как в системе</string>
 <string name="theme_light">Светлое</string>
 <string name="theme_dark">Тёмное</string>
+<string name="show_stages">Показывать следующие этапы</string>
+<string name="signals">Сигналы</string>
+<string name="behavior">Поведение</string>
+<string name="data_section">Данные</string>
+<string name="lock_short">Замок</string>
+<string name="unlock_short">Удерживай</string>
 </resources>

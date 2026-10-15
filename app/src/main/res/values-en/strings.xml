@@ -87,4 +87,10 @@
 <string name="theme_system">System default</string>
 <string name="theme_light">Light</string>
 <string name="theme_dark">Dark</string>
+<string name="show_stages">Show upcoming stages</string>
+<string name="signals">Signals</string>
+<string name="behavior">Behavior</string>
+<string name="data_section">Data</string>
+<string name="lock_short">Lock</string>
+<string name="unlock_short">Hold to unlock</string>
 </resources>

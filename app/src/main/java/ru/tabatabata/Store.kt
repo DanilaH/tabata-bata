@@ -19,6 +19,7 @@ data class Options(
     val keepScreen: Boolean = true,
     val duckMusic: Boolean = false,
     val theme: String = "system",
+    val showStages: Boolean = false,
 )
 
 fun Plan.json(): JSONObject =
@@ -70,6 +71,7 @@ class Store(private val context: Context) {
                 it[stringPreferencesKey("theme")]?.takeIf { value ->
                     value in listOf("system", "light", "dark")
                 } ?: "system",
+                it[booleanPreferencesKey("showStages")] ?: false,
             )
         }
 
@@ -81,6 +83,7 @@ class Store(private val context: Context) {
             it[booleanPreferencesKey("keepScreen")] = o.keepScreen
             it[booleanPreferencesKey("duckMusic")] = o.duckMusic
             it[stringPreferencesKey("theme")] = o.theme
+            it[booleanPreferencesKey("showStages")] = o.showStages
         }
     }
 
