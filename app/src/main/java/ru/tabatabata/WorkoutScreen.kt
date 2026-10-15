@@ -254,7 +254,7 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
             minOf(
                     240f,
                     maxWidth.value / (clock.length * .62f * scale),
-                    (maxHeight.value - if (s.status == Status.RUNNING) 0f else 44f * scale) /
+                    (maxHeight.value - 24f - if (s.status == Status.RUNNING) 0f else 44f * scale) /
                         (1.3f * scale),
                 )
                 .coerceAtLeast(20f)
@@ -274,6 +274,22 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
                 fontWeight = FontWeight.Normal,
                 maxLines = 1,
                 style = TextStyle(fontFeatureSettings = "tnum"),
+            )
+            Spacer(Modifier.height(12.dp))
+            val duration = s.interval?.duration ?: 1L
+            val progress = (1f - s.remaining.toFloat() / duration.coerceAtLeast(1)).coerceIn(0f, 1f)
+            val progressLabel = stringResource(R.string.stage_progress)
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier =
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp).height(6.dp).semantics {
+                        contentDescription = progressLabel
+                    },
+                color = LocalContentColor.current,
+                trackColor = LocalContentColor.current.copy(alpha = .2f),
+                strokeCap = androidx.compose.ui.graphics.StrokeCap.Butt,
+                gapSize = 0.dp,
+                drawStopIndicator = {},
             )
         }
     }
