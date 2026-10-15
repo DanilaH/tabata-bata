@@ -198,8 +198,23 @@ private fun App() {
         else activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         onDispose { activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
     }
+    val darkSurface = MaterialTheme.colorScheme.background.red < .3f
+    DisposableEffect(running, darkSurface) {
+        val style =
+            if (running || darkSurface) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+            else
+                SystemBarStyle.light(
+                    android.graphics.Color.TRANSPARENT,
+                    android.graphics.Color.TRANSPARENT,
+                )
+        activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        if (Build.VERSION.SDK_INT >= 29) activity.window.isNavigationBarContrastEnforced = false
+        onDispose {}
+    }
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor =
+            if (running) workoutBackground(snapshot?.interval?.stage, darkSurface)
+            else MaterialTheme.colorScheme.background,
         bottomBar = {
             if (
                 (snapshot == null && !editorOpen && tab == 0) ||

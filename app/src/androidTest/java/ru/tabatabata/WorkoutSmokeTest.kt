@@ -169,11 +169,12 @@ class WorkoutSmokeTest {
         val store = Store(InstrumentationRegistry.getInstrumentation().targetContext)
         val before = kotlinx.coroutines.runBlocking { store.presets.first() }
         try {
-            val preset = Preset(name = "Rotation test", plan = Plan())
+            val preset = Preset(name = "Короткие интервалы", plan = Plan())
             kotlinx.coroutines.runBlocking { store.savePresets(listOf(preset)) }
             compose.waitUntil(10000) {
                 compose.onAllNodesWithText(preset.name).fetchSemanticsNodes().isNotEmpty()
             }
+            capture("saved")
             compose.onNodeWithText("•••").performClick()
             compose.onNodeWithText(text(R.string.edit)).performClick()
             compose

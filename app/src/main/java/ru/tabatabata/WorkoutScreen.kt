@@ -21,6 +21,14 @@ internal fun workoutClock(ms: Long): String {
     return if (seconds < 60) seconds.toString() else formatTime(ms)
 }
 
+internal fun workoutBackground(stage: Stage?, dark: Boolean): Color =
+    when (stage) {
+        Stage.WORK -> if (dark) Color(0xFF193D2B) else Color(0xFF286043)
+        Stage.REST,
+        Stage.BETWEEN -> if (dark) Color(0xFF16364A) else Color(0xFF245B79)
+        else -> if (dark) Color(0xFF44361D) else Color(0xFF75551F)
+    }
+
 @Composable
 internal fun Workout(s: Snapshot, options: Options, onClose: () -> Unit, onRepeat: () -> Unit) {
     val context = LocalContext.current
@@ -29,14 +37,8 @@ internal fun Workout(s: Snapshot, options: Options, onClose: () -> Unit, onRepea
     val active = s.status in listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
     val dark = MaterialTheme.colorScheme.background.red < .3f
     val background =
-        if (!active) MaterialTheme.colorScheme.background
-        else
-            when (s.interval?.stage) {
-                Stage.WORK -> if (dark) Color(0xFF193D2B) else Color(0xFF286043)
-                Stage.REST,
-                Stage.BETWEEN -> if (dark) Color(0xFF16364A) else Color(0xFF245B79)
-                else -> if (dark) Color(0xFF44361D) else Color(0xFF75551F)
-            }
+        if (active) workoutBackground(s.interval?.stage, dark)
+        else MaterialTheme.colorScheme.background
     val foreground = if (active) Color(0xFFF7F8F1) else MaterialTheme.colorScheme.onBackground
     val stage =
         stringResource(

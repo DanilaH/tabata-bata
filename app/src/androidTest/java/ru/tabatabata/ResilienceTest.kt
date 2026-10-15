@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.os.PowerManager
 import android.os.SystemClock
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.lifecycle.Lifecycle
@@ -189,6 +190,22 @@ class ResilienceTest {
 
             await { TimerService.state.value?.status == Status.PAUSED }
             compose.onNodeWithText(text(R.string.stop)).assertIsDisplayed()
+            val image = compose.onRoot().captureToImage()
+            val folder =
+                java.io
+                    .File(
+                        requireNotNull(
+                            InstrumentationRegistry.getArguments()
+                                .getString("additionalTestOutputDir")
+                        ),
+                        "screenshots",
+                    )
+                    .apply { mkdirs() }
+            java.io.File(folder, "landscape-large-font.png").outputStream().use {
+                image
+                    .asAndroidBitmap()
+                    .compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+            }
         } finally {
             shell("settings put system font_scale ${original.toFloatOrNull() ?: 1f}")
             compose.runOnUiThread {
