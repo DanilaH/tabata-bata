@@ -124,7 +124,17 @@ class TimerService : Service() {
                                 now,
                                 o.optString("sessionId", java.util.UUID.randomUUID().toString()),
                             )
-                            .apply { restore(o.getInt("index"), o.getLong("remaining")) }
+                            .apply {
+                                restore(
+                                    o.getInt("index"),
+                                    o.getLong("remaining"),
+                                    o.optLong("activeMs", 0),
+                                    o.optJSONArray("completedWork")?.let { a ->
+                                        (0 until a.length()).map { a.getInt(it) }.toSet()
+                                    } ?: emptySet(),
+                                    o.optBoolean("statsAvailable", false),
+                                )
+                            }
                     Telemetry.event("session_recovered", mapOf("reason" to "interrupted_unknown"))
                     foreground()
                     publish()
@@ -150,7 +160,7 @@ class TimerService : Service() {
                 publish()
             }
             "stop" -> {
-                engine?.stop()
+                engine?.stop(now)
                 publish()
                 finish(false)
             }
@@ -245,6 +255,9 @@ class TimerService : Service() {
                         .put("index", s.index)
                         .put("remaining", s.remaining)
                         .put("sessionId", s.sessionId)
+                        .put("activeMs", s.activeMs)
+                        .put("completedWork", org.json.JSONArray(s.completedWork.toList()))
+                        .put("statsAvailable", s.statsAvailable)
                         .toString(),
                 )
                 .apply()
@@ -261,11 +274,7 @@ class TimerService : Service() {
         val e = engine
         if (e != null) {
             val s = mutable.value
-            val elapsed =
-                activeMs +
-                    if (s?.status == Status.COMPLETED || lastStatus == Status.RUNNING)
-                        (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(0)
-                    else 0
+            val elapsed = s?.activeMs ?: 0L
             Telemetry.event(
                 "workout_finished",
                 mapOf(

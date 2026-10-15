@@ -93,4 +93,26 @@
 <string name="data_section">Data</string>
 <string name="lock_short">Lock</string>
 <string name="unlock_short">Hold to unlock</string>
+
+<string name="time_input_hint">Time: min:sec or seconds</string>
+<string name="count_range">Enter %1$d to %2$d</string>
+<string name="time_range">Enter a time from %1$s to %2$s</string>
+<string name="too_long">Workout must not exceed 24 hours</string>
+<string name="fix_fields">Check the highlighted fields</string>
+<string name="unsaved">Save changes?</string>
+<string name="unsaved_body">The saved mode has not been changed yet.</string>
+<string name="stay">Stay</string>
+<string name="reset">Discard</string>
+<string name="save_mode">Save mode</string>
+<string name="mode_actions">Actions for %1$s</string>
+<string name="mode_summary">Work %1$s · rest %2$s · rounds: %3$d</string>
+<string name="set_count">Sets: %1$d</string>
+<string name="listen_signals">Preview sounds</string>
+<string name="result_time">Active time: %1$s</string>
+<string name="result_rounds">Full rounds completed: %1$d of %2$d</string>
+<string name="result_unknown">Statistics are unavailable for this recovered older session.</string>
+<string name="return_draft">Return to draft</string>
+<string name="next_stage">Next: %1$s · %2$s</string>
+<string name="rounds_ahead">Rounds ahead: %1$d</string>
+<string name="round_position">Round %1$d of %2$d</string>
 </resources>

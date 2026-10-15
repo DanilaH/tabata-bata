@@ -73,6 +73,9 @@ data class Snapshot(
     val next: Interval?,
     val plan: Plan,
     val sessionId: String,
+    val activeMs: Long = 0,
+    val completedWork: Set<Int> = emptySet(),
+    val statsAvailable: Boolean = true,
 )
 
 /** All time is injected from a monotonic clock. Rendering never advances the timer. */
@@ -86,6 +89,10 @@ class TimerEngine(
     private var deadline = now + intervals.first().duration
     private var pausedRemaining = intervals.first().duration
     private var status = Status.RUNNING
+    private var measuredAt = now
+    private var activeMs = 0L
+    private val completedWork = mutableSetOf<Int>()
+    private var statsAvailable = true
 
     init {
         plan.validate()
@@ -93,7 +100,11 @@ class TimerEngine(
 
     fun snapshot(now: Long): Snapshot {
         if (status == Status.RUNNING) {
+            val finishAt = deadline + intervals.drop(index + 1).sumOf { it.duration }
+            activeMs += (minOf(now, finishAt) - measuredAt).coerceAtLeast(0)
+            measuredAt = now
             while (index < intervals.size && now >= deadline) {
+                if (intervals[index].stage == Stage.WORK) completedWork.add(index)
                 index++
                 if (index < intervals.size) deadline += intervals[index].duration
                 else status = Status.COMPLETED
@@ -117,6 +128,9 @@ class TimerEngine(
             intervals.getOrNull(index + 1),
             plan,
             sessionId,
+            activeMs,
+            completedWork.toSet(),
+            statsAvailable,
         )
     }
 
@@ -131,6 +145,7 @@ class TimerEngine(
     fun resume(now: Long) {
         if (status == Status.PAUSED || status == Status.INTERRUPTED) {
             deadline = now + pausedRemaining
+            measuredAt = now
             status = Status.RUNNING
         }
     }
@@ -149,11 +164,22 @@ class TimerEngine(
         deadline = now + pausedRemaining
     }
 
-    fun stop() {
+    fun stop(now: Long? = null) {
+        if (now != null) snapshot(now)
         status = Status.STOPPED
     }
 
-    fun restore(index: Int, remaining: Long) {
+    fun restore(
+        index: Int,
+        remaining: Long,
+        activeMs: Long = 0,
+        completed: Set<Int> = emptySet(),
+        statsAvailable: Boolean = true,
+    ) {
+        this.activeMs = activeMs.coerceAtLeast(0)
+        this.completedWork.clear()
+        this.completedWork.addAll(completed.filter { intervals.getOrNull(it)?.stage == Stage.WORK })
+        this.statsAvailable = statsAvailable
         this.index = index.coerceIn(0, intervals.lastIndex)
         pausedRemaining = remaining.coerceIn(1, intervals[this.index].duration)
         status = Status.INTERRUPTED

@@ -16,7 +16,7 @@
  <string name="settings">Настройки</string>
  <string name="new_timer">Новый режим</string>
  <string name="name">Название</string>
- <string name="reps">Повторения</string>
+ <string name="reps">Раунды</string>
  <string name="sets">Серии</string>
  <string name="advanced">Дополнительные параметры</string>
  <string name="last_rest">Отдых после последнего повторения</string>
@@ -47,8 +47,8 @@
  <string name="export_ok">Файл сохранён</string>
  <string name="file_error">Не удалось сохранить файл</string>
  <string name="invalid">Проверь параметры: работа 1–3600 сек., остальные этапы 0–3600, повторения 1–200, серии 1–20. Всего не более 24 часов.</string>
- <string name="previous">Предыдущий</string>
- <string name="next">Следующий</string>
+ <string name="previous">Предыдущий этап</string>
+ <string name="next">Следующий этап</string>
  <string name="lock">Блокировка касаний</string>
  <string name="unlock">Удерживай, чтобы разблокировать</string>
  <string name="exit_title">Завершить тренировку?</string>
@@ -91,6 +91,28 @@
 <string name="signals">Сигналы</string>
 <string name="behavior">Поведение</string>
 <string name="data_section">Данные</string>
-<string name="lock_short">Замок</string>
+<string name="lock_short">Блокировать касания</string>
 <string name="unlock_short">Удерживай</string>
+
+<string name="time_input_hint">Время: мин:сек или число секунд</string>
+<string name="count_range">Допустимо от %1$d до %2$d</string>
+<string name="time_range">Введи время от %1$s до %2$s</string>
+<string name="too_long">Занятие должно быть короче 24 часов</string>
+<string name="fix_fields">Исправь отмеченные поля</string>
+<string name="unsaved">Сохранить изменения?</string>
+<string name="unsaved_body">Исходный режим пока не изменён.</string>
+<string name="stay">Остаться</string>
+<string name="reset">Сбросить</string>
+<string name="save_mode">Сохранить режим</string>
+<string name="mode_actions">Действия с режимом %1$s</string>
+<string name="mode_summary">Работа %1$s · отдых %2$s · раундов: %3$d</string>
+<string name="set_count">Серий: %1$d</string>
+<string name="listen_signals">Прослушать сигналы</string>
+<string name="result_time">Время занятия: %1$s</string>
+<string name="result_rounds">Полностью пройдено раундов: %1$d из %2$d</string>
+<string name="result_unknown">Для восстановленной старой сессии итоговые данные недоступны.</string>
+<string name="return_draft">Вернуться к черновику</string>
+<string name="next_stage">Далее: %1$s · %2$s</string>
+<string name="rounds_ahead">Впереди раундов: %1$d</string>
+<string name="round_position">Раунд %1$d из %2$d</string>
 </resources>

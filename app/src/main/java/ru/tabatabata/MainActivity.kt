@@ -14,7 +14,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
@@ -26,7 +26,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.*
@@ -177,7 +176,9 @@ private fun App() {
             pendingPlan?.let { TimerService.command(context, "start", it) }
             pendingPlan = null
         }
-    fun launch(plan: Plan) {
+    var draftTarget by rememberSaveable { mutableStateOf<String?>(null) }
+    fun launch(plan: Plan, draftKey: String? = null) {
+        draftTarget = draftKey
         scope.launch { store.saveLastPlan(plan) }
         if (
             Build.VERSION.SDK_INT >= 33 &&
@@ -232,13 +233,27 @@ private fun App() {
                     onClose = {
                         val result = snapshot?.status ?: Status.STOPPED
                         tab = 0
+                        editorOpen = false
                         TimerService.clearResult()
                         ads.maybeShow(result)
                     },
+                    onDraft =
+                        if (draftTarget != null && EditorDrafts(context).has(draftTarget!!))
+                            ({
+                                TimerService.clearResult()
+                                if (draftTarget == "quick") {
+                                    editorOpen = false
+                                    tab = 1
+                                } else {
+                                    editor = presets.find { it.id == draftTarget }
+                                    editorOpen = true
+                                }
+                            })
+                        else null,
                     onRepeat = {
                         val p = snapshot!!.plan
                         TimerService.clearResult()
-                        launch(p)
+                        launch(p, draftTarget)
                     },
                 )
             else if (editorOpen)
@@ -256,10 +271,7 @@ private fun App() {
                             }
                         }
                     },
-                    onStart = {
-                        launch(it)
-                        editorOpen = false
-                    },
+                    onStart = { launch(it, editor?.id ?: "new") },
                 )
             else
                 Column(Modifier.fillMaxSize()) {
@@ -360,7 +372,7 @@ private fun App() {
                                                 )
                                         }
                                     },
-                                    onStart = { launch(it) },
+                                    onStart = { launch(it, "quick") },
                                 )
                         2 ->
                             Settings(options, presets, store, snackbar) { o ->
@@ -550,7 +562,8 @@ private fun Saved(
             }
         itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
             var menu by remember { mutableStateOf(false) }
-            Card(Modifier.fillMaxWidth()) {
+            val contextMenuLabel = stringResource(R.string.mode_actions, p.name)
+            Card(onClick = { onEdit(p) }, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -559,10 +572,15 @@ private fun Saved(
                             modifier = Modifier.weight(1f),
                         )
                         Box {
-                            TextButton(onClick = { menu = true }) { Text("•••") }
+                            TextButton(
+                                onClick = { menu = true },
+                                modifier =
+                                    Modifier.semantics { contentDescription = contextMenuLabel },
+                            ) {
+                                Text("•••")
+                            }
                             DropdownMenu(menu, { menu = false }) {
                                 listOf(
-                                        R.string.edit to { onEdit(p) },
                                         R.string.copy to { onCopy(p) },
                                         R.string.up to { onMove(index, index - 1) },
                                         R.string.down to { onMove(index, index + 1) },
@@ -571,6 +589,10 @@ private fun Saved(
                                     .forEach { (r, f) ->
                                         DropdownMenuItem(
                                             text = { Text(stringResource(r)) },
+                                            enabled =
+                                                (r != R.string.up || index > 0) &&
+                                                    (r != R.string.down ||
+                                                        index < presets.lastIndex),
                                             onClick = {
                                                 menu = false
                                                 f()
@@ -581,9 +603,14 @@ private fun Saved(
                         }
                     }
                     Text(
-                        "${p.plan.work} ${stringResource(R.string.seconds_short)} ${stringResource(R.string.work).lowercase()} · ${p.plan.rest} ${stringResource(R.string.seconds_short)} ${stringResource(R.string.rest).lowercase()} · ${p.plan.reps} ${stringResource(R.string.reps).lowercase()}" +
+                        stringResource(
+                            R.string.mode_summary,
+                            durationInput(p.plan.work),
+                            durationInput(p.plan.rest),
+                            p.plan.reps,
+                        ) +
                             if (p.plan.sets > 1)
-                                " · ${p.plan.sets} ${stringResource(R.string.sets).lowercase()}"
+                                " · " + stringResource(R.string.set_count, p.plan.sets)
                             else "",
                         color = MaterialTheme.colorScheme.primary,
                     )
@@ -616,202 +643,18 @@ private fun Saved(
 }
 
 @Composable
-private fun Editor(
-    preset: Preset?,
-    initialPlan: Plan? = null,
-    onCancel: (() -> Unit)?,
-    onSave: (Preset) -> Unit,
-    onStart: (Plan) -> Unit,
-) {
-    BackHandler(enabled = onCancel != null) { onCancel?.invoke() }
-    var preview by rememberSaveable(preset?.id) { mutableStateOf(false) }
-    val p = preset?.plan ?: initialPlan ?: Plan()
-    var name by rememberSaveable(preset?.id) { mutableStateOf(preset?.name ?: "") }
-    var prepare by rememberSaveable(preset?.id) { mutableStateOf(p.prepare.toString()) }
-    var work by rememberSaveable(preset?.id) { mutableStateOf(p.work.toString()) }
-    var rest by rememberSaveable(preset?.id) { mutableStateOf(p.rest.toString()) }
-    var reps by rememberSaveable(preset?.id) { mutableStateOf(p.reps.toString()) }
-    var sets by rememberSaveable(preset?.id) { mutableStateOf(p.sets.toString()) }
-    var between by rememberSaveable(preset?.id) { mutableStateOf(p.between.toString()) }
-    var cool by rememberSaveable(preset?.id) { mutableStateOf(p.cool.toString()) }
-    var last by rememberSaveable(preset?.id) { mutableStateOf(p.lastRest) }
-    var advanced by
-        rememberSaveable(preset?.id) { mutableStateOf(p.sets > 1 || p.cool > 0 || p.lastRest) }
-    val plan =
-        runCatching {
-                Plan(
-                        prepare.toInt(),
-                        work.toInt(),
-                        rest.toInt(),
-                        reps.toInt(),
-                        sets.toInt(),
-                        between.toInt(),
-                        cool.toInt(),
-                        last,
-                    )
-                    .also { it.validate() }
-            }
-            .getOrNull()
-    val context = LocalContext.current
-    Column(Modifier.fillMaxSize()) {
-        Column(
-            Modifier.weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            onCancel?.let {
-                TextButton(onClick = it) { Text("← " + stringResource(R.string.saved)) }
-            }
-            OutlinedTextField(
-                name,
-                { if (it.length <= 100) name = it },
-                label = { Text(stringResource(R.string.name)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                stringResource(R.string.intervals),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            NumberField(R.string.prepare, prepare) { prepare = it }
-            NumberField(R.string.work, work) { work = it }
-            NumberField(R.string.rest, rest) { rest = it }
-            NumberField(R.string.reps, reps) { reps = it }
-            TextButton(onClick = { advanced = !advanced }) {
-                Text(stringResource(R.string.advanced) + if (advanced) " −" else " +")
-            }
-            if (advanced) {
-                NumberField(R.string.sets, sets) { sets = it }
-                NumberField(R.string.between, between) { between = it }
-                NumberField(R.string.cool, cool) { cool = it }
-                Toggle(R.string.last_rest, last) { last = it }
-            }
-            if (plan == null)
-                Text(stringResource(R.string.invalid), color = MaterialTheme.colorScheme.error)
-            else {
-                Card(onClick = { preview = !preview }, modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(stringResource(R.string.total), modifier = Modifier.weight(1f))
-                            Text(
-                                formatTime(plan.durationMs()),
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        Text(
-                            stringResource(R.string.plan_preview) + if (preview) " ▴" else " ▾",
-                            style = MaterialTheme.typography.labelLarge,
-                        )
-                        if (preview)
-                            Text(
-                                plan.stages().take(8).joinToString(" → ") {
-                                    "${context.getString(stageString(it.stage))} ${it.duration/1000}"
-                                } + if (plan.stages().size > 8) " …" else ""
-                            )
-                    }
-                }
-            }
-        }
-        HorizontalDivider()
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Button(
-                shape = MaterialTheme.shapes.small,
-                enabled = plan != null,
-                onClick = { plan?.let(onStart) },
-                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-            ) {
-                Text(stringResource(R.string.start))
-            }
-            OutlinedButton(
-                shape = MaterialTheme.shapes.small,
-                enabled = plan != null,
-                onClick = {
-                    plan?.let {
-                        onSave(
-                            Preset(
-                                preset?.id ?: java.util.UUID.randomUUID().toString(),
-                                name.trim().ifEmpty { context.getString(R.string.default_name) },
-                                it,
-                            )
-                        )
-                    }
-                },
-                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
-            ) {
-                Text(stringResource(R.string.save))
-            }
-        }
-    }
-}
-
-@Composable
-private fun NumberField(
-    label: Int,
-    value: String,
-    modifier: Modifier = Modifier,
-    onChange: (String) -> Unit,
-) {
-    val seconds =
-        label in
-            listOf(R.string.prepare, R.string.work, R.string.rest, R.string.between, R.string.cool)
-    val max =
-        when (label) {
-            R.string.reps -> 200
-            R.string.sets -> 20
-            else -> 3600
-        }
-    val min = if (label in listOf(R.string.work, R.string.reps, R.string.sets)) 1 else 0
-    val title = stringResource(label)
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            title + if (seconds) " · " + stringResource(R.string.seconds_short) else "",
-            modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        IconButton(
-            onClick = {
-                onChange(((value.toIntOrNull() ?: min) - 1).coerceIn(min, max).toString())
-            },
-            modifier = Modifier.semantics { contentDescription = "− $title" },
-        ) {
-            Text("−")
-        }
-        OutlinedTextField(
-            value,
-            { if (it.length <= 4 && it.all(Char::isDigit)) onChange(it) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.width(76.dp).semantics { contentDescription = title },
-            textStyle =
-                MaterialTheme.typography.bodyLarge.copy(
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                ),
-        )
-        IconButton(
-            onClick = {
-                onChange(((value.toIntOrNull() ?: min) + 1).coerceIn(min, max).toString())
-            },
-            modifier = Modifier.semantics { contentDescription = "+ $title" },
-        ) {
-            Text("+")
-        }
-    }
-}
-
-@Composable
-private fun Toggle(label: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+internal fun Toggle(label: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth()
+            .toggleable(
+                value = checked,
+                role = androidx.compose.ui.semantics.Role.Switch,
+                onValueChange = onChange,
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(stringResource(label), modifier = Modifier.weight(1f))
-        Switch(checked, onChange)
+        Switch(checked, onCheckedChange = null)
     }
 }
 
@@ -881,31 +724,13 @@ private fun Settings(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(stringResource(R.string.appearance), style = MaterialTheme.typography.titleMedium)
-        listOf(
-                "system" to R.string.theme_system,
-                "light" to R.string.theme_light,
-                "dark" to R.string.theme_dark,
-            )
-            .forEach { (value, label) ->
-                Row(
-                    Modifier.fillMaxWidth().clickable { onChange(o.copy(theme = value)) },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    RadioButton(
-                        selected = o.theme == value,
-                        onClick = { onChange(o.copy(theme = value)) },
-                    )
-                    Text(stringResource(label), modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-        HorizontalDivider()
-        Toggle(R.string.show_stages, o.showStages) { onChange(o.copy(showStages = it)) }
-        Toggle(R.string.keep_screen, o.keepScreen) { onChange(o.copy(keepScreen = it)) }
-        HorizontalDivider()
         Text(stringResource(R.string.signals), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.volume), style = MaterialTheme.typography.titleSmall)
+        Text(
+            stringResource(R.string.volume) + " · ${(o.volume * 100).toInt()}%",
+            style = MaterialTheme.typography.titleSmall,
+        )
         Slider(o.volume, onValueChange = { onChange(o.copy(volume = it)) })
+        Text(stringResource(R.string.listen_signals), style = MaterialTheme.typography.labelLarge)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             listOf(
                     Stage.WORK to R.string.work,
@@ -930,6 +755,28 @@ private fun Settings(
         Text(stringResource(R.string.behavior), style = MaterialTheme.typography.titleMedium)
         Toggle(R.string.duck_music, o.duckMusic) { onChange(o.copy(duckMusic = it)) }
         Text(stringResource(R.string.focus_hint), style = MaterialTheme.typography.bodySmall)
+        HorizontalDivider()
+        Text(stringResource(R.string.appearance), style = MaterialTheme.typography.titleMedium)
+        listOf(
+                "system" to R.string.theme_system,
+                "light" to R.string.theme_light,
+                "dark" to R.string.theme_dark,
+            )
+            .forEach { (value, label) ->
+                Row(
+                    Modifier.fillMaxWidth().clickable { onChange(o.copy(theme = value)) },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = o.theme == value,
+                        onClick = { onChange(o.copy(theme = value)) },
+                    )
+                    Text(stringResource(label), modifier = Modifier.padding(start = 8.dp))
+                }
+            }
+        HorizontalDivider()
+        Toggle(R.string.show_stages, o.showStages) { onChange(o.copy(showStages = it)) }
+        Toggle(R.string.keep_screen, o.keepScreen) { onChange(o.copy(keepScreen = it)) }
         HorizontalDivider()
         Text(stringResource(R.string.data_section), style = MaterialTheme.typography.titleMedium)
         OutlinedButton(

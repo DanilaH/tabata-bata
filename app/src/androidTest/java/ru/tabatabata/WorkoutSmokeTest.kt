@@ -65,6 +65,7 @@ class WorkoutSmokeTest {
                     .onNodeWithText(
                         text(if (theme == "light") R.string.theme_light else R.string.theme_dark)
                     )
+                    .performScrollTo()
                     .assertExists()
                 capture("settings-$theme")
                 compose.activityRule.scenario.recreate()
@@ -106,7 +107,7 @@ class WorkoutSmokeTest {
                 compose.waitUntil(5000) { TimerService.state.value?.status == Status.PAUSED }
                 compose.waitForIdle()
                 capture("paused-$theme")
-                compose.onNodeWithText(text(R.string.lock_short)).performClick()
+                compose.onNodeWithContentDescription(text(R.string.lock_short)).performClick()
                 compose.onNodeWithText(text(R.string.resume)).assertIsNotEnabled()
                 compose.onNodeWithContentDescription(text(R.string.next)).assertIsNotEnabled()
                 capture("locked-$theme")
@@ -142,9 +143,9 @@ class WorkoutSmokeTest {
         compose.waitForIdle()
         capture("editor")
         compose.onNodeWithContentDescription("+ " + text(R.string.work)).performClick()
-        compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("21")
+        compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:21")
         compose.onNodeWithContentDescription("− " + text(R.string.work)).performClick()
-        compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("20")
+        compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:20")
         compose.onNodeWithText(text(R.string.start)).performClick()
         compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
         capture("workout")
@@ -175,8 +176,7 @@ class WorkoutSmokeTest {
                 compose.onAllNodesWithText(preset.name).fetchSemanticsNodes().isNotEmpty()
             }
             capture("saved")
-            compose.onNodeWithText("•••").performClick()
-            compose.onNodeWithText(text(R.string.edit)).performClick()
+            compose.onNodeWithText(preset.name).performClick()
             compose
                 .onAllNodes(hasSetTextAction())
                 .onFirst()

@@ -2,12 +2,14 @@ package ru.tabatabata
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -15,6 +17,8 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 internal fun workoutClock(ms: Long): String {
     val seconds = (ms.coerceAtLeast(0) + 999) / 1000
@@ -30,9 +34,17 @@ internal fun workoutBackground(stage: Stage?, dark: Boolean): Color =
     }
 
 @Composable
-internal fun Workout(s: Snapshot, options: Options, onClose: () -> Unit, onRepeat: () -> Unit) {
+internal fun Workout(
+    s: Snapshot,
+    options: Options,
+    onClose: () -> Unit,
+    onRepeat: () -> Unit,
+    onDraft: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     var locked by rememberSaveable(s.sessionId) { mutableStateOf(false) }
+    var unlockProgress by remember { mutableFloatStateOf(0f) }
+    val scope = rememberCoroutineScope()
     var exit by remember { mutableStateOf(false) }
     val active = s.status in listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
     val dark = MaterialTheme.colorScheme.background.red < .3f
@@ -60,6 +72,19 @@ internal fun Workout(s: Snapshot, options: Options, onClose: () -> Unit, onRepea
             ) {
                 Spacer(Modifier.height(32.dp))
                 Text(stage, style = MaterialTheme.typography.headlineLarge)
+                if (s.statsAvailable) {
+                    Text(
+                        stringResource(R.string.result_time, formatTime(s.activeMs)),
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Text(
+                        stringResource(
+                            R.string.result_rounds,
+                            s.completedWork.size,
+                            s.plan.reps * s.plan.sets,
+                        )
+                    )
+                } else Text(stringResource(R.string.result_unknown))
                 Text(stringResource(R.string.done_body))
                 Button(
                     onClick = onRepeat,
@@ -68,6 +93,8 @@ internal fun Workout(s: Snapshot, options: Options, onClose: () -> Unit, onRepea
                 ) {
                     Text(stringResource(R.string.repeat))
                 }
+                if (onDraft != null)
+                    TextButton(onClick = onDraft) { Text(stringResource(R.string.return_draft)) }
                 OutlinedButton(
                     onClick = onClose,
                     shape = MaterialTheme.shapes.small,
@@ -80,18 +107,53 @@ internal fun Workout(s: Snapshot, options: Options, onClose: () -> Unit, onRepea
             Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 4.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     if (locked)
-                        Box(
-                            Modifier.widthIn(min = 80.dp)
+                        Column(
+                            Modifier.width(88.dp)
                                 .heightIn(min = 48.dp)
-                                .combinedClickable(onClick = {}, onLongClick = { locked = false })
+                                .pointerInput(locked) {
+                                    detectTapGestures(
+                                        onLongPress = { locked = false },
+                                        onPress = {
+                                            val progressJob =
+                                                scope.launch {
+                                                    val start =
+                                                        android.os.SystemClock.uptimeMillis()
+                                                    while (unlockProgress < 1f) {
+                                                        unlockProgress =
+                                                            ((android.os.SystemClock
+                                                                    .uptimeMillis() - start) / 500f)
+                                                                .coerceAtMost(1f)
+                                                        delay(16)
+                                                    }
+                                                    locked = false
+                                                }
+                                            try {
+                                                tryAwaitRelease()
+                                            } finally {
+                                                progressJob.cancel()
+                                                unlockProgress = 0f
+                                            }
+                                        },
+                                    )
+                                }
                                 .semantics {
                                     contentDescription = context.getString(R.string.unlock)
+                                    onLongClick(label = context.getString(R.string.unlock)) {
+                                        locked = false
+                                        true
+                                    }
                                 },
-                            contentAlignment = Alignment.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
                         ) {
                             Text(
-                                stringResource(R.string.unlock),
+                                stringResource(R.string.unlock_short),
                                 style = MaterialTheme.typography.labelSmall,
+                            )
+                            LinearProgressIndicator(
+                                progress = { unlockProgress },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = foreground,
                             )
                         }
                     else
@@ -99,7 +161,11 @@ internal fun Workout(s: Snapshot, options: Options, onClose: () -> Unit, onRepea
                             onClick = { locked = true },
                             colors = ButtonDefaults.textButtonColors(contentColor = foreground),
                         ) {
-                            Text(stringResource(R.string.lock_short))
+                            Icon(
+                                painter =
+                                    androidx.compose.ui.res.painterResource(R.drawable.ic_lock),
+                                contentDescription = stringResource(R.string.lock_short),
+                            )
                         }
                     Text(
                         stage,
@@ -142,6 +208,17 @@ internal fun Workout(s: Snapshot, options: Options, onClose: () -> Unit, onRepea
                         ) {
                             ClockFace(s, Modifier.weight(1f).fillMaxWidth())
                             if (options.showStages) StageQueue(s, Modifier.heightIn(max = 100.dp))
+                            else
+                                s.next?.let {
+                                    Text(
+                                        stringResource(
+                                            R.string.next_stage,
+                                            stringResource(stageString(it.stage)),
+                                            formatTime(it.duration),
+                                        ),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                    )
+                                }
                             WorkoutControls(s, locked, foreground)
                         }
                 }
@@ -177,30 +254,34 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
             minOf(
                     240f,
                     maxWidth.value / (clock.length * .62f * scale),
-                    maxHeight.value / (1.3f * scale),
+                    (maxHeight.value - if (s.status == Status.RUNNING) 0f else 44f * scale) /
+                        (1.3f * scale),
                 )
                 .coerceAtLeast(20f)
-        Text(
-            clock,
-            fontSize = size.sp,
-            lineHeight = (size * 1.08f).sp,
-            fontWeight = FontWeight.Normal,
-            maxLines = 1,
-            style = TextStyle(fontFeatureSettings = "tnum"),
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            if (s.status != Status.RUNNING)
+                Text(
+                    stringResource(
+                        if (s.status == Status.INTERRUPTED) R.string.interrupted
+                        else R.string.paused
+                    ),
+                    style = MaterialTheme.typography.headlineSmall,
+                )
+            Text(
+                clock,
+                fontSize = size.sp,
+                lineHeight = (size * 1.08f).sp,
+                fontWeight = FontWeight.Normal,
+                maxLines = 1,
+                style = TextStyle(fontFeatureSettings = "tnum"),
+            )
+        }
     }
 }
 
 @Composable
 private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
     val context = LocalContext.current
-    if (s.status != Status.RUNNING)
-        Text(
-            stringResource(
-                if (s.status == Status.INTERRUPTED) R.string.interrupted else R.string.paused
-            ),
-            style = MaterialTheme.typography.titleMedium,
-        )
     Button(
         onClick = {
             TimerService.command(context, if (s.status == Status.RUNNING) "pause" else "resume")
@@ -229,8 +310,11 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                "${s.interval?.rep ?: 0} / ${s.plan.reps}",
-                style = MaterialTheme.typography.headlineMedium,
+                if (s.interval?.stage == Stage.PREPARE)
+                    stringResource(R.string.rounds_ahead, s.plan.reps * s.plan.sets)
+                else if (s.interval?.stage == Stage.COOL) stringResource(R.string.cool)
+                else stringResource(R.string.round_position, s.interval?.rep ?: 0, s.plan.reps),
+                style = MaterialTheme.typography.titleLarge,
             )
             if (s.plan.sets > 1)
                 Text(
