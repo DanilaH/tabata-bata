@@ -91,6 +91,11 @@ class EditorDraftTest {
             compose.waitUntil(10000) {
                 runBlocking { store.presets.first().single().plan.work == 45 }
             }
+            // DataStore emits before the save coroutine clears the draft and closes the editor.
+            // Wait for the user-visible completion, then check the same postcondition.
+            compose.waitUntil(10000) {
+                compose.onAllNodesWithText(text(R.string.quick)).fetchSemanticsNodes().isNotEmpty()
+            }
             assertFalse(EditorDrafts(context).has(p.id))
         } finally {
             if (
