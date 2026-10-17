@@ -35,6 +35,13 @@ jobs:
           path: |
             app/build/reports/tests/
             app/build/reports/lint-results-debug.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-signing-tools
+          path: |
+            ${{ env.ANDROID_HOME }}/build-tools/36.0.0/lib/apksigner.jar
+            ${{ env.ANDROID_HOME }}/build-tools/36.0.0/zipalign
+            ${{ env.ANDROID_HOME }}/build-tools/36.0.0/lib64/
   emulator:
     name: emulator (API ${{ matrix.api }})
     runs-on: ubuntu-latest
