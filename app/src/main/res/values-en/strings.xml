@@ -116,4 +116,13 @@
 <string name="rounds_ahead">Rounds ahead: %1$d</string>
 <string name="round_position">Round %1$d of %2$d</string>
 <string name="stage_progress">Current stage progress</string>
+    <string name="add_rest">+10 s rest</string>
+    <string name="last_launch">Last used</string>
+    <string name="voice">Voice cues</string>
+    <string name="voice_hint">Short spoken cues replace stage sounds. Uses an installed offline voice.</string>
+    <string name="voice_loading">Preparing voice… Sound cues are used meanwhile.</string>
+    <string name="voice_unavailable">No offline voice for the app language. Sound cues are used instead. Install a voice in Android text-to-speech settings.</string>
+    <string name="listen_voice">Preview voice</string>
+    <string name="voice_last_round">Work. Last round.</string>
+    <string name="voice_finish">Workout completed.</string>
 </resources>

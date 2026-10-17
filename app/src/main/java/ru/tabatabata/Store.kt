@@ -20,6 +20,7 @@ data class Options(
     val duckMusic: Boolean = false,
     val theme: String = "system",
     val showStages: Boolean = false,
+    val voice: Boolean = false,
 )
 
 fun Plan.json(): JSONObject =
@@ -59,6 +60,12 @@ class Store(private val context: Context) {
         context.dataStore.edit { it[stringPreferencesKey("lastPlan")] = plan.json().toString() }
     }
 
+    val lastPresetId = context.dataStore.data.map { it[stringPreferencesKey("lastPresetId")] }
+
+    suspend fun saveLastPreset(id: String) {
+        context.dataStore.edit { it[stringPreferencesKey("lastPresetId")] = id }
+    }
+
     val presets = context.dataStore.data.map { parsePresets(it[presetsKey] ?: "[]") }
     val options =
         context.dataStore.data.map {
@@ -72,6 +79,7 @@ class Store(private val context: Context) {
                     value in listOf("system", "light", "dark")
                 } ?: "system",
                 it[booleanPreferencesKey("showStages")] ?: false,
+                it[booleanPreferencesKey("voice")] ?: false,
             )
         }
 
@@ -84,6 +92,7 @@ class Store(private val context: Context) {
             it[booleanPreferencesKey("duckMusic")] = o.duckMusic
             it[stringPreferencesKey("theme")] = o.theme
             it[booleanPreferencesKey("showStages")] = o.showStages
+            it[booleanPreferencesKey("voice")] = o.voice
         }
     }
 

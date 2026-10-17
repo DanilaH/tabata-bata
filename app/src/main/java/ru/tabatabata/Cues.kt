@@ -3,8 +3,9 @@ package ru.tabatabata
 import android.content.Context
 import android.media.*
 import android.os.*
+import kotlinx.coroutines.flow.asStateFlow
 
-class Cues(context: Context, private val onFocusLoss: () -> Unit) {
+class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
     private val audio = context.getSystemService(AudioManager::class.java)
     private val vibrator = context.getSystemService(Vibrator::class.java)
     private val pool =
@@ -38,8 +39,10 @@ class Cues(context: Context, private val onFocusLoss: () -> Unit) {
                 if (
                     it == AudioManager.AUDIOFOCUS_LOSS ||
                         it == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
-                )
+                ) {
+                    cancel()
                     onFocusLoss()
+                }
             }
             .build()
     private val loaded = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
@@ -60,10 +63,124 @@ class Cues(context: Context, private val onFocusLoss: () -> Unit) {
         }
     }
 
+    private val voiceMutable = kotlinx.coroutines.flow.MutableStateFlow("loading")
+    val voiceState = voiceMutable.asStateFlow()
+    private var tts: android.speech.tts.TextToSpeech? = null
+    private var utterance: String? = null
+    private var speechFallback: (() -> Unit)? = null
+    private var closed = false
+    private val speechTimeout = Runnable {
+        val fallback = speechFallback
+        voiceMutable.value = "unavailable"
+        utterance = null
+        speechFallback = null
+        tts?.stop()
+        fallback?.invoke()
+    }
+
+    init {
+        tts =
+            android.speech.tts.TextToSpeech(context) { status ->
+                handler.post {
+                    if (!closed) {
+                        val locale =
+                            if (context.resources.configuration.locales[0].language == "ru")
+                                java.util.Locale.forLanguageTag("ru-RU")
+                            else java.util.Locale.ENGLISH
+                        val voice =
+                            if (status == android.speech.tts.TextToSpeech.SUCCESS)
+                                tts?.voices
+                                    ?.filter {
+                                        it.locale.language == locale.language &&
+                                            !it.isNetworkConnectionRequired &&
+                                            it.features?.contains("notInstalled") != true
+                                    }
+                                    ?.sortedBy { it.name }
+                                    ?.firstOrNull()
+                            else null
+                        voiceMutable.value =
+                            if (
+                                voice != null &&
+                                    tts?.setVoice(voice) == android.speech.tts.TextToSpeech.SUCCESS
+                            )
+                                "ready"
+                            else "unavailable"
+                        tts?.setAudioAttributes(
+                            AudioAttributes.Builder()
+                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                .build()
+                        )
+                        tts?.setOnUtteranceProgressListener(
+                            object : android.speech.tts.UtteranceProgressListener() {
+                                override fun onStart(id: String?) {}
+
+                                override fun onDone(id: String?) {
+                                    handler.post { finishSpeech(id, false) }
+                                }
+
+                                @Deprecated("Deprecated in Java")
+                                override fun onError(id: String?) {
+                                    handler.post { finishSpeech(id, true) }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+    }
+
+    private fun finishSpeech(id: String?, failed: Boolean) {
+        if (id == null || id != utterance) return
+        val fallback = speechFallback
+        utterance = null
+        speechFallback = null
+        handler.removeCallbacks(speechTimeout)
+        if (failed) {
+            voiceMutable.value = "unavailable"
+            fallback?.invoke()
+        } else audio.abandonAudioFocusRequest(focus)
+    }
+
     private var stream = 0
 
-    fun play(stage: Stage?, o: Options, countdown: Boolean = false) {
-        handler.removeCallbacks(releaseFocus)
+    fun play(stage: Stage?, o: Options, countdown: Boolean = false, lastRound: Boolean = false) {
+        // Countdown must not cut off an in-flight stage announcement.
+        if (countdown && utterance != null) return
+        cancel()
+        if (!countdown && o.voice && o.volume > 0 && voiceMutable.value == "ready") {
+            if (
+                o.duckMusic &&
+                    audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            )
+                return
+            val id = java.util.UUID.randomUUID().toString()
+            utterance = id
+            speechFallback = { play(stage, o.copy(voice = false), lastRound = lastRound) }
+            val text =
+                context.getString(
+                    if (stage == null) R.string.voice_finish
+                    else if (lastRound) R.string.voice_last_round else stageString(stage)
+                )
+            val params =
+                Bundle().apply {
+                    putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, o.volume)
+                }
+            val result = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, id)
+            if (result == android.speech.tts.TextToSpeech.SUCCESS) {
+                handler.postDelayed(speechTimeout, 4000)
+                if (o.vibrate)
+                    vibrator.vibrate(
+                        VibrationEffect.createOneShot(
+                            if (stage == null) 300 else 90,
+                            VibrationEffect.DEFAULT_AMPLITUDE,
+                        )
+                    )
+                return
+            }
+            utterance = null
+            speechFallback = null
+        }
         if (
             o.duckMusic &&
                 o.volume > 0 &&
@@ -95,6 +212,10 @@ class Cues(context: Context, private val onFocusLoss: () -> Unit) {
     }
 
     fun cancel() {
+        utterance = null
+        speechFallback = null
+        handler.removeCallbacks(speechTimeout)
+        tts?.stop()
         pending = null
         handler.removeCallbacks(releaseFocus)
         if (stream != 0) pool.stop(stream)
@@ -103,7 +224,9 @@ class Cues(context: Context, private val onFocusLoss: () -> Unit) {
     }
 
     fun close() {
+        closed = true
         cancel()
+        tts?.shutdown()
         pool.release()
     }
 }

@@ -315,6 +315,16 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
     ) {
         Text(stringResource(if (s.status == Status.RUNNING) R.string.pause else R.string.resume))
     }
+    if (s.interval?.stage in listOf(Stage.REST, Stage.BETWEEN)) {
+        TextButton(
+            onClick = { TimerService.command(context, "extendRest") },
+            enabled = !locked && s.status != Status.INTERRUPTED,
+            colors = ButtonDefaults.textButtonColors(contentColor = foreground),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(stringResource(R.string.add_rest))
+        }
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         val previous = stringResource(R.string.previous)
         IconButton(

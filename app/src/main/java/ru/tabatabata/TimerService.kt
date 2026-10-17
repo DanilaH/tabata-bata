@@ -133,6 +133,7 @@ class TimerService : Service() {
                                         (0 until a.length()).map { a.getInt(it) }.toSet()
                                     } ?: emptySet(),
                                     o.optBoolean("statsAvailable", false),
+                                    o.optLong("currentDuration", 0).takeIf { it > 0 },
                                 )
                             }
                     Telemetry.event("session_recovered", mapOf("reason" to "interrupted_unknown"))
@@ -158,6 +159,16 @@ class TimerService : Service() {
                 lastIndex = -1
                 lastSecond = -1
                 publish()
+            }
+            "extendRest" -> {
+                if (engine?.extendRest(now) == true) {
+                    cues.cancel()
+                    lastSecond = -1
+                    lastSaved = -1
+                    release()
+                    acquire()
+                    publish()
+                }
             }
             "stop" -> {
                 engine?.stop(now)
@@ -227,7 +238,14 @@ class TimerService : Service() {
             if (s.index != lastIndex) {
                 lastIndex = s.index
                 lastSecond = second
-                cues.play(s.interval?.stage, options)
+                cues.play(
+                    s.interval?.stage,
+                    options,
+                    lastRound =
+                        s.interval?.stage == Stage.WORK &&
+                            s.interval.rep == s.plan.reps &&
+                            s.interval.set == s.plan.sets,
+                )
             } else if (
                 options.countdown &&
                     (s.interval?.duration ?: 0) >= 6000 &&
@@ -254,6 +272,7 @@ class TimerService : Service() {
                         .put("plan", s.plan.json())
                         .put("index", s.index)
                         .put("remaining", s.remaining)
+                        .put("currentDuration", s.interval?.duration)
                         .put("sessionId", s.sessionId)
                         .put("activeMs", s.activeMs)
                         .put("completedWork", org.json.JSONArray(s.completedWork.toList()))
@@ -291,11 +310,14 @@ class TimerService : Service() {
         ticker?.cancel()
         engine = null
         if (!completed) cues.cancel()
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (!completed) stopForeground(STOP_FOREGROUND_REMOVE)
         if (completed)
             scope.launch {
-                delay(450)
-                if (engine == null) stopSelf()
+                delay(4500)
+                if (engine == null) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
             }
         else stopSelf()
     }

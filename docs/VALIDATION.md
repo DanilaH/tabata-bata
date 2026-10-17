@@ -85,3 +85,9 @@ Production-реклама и показатели выручки пока не �
 CI https://github.com/DanilaH/tabata-bata/actions/runs/38730563511: сборка/lint/unit tests PASS, по 13 Android-тестов на API 35/36 PASS; внешний recovery smoke API 35 PASS. На API 36 системную проверку перекрыл ANR лаунчера Quickstep, подтверждено last-ui.xml; повтор только этого job завершился успешно, включая внешний recovery smoke. Итоговый CI полностью PASS. APK 0.3.1 versionCode=4 подписан прежним ключом, apksigner v2/v3 PASS.
 
 Первый прогон обнаружил гонку в тесте EditorDraftTest: эмиссия сохранённых данных происходила до очистки черновика. Тест теперь дожидается завершения сохранения и возврата к списку, после чего проверяет отсутствие черновика. Проверка не удалена, код сохранения приложения не менялся. Скриншоты получены на том же коде приложения до изменения ожидания в тесте. Ограничения аппаратных проверок из 0.3.0 сохраняются.
+
+## 0.4.0 — implementation prepared, validation pending
+
+Added optional offline voice cues with sound fallback, current-rest extension, and last-used preset marker. Added three engine tests for extension/deadlines/paused restoration and two Android tests for controls/lock and persistence. Kotlin formatting/parser and XML parsing/duplicate resource checks passed locally.
+
+Full Gradle tests, lint, APK and emulator screenshots have NOT run for this version. The local Android SDK is absent and Gradle distribution download failed with `Network is unreachable`. Remote push to `main` was rejected by automatic approval review pending explicit user permission; no CI run was triggered. Do not treat 0.3.1 reports/screenshots or APK as 0.4.0 evidence.

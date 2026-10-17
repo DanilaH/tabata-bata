@@ -116,4 +116,13 @@
 <string name="rounds_ahead">Впереди раундов: %1$d</string>
 <string name="round_position">Раунд %1$d из %2$d</string>
 <string name="stage_progress">Прогресс текущего этапа</string>
+    <string name="add_rest">+10 с отдыха</string>
+    <string name="last_launch">Последний запуск</string>
+    <string name="voice">Голосовые подсказки</string>
+    <string name="voice_hint">Короткий голос вместо сигнала этапа. Используется установленный офлайн-голос телефона.</string>
+    <string name="voice_loading">Подготовка голоса… Пока используются звуковые сигналы.</string>
+    <string name="voice_unavailable">Офлайн-голос для языка приложения недоступен. Используются звуковые сигналы. Установите голос в настройках синтеза речи Android.</string>
+    <string name="listen_voice">Прослушать голос</string>
+    <string name="voice_last_round">Работа. Последний раунд.</string>
+    <string name="voice_finish">Тренировка завершена.</string>
 </resources>

@@ -125,6 +125,7 @@ private fun App() {
     val store = remember { Store(context) }
     val scope = rememberCoroutineScope()
     val lastPlan by store.lastPlan.collectAsStateWithLifecycle<Plan?>(null)
+    val lastPresetId by store.lastPresetId.collectAsStateWithLifecycle(null)
     val presets by store.presets.collectAsStateWithLifecycle(emptyList())
     val options by store.options.collectAsStateWithLifecycle(Options())
     val snapshot by TimerService.state.collectAsStateWithLifecycle()
@@ -179,7 +180,10 @@ private fun App() {
     var draftTarget by rememberSaveable { mutableStateOf<String?>(null) }
     fun launch(plan: Plan, draftKey: String? = null) {
         draftTarget = draftKey
-        scope.launch { store.saveLastPlan(plan) }
+        scope.launch {
+            store.saveLastPlan(plan)
+            if (presets.any { it.id == draftKey }) store.saveLastPreset(draftKey!!)
+        }
         if (
             Build.VERSION.SDK_INT >= 33 &&
                 context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
@@ -307,11 +311,15 @@ private fun App() {
                         0 ->
                             Saved(
                                 presets,
+                                lastPresetId,
                                 onNew = {
                                     editor = null
                                     editorOpen = true
                                 },
-                                onStart = { launch(it.plan) },
+                                onStart = { p ->
+                                    scope.launch { store.saveLastPreset(p.id) }
+                                    launch(p.plan)
+                                },
                                 onEdit = {
                                     editor = it
                                     editorOpen = true
@@ -460,6 +468,7 @@ private fun App() {
 @Composable
 private fun Saved(
     presets: List<Preset>,
+    lastPresetId: String?,
     onNew: () -> Unit,
     onStart: (Preset) -> Unit,
     onEdit: (Preset) -> Unit,
@@ -498,6 +507,7 @@ private fun Saved(
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 6.dp, bottom = 16.dp),
                 )
+                if (lastPresetId == ready.id) Text(stringResource(R.string.last_launch))
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurface)
                 Row(
                     Modifier.fillMaxWidth().padding(vertical = 12.dp),
@@ -604,6 +614,11 @@ private fun Saved(
                             }
                         }
                     }
+                    if (p.id == lastPresetId)
+                        Text(
+                            stringResource(R.string.last_launch),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
                     Text(
                         stringResource(
                             R.string.mode_summary,
@@ -638,7 +653,13 @@ private fun Saved(
                     shape = MaterialTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(defaultName + " · 20/10 × 8")
+                    Text(
+                        defaultName +
+                            " · 20/10 × 8" +
+                            if (lastPresetId == ready.id)
+                                " · " + stringResource(R.string.last_launch)
+                            else ""
+                    )
                 }
             }
     }
@@ -741,7 +762,7 @@ private fun Settings(
                 )
                 .forEach { (stage, label) ->
                     OutlinedButton(
-                        onClick = { cues.play(stage, o) },
+                        onClick = { cues.play(stage, o.copy(voice = false)) },
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.weight(1f),
                     ) {
@@ -750,6 +771,26 @@ private fun Settings(
                 }
         }
         Text(stringResource(R.string.sound_hint), style = MaterialTheme.typography.bodySmall)
+        Toggle(R.string.voice, o.voice) { onChange(o.copy(voice = it)) }
+        if (o.voice) {
+            val voiceState by cues.voiceState.collectAsStateWithLifecycle()
+            Text(
+                stringResource(
+                    when (voiceState) {
+                        "ready" -> R.string.voice_hint
+                        "loading" -> R.string.voice_loading
+                        else -> R.string.voice_unavailable
+                    }
+                ),
+                style = MaterialTheme.typography.bodySmall,
+            )
+            OutlinedButton(
+                onClick = { cues.play(Stage.WORK, o, lastRound = true) },
+                enabled = voiceState == "ready",
+            ) {
+                Text(stringResource(R.string.listen_voice))
+            }
+        }
         Toggle(R.string.vibrate, o.vibrate) { onChange(o.copy(vibrate = it)) }
         Toggle(R.string.countdown, o.countdown) { onChange(o.copy(countdown = it)) }
         Text(stringResource(R.string.countdown_hint), style = MaterialTheme.typography.bodySmall)
