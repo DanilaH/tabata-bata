@@ -91,3 +91,10 @@ CI https://github.com/DanilaH/tabata-bata/actions/runs/38730563511: сборка
 Added optional offline voice cues with sound fallback, current-rest extension, and last-used preset marker. Added three engine tests for extension/deadlines/paused restoration and two Android tests for controls/lock and persistence. Kotlin formatting/parser and XML parsing/duplicate resource checks passed locally.
 
 Full Gradle tests, lint, APK and emulator screenshots have NOT run for this version. The local Android SDK is absent and Gradle distribution download failed with `Network is unreachable`. Remote push to `main` was rejected by automatic approval review pending explicit user permission; no CI run was triggered. Do not treat 0.3.1 reports/screenshots or APK as 0.4.0 evidence.
+
+
+### 0.4.0 — проверено 17 октября 2026
+
+Предыдущая блокировка снята явным разрешением пользователя. CI https://github.com/DanilaH/tabata-bata/actions/runs/39023651476: build/lint PASS, 20 unit-тестов, по 15 Android-тестов на эмуляторах API 35/36; системные проверки фона/восстановления PASS. Lint: 30 предупреждений, без ошибок. Просмотрены реальные снимки отдыха с +10 с, настроек сигналов и landscape с крупным шрифтом. Последний снимок проверяет подготовку; отдельного снимка landscape-отдыха нет.
+
+APK 0.4.0 подписана прежним ключом (SHA-256 сертификата 1ac792b1f821fac59532fdc3121827732c8ffea4104bfa6b456d9d4d770684de), apksigner verify PASS (v2/v3). Голос и его слышимость с музыкой/Bluetooth на физическом телефоне ещё не проверены. Проверка сохранения флага голоса не является проверкой фактического синтеза речи.
