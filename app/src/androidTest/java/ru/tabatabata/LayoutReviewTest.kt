@@ -32,7 +32,10 @@ class LayoutReviewTest {
         try {
             instrumentation.targetContext.getSystemService(LocaleManager::class.java).applicationLocales = LocaleList.forLanguageTags("en")
             shell("settings put system font_scale 1.5")
-            compose.activityRule.scenario.recreate()
+            compose.waitUntil(10000) {
+                compose.activity.resources.configuration.fontScale >= 1.49f &&
+                    compose.activity.resources.configuration.locales[0].language == "en"
+            }
             compose.waitForIdle()
             compose.onNodeWithText("+ " + label(R.string.new_timer)).assertIsDisplayed()
             capture("home-en-large")
