@@ -32,7 +32,7 @@ class RestControlsTest {
             compose.onNodeWithText(c.getString(R.string.add_rest)).assertIsNotEnabled()
         } finally {
             compose.runOnIdle { TimerService.command(c, "stop") }
-            compose.waitUntil(5000) { TimerService.state.value?.status == Status.STOPPED }
+            compose.waitUntil(5000) { TimerService.state.value == null || TimerService.state.value?.status == Status.STOPPED }
             compose.runOnIdle { TimerService.clearResult() }
         }
     }

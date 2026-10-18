@@ -248,7 +248,7 @@ class TimerService : Service() {
                 )
             } else if (
                 options.countdown &&
-                    (s.interval?.duration ?: 0) >= 6000 &&
+                    (s.interval?.duration ?: 0) >= 4000 &&
                     second in 1..3 &&
                     second != lastSecond
             )

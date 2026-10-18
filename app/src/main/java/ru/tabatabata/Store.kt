@@ -14,8 +14,8 @@ data class Preset(val id: String = UUID.randomUUID().toString(), val name: Strin
 
 data class Options(
     val volume: Float = .8f,
-    val vibrate: Boolean = false,
-    val countdown: Boolean = false,
+    val vibrate: Boolean = true,
+    val countdown: Boolean = true,
     val keepScreen: Boolean = true,
     val duckMusic: Boolean = false,
     val theme: String = "system",
@@ -71,8 +71,8 @@ class Store(private val context: Context) {
         context.dataStore.data.map {
             Options(
                 it[floatPreferencesKey("volume")] ?: .8f,
-                it[booleanPreferencesKey("vibrate")] ?: false,
-                it[booleanPreferencesKey("countdown")] ?: false,
+                it[booleanPreferencesKey("vibrate")] ?: true,
+                it[booleanPreferencesKey("countdown")] ?: true,
                 it[booleanPreferencesKey("keepScreen")] ?: true,
                 it[booleanPreferencesKey("duckMusic")] ?: false,
                 it[stringPreferencesKey("theme")]?.takeIf { value ->

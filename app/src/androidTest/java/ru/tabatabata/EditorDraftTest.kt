@@ -84,8 +84,9 @@ class EditorDraftTest {
             compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
             assertEquals(p, runBlocking { store.presets.first().single() })
             compose.runOnUiThread { TimerService.command(context, "stop") }
-            compose.waitUntil(10000) { TimerService.state.value?.status == Status.STOPPED }
-            compose.onNodeWithText(text(R.string.return_draft)).performClick()
+            compose.waitUntil(10000) { TimerService.state.value == null || TimerService.state.value?.status == Status.STOPPED }
+            compose.waitUntil(5000) { TimerService.state.value == null }
+            compose.onNodeWithText(p.name).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:45")
             compose.onNodeWithText(text(R.string.save)).performClick()
             compose.waitUntil(10000) {
@@ -103,7 +104,7 @@ class EditorDraftTest {
                     listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
             ) {
                 compose.runOnUiThread { TimerService.command(context, "stop") }
-                compose.waitUntil(10000) { TimerService.state.value?.status == Status.STOPPED }
+                compose.waitUntil(10000) { TimerService.state.value == null || TimerService.state.value?.status == Status.STOPPED }
             }
             TimerService.clearResult()
             runBlocking {

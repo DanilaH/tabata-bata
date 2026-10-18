@@ -49,7 +49,7 @@ class ResilienceTest {
                 listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
         ) {
             TimerService.command(context, "stop")
-            await { TimerService.state.value?.status == Status.STOPPED }
+            await { TimerService.state.value == null || TimerService.state.value?.status == Status.STOPPED }
         }
         TimerService.clearResult()
         context.getSharedPreferences("session", Context.MODE_PRIVATE).edit().clear().commit()

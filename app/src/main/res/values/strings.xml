@@ -18,7 +18,7 @@
  <string name="name">Название</string>
  <string name="reps">Раунды</string>
  <string name="sets">Серии</string>
- <string name="advanced">Дополнительные параметры</string>
+ <string name="advanced">Серии и завершение</string>
  <string name="last_rest">Отдых после последнего повторения</string>
  <string name="seconds">Время в секундах</string>
  <string name="total">Общая длительность</string>
@@ -34,9 +34,9 @@
  <string name="empty_title">Твой ритм. Твои интервалы.</string>
  <string name="empty_body">Настрой работу и отдых, сохрани режим и запускай одним нажатием.</string>
  <string name="volume">Громкость сигналов</string>
- <string name="vibrate">Вибрация при переходах</string>
+ <string name="vibrate">Вибрация отсчёта и этапов</string>
  <string name="countdown">Сигналы за 3, 2, 1 секунду</string>
- <string name="countdown_hint">Только для этапов от 6 секунд</string>
+ <string name="countdown_hint">Звук и вибрация на 3, 2, 1. Для этапов от 4 секунд. Вибрацию можно отключить отдельно.</string>
  <string name="keep_screen">Не гасить экран во время занятия</string>
  <string name="duck_music">Приглушать музыку на время сигнала</string>
  <string name="test_sound">Проверить звук</string>
@@ -75,7 +75,7 @@
  <string name="default_name">Мой режим</string>
  <string name="saved_ok">Режим сохранён</string>
  <string name="limit">Можно хранить до 500 режимов. Это защитное ограничение размера файла.</string>
- <string name="sound_hint">Для коротких интервалов — короткие сигналы. Проверь системную громкость мультимедиа.</string>
+ <string name="sound_hint">Отсчёт — короткие сигналы. Начало и финиш — сильнее. Громкость зависит и от громкости мультимедиа телефона.</string>
  <string name="focus_hint">Приглушение зависит от музыкального приложения. После отключения наушников таймер ставится на паузу.</string>
 <string name="support">Связаться с разработчиком</string><string name="privacy">Политика данных</string><string name="link_error">Не удалось открыть приложение для ссылки</string><string name="classic_tabata">Классическая табата</string>
 <string name="ready_mode">Готовый режим</string>
@@ -125,4 +125,7 @@
     <string name="listen_voice">Прослушать голос</string>
     <string name="voice_last_round">Работа. Последний раунд.</string>
     <string name="voice_finish">Тренировка завершена.</string>
+    <string name="finish_cue">Финиш</string>
+    <string name="countdown_preview">Сигнал отсчёта</string>
+    <string name="vibration_preview">Проверить сильную вибрацию</string>
 </resources>

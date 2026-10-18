@@ -145,9 +145,9 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
     private var stream = 0
 
     fun play(stage: Stage?, o: Options, countdown: Boolean = false, lastRound: Boolean = false) {
-        // Countdown must not cut off an in-flight stage announcement.
-        if (countdown && utterance != null) return
+        // The countdown takes priority over speech when an interval is short.
         cancel()
+        if (o.vibrate) vibrate(stage, countdown)
         if (!countdown && o.voice && o.volume > 0 && voiceMutable.value == "ready") {
             if (
                 o.duckMusic &&
@@ -169,13 +169,6 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
             val result = tts?.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, params, id)
             if (result == android.speech.tts.TextToSpeech.SUCCESS) {
                 handler.postDelayed(speechTimeout, 4000)
-                if (o.vibrate)
-                    vibrator.vibrate(
-                        VibrationEffect.createOneShot(
-                            if (stage == null) 300 else 90,
-                            VibrationEffect.DEFAULT_AMPLITUDE,
-                        )
-                    )
                 return
             }
             utterance = null
@@ -196,19 +189,25 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
                 pendingAt = SystemClock.elapsedRealtime()
             }
         }
-        if (o.vibrate && !countdown)
-            vibrator.vibrate(
-                VibrationEffect.createOneShot(
-                    if (stage == null) 300 else 90,
-                    VibrationEffect.DEFAULT_AMPLITUDE,
-                )
-            )
-        if (o.duckMusic) handler.postDelayed(releaseFocus, 500)
+        if (o.duckMusic) handler.postDelayed(releaseFocus, if (countdown) 250 else 1100)
+    }
+
+    private fun vibrate(stage: Stage?, countdown: Boolean) {
+        val timings = when {
+            countdown -> longArrayOf(0, 120)
+            stage == Stage.WORK -> longArrayOf(0, 450)
+            stage == null -> longArrayOf(0, 300, 120, 500)
+            else -> longArrayOf(0, 250)
+        }
+        // Waveforms also work on motors without amplitude control.
+        vibrator.vibrate(VibrationEffect.createWaveform(timings,
+            IntArray(timings.size) { if (it % 2 == 0) 0 else 255 }, -1))
     }
 
     private fun playId(id: Int, o: Options, countdown: Boolean) {
         if (stream != 0) pool.stop(stream)
-        stream = pool.play(id, o.volume, o.volume, 1, 0, 1f)
+        val gain = o.volume * if (countdown) .55f else 1f
+        stream = pool.play(id, gain, gain, 1, 0, 1f)
     }
 
     fun cancel() {

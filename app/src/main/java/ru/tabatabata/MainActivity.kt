@@ -196,6 +196,13 @@ private fun App() {
             notificationPrompt = true
         } else TimerService.command(context, "start", plan)
     }
+    LaunchedEffect(snapshot?.sessionId, snapshot?.status) {
+        if (snapshot?.status == Status.STOPPED) {
+            tab = 0
+            editorOpen = false
+            TimerService.clearResult()
+        }
+    }
     val running = snapshot?.status in listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
     DisposableEffect(running, options.keepScreen) {
         if (running && options.keepScreen)
@@ -230,7 +237,9 @@ private fun App() {
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
-            if (snapshot != null)
+            if (snapshot?.status == Status.STOPPED) {
+                // Return to the menu without flashing a result screen.
+            } else if (snapshot != null)
                 Workout(
                     snapshot!!,
                     options,
@@ -483,95 +492,16 @@ private fun Saved(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(top = 20.dp, bottom = 20.dp),
     ) {
-        if (presets.isNotEmpty())
-            item {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        stringResource(R.string.saved),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = onNew) { Text("+ " + stringResource(R.string.new_timer)) }
-                }
+        item {
+            Button(onClick = onNew, shape = MaterialTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+                Text("+ " + stringResource(R.string.new_timer))
             }
-        if (presets.isEmpty())
-            item {
-                Text(
-                    stringResource(R.string.ready_mode),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    defaultName,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(top = 6.dp, bottom = 16.dp),
-                )
-                if (lastPresetId == ready.id) Text(stringResource(R.string.last_launch))
-                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface)
-                Row(
-                    Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        formatTime(ready.plan.durationMs()),
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f),
-                        style =
-                            MaterialTheme.typography.displayLarge.copy(fontFeatureSettings = "tnum"),
-                    )
-                    Text(
-                        stringResource(R.string.total),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                HorizontalDivider()
-                Row(Modifier.fillMaxWidth().padding(vertical = 18.dp)) {
-                    listOf(R.string.work to "20", R.string.rest to "10", R.string.reps to "8")
-                        .forEach { (label, value) ->
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    value +
-                                        if (label == R.string.reps) ""
-                                        else " " + stringResource(R.string.seconds_short),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Medium,
-                                )
-                                Text(
-                                    stringResource(label),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                }
-                Button(
-                    onClick = { onStart(ready) },
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                ) {
-                    Text(stringResource(R.string.start_workout))
-                }
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(R.string.saved),
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.weight(1f),
-                    )
-                    TextButton(onClick = onNew) { Text("+ " + stringResource(R.string.new_timer)) }
-                }
-                if (presets.isEmpty())
-                    Text(
-                        stringResource(R.string.no_saved),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
-            }
+        }
+        if (presets.isNotEmpty()) item {
+            Text(stringResource(R.string.saved), style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 12.dp))
+        }
         itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
             var menu by remember { mutableStateOf(false) }
             val contextMenuLabel = stringResource(R.string.mode_actions, p.name)
@@ -646,23 +576,24 @@ private fun Saved(
                 }
             }
         }
-        if (presets.isNotEmpty())
-            item {
-                OutlinedButton(
-                    onClick = { onStart(ready) },
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        defaultName +
-                            " · 20/10 × 8" +
-                            if (lastPresetId == ready.id)
-                                " · " + stringResource(R.string.last_launch)
-                            else ""
-                    )
+        item {
+            Text(stringResource(R.string.ready_mode), style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(top = 12.dp))
+            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(defaultName, style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.mode_summary, "0:20", "0:10", 8),
+                        style = MaterialTheme.typography.bodyMedium)
+                    Text(formatTime(ready.plan.durationMs()), style = MaterialTheme.typography.labelMedium)
+                    if (lastPresetId == ready.id) Text(stringResource(R.string.last_launch), style = MaterialTheme.typography.labelSmall)
+                    OutlinedButton(onClick = { onStart(ready) }, shape = MaterialTheme.shapes.small) {
+                        Text(stringResource(R.string.start))
+                    }
                 }
             }
+        }
     }
+
 }
 
 @Composable
@@ -754,21 +685,18 @@ private fun Settings(
         )
         Slider(o.volume, onValueChange = { onChange(o.copy(volume = it)) })
         Text(stringResource(R.string.listen_signals), style = MaterialTheme.typography.labelLarge)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            listOf(
-                    Stage.WORK to R.string.work,
-                    Stage.REST to R.string.rest,
-                    null to R.string.completed,
-                )
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(Stage.WORK to R.string.work, Stage.REST to R.string.rest, null to R.string.finish_cue)
                 .forEach { (stage, label) ->
-                    OutlinedButton(
-                        onClick = { cues.play(stage, o.copy(voice = false)) },
-                        shape = MaterialTheme.shapes.small,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(stringResource(label), maxLines = 2)
+                    OutlinedButton(onClick = { cues.play(stage, o.copy(voice = false)) },
+                        shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("▶ " + stringResource(label), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
                 }
+            OutlinedButton(onClick = { cues.play(Stage.WORK, o.copy(voice = false), countdown = true) },
+                shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth()) {
+                Text("▶ " + stringResource(R.string.countdown_preview))
+            }
         }
         Text(stringResource(R.string.sound_hint), style = MaterialTheme.typography.bodySmall)
         Toggle(R.string.voice, o.voice) { onChange(o.copy(voice = it)) }
@@ -792,6 +720,8 @@ private fun Settings(
             }
         }
         Toggle(R.string.vibrate, o.vibrate) { onChange(o.copy(vibrate = it)) }
+        OutlinedButton(onClick = { cues.play(Stage.WORK, o.copy(volume = 0f, vibrate = true, voice = false)) },
+            modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.vibration_preview)) }
         Toggle(R.string.countdown, o.countdown) { onChange(o.copy(countdown = it)) }
         Text(stringResource(R.string.countdown_hint), style = MaterialTheme.typography.bodySmall)
         HorizontalDivider()

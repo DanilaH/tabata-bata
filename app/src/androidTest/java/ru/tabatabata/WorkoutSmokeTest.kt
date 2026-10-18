@@ -120,7 +120,7 @@ class WorkoutSmokeTest {
                 compose.waitUntil(5000) { TimerService.state.value?.interval?.stage == Stage.REST }
                 capture("rest-$theme")
                 compose.runOnUiThread { TimerService.command(context, "stop") }
-                compose.waitUntil(5000) { TimerService.state.value?.status == Status.STOPPED }
+                compose.waitUntil(5000) { TimerService.state.value == null || TimerService.state.value?.status == Status.STOPPED }
                 TimerService.clearResult()
                 compose.waitForIdle()
             }
@@ -130,7 +130,7 @@ class WorkoutSmokeTest {
                     listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
             ) {
                 compose.runOnUiThread { TimerService.command(context, "stop") }
-                compose.waitUntil(5000) { TimerService.state.value?.status == Status.STOPPED }
+                compose.waitUntil(5000) { TimerService.state.value == null || TimerService.state.value?.status == Status.STOPPED }
             }
             TimerService.clearResult()
             kotlinx.coroutines.runBlocking { store.saveOptions(original) }
@@ -159,10 +159,10 @@ class WorkoutSmokeTest {
         compose.onNodeWithText(text(R.string.stop)).performClick()
         compose.onNodeWithText(text(R.string.exit_title)).assertExists()
         compose.onAllNodesWithText(text(R.string.stop)).onLast().performClick()
-        compose.waitUntil(5000) { TimerService.state.value?.status == Status.STOPPED }
-        compose.onNodeWithText(text(R.string.stopped)).assertExists()
-        capture("stopped")
-        compose.onNodeWithText(text(R.string.home)).performClick()
+        compose.waitUntil(5000) { TimerService.state.value == null || TimerService.state.value?.status == Status.STOPPED }
+        compose.waitUntil(5000) { TimerService.state.value == null }
+        compose.onNodeWithText(text(R.string.stopped)).assertDoesNotExist()
+        capture("menu-after-stop")
         compose.onNodeWithText(text(R.string.app_name)).assertExists()
     }
 

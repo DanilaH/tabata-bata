@@ -18,7 +18,7 @@
  <string name="name">Name</string>
  <string name="reps">Repetitions</string>
  <string name="sets">Sets</string>
- <string name="advanced">More options</string>
+ <string name="advanced">Sets and finish</string>
  <string name="last_rest">Rest after the final repetition</string>
  <string name="seconds">Time in seconds</string>
  <string name="total">Total duration</string>
@@ -34,9 +34,9 @@
  <string name="empty_title">Your pace. Your intervals.</string>
  <string name="empty_body">Set work and rest, save your timer and start with one tap.</string>
  <string name="volume">Cue volume</string>
- <string name="vibrate">Vibrate on transitions</string>
+ <string name="vibrate">Countdown and stage vibration</string>
  <string name="countdown">Cues at 3, 2, 1 seconds</string>
- <string name="countdown_hint">Only for stages of 6 seconds or longer</string>
+ <string name="countdown_hint">Sound and vibration at 3, 2, 1. For stages of 4 seconds or longer. Vibration can be turned off separately.</string>
  <string name="keep_screen">Keep screen on during workouts</string>
  <string name="duck_music">Lower music during cues</string>
  <string name="test_sound">Test sound</string>
@@ -75,7 +75,7 @@
  <string name="default_name">My timer</string>
  <string name="saved_ok">Timer saved</string>
  <string name="limit">Up to 500 timers for file-size safety.</string>
- <string name="sound_hint">Short cues for short intervals. Check your system media volume.</string>
+ <string name="sound_hint">Short countdown beeps; stronger start and finish cues. Your phone media volume also affects loudness.</string>
  <string name="focus_hint">Ducking depends on the music app. Disconnecting headphones pauses the timer.</string>
 <string name="support">Contact developer</string><string name="privacy">Privacy policy</string><string name="link_error">Could not open an app for this link</string><string name="classic_tabata">Classic Tabata</string>
 <string name="ready_mode">Ready to start</string>
@@ -125,4 +125,7 @@
     <string name="listen_voice">Preview voice</string>
     <string name="voice_last_round">Work. Last round.</string>
     <string name="voice_finish">Workout completed.</string>
+    <string name="finish_cue">Finish</string>
+    <string name="countdown_preview">Countdown beep</string>
+    <string name="vibration_preview">Test strong vibration</string>
 </resources>

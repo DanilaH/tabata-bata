@@ -114,17 +114,6 @@ internal fun Editor(
         raw = next.toString()
         drafts.write(key, raw)
     }
-    var advanced by
-        rememberSaveable(key) {
-            mutableStateOf(
-                base.sets > 1 ||
-                    base.cool > 0 ||
-                    base.lastRest ||
-                    numbers[4] != 1 ||
-                    numbers[6] != 0 ||
-                    last
-            )
-        }
     var leave by rememberSaveable { mutableStateOf(false) }
     var naming by rememberSaveable { mutableStateOf(false) }
     var preview by rememberSaveable { mutableStateOf(false) }
@@ -179,17 +168,20 @@ internal fun Editor(
                 )
             for (i in 0..6) {
                 if (i == 4)
-                    TextButton(onClick = { advanced = !advanced }) {
-                        Text(stringResource(R.string.advanced) + if (advanced) " −" else " +")
-                    }
-                if (i < 4 || advanced || valid.drop(4).any { !it }) {
+                    Text(stringResource(R.string.advanced), style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 12.dp))
+                run {
                     val title = stringResource(labels[i])
-                    Column {
+                    BoxWithConstraints {
+                        val stacked = maxWidth < 340.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
+                        Column {
+                        if (stacked) Text(title, style = MaterialTheme.typography.bodyMedium)
                         Row(
                             Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(title, modifier = Modifier.weight(1f))
+                            if (!stacked) Text(title, modifier = Modifier.weight(1f))
+                            else Spacer(Modifier.weight(1f))
                             IconButton(
                                 onClick = {
                                     val v =
@@ -228,7 +220,7 @@ internal fun Editor(
                                             else KeyboardType.Text
                                     ),
                                 modifier =
-                                    Modifier.width(88.dp).semantics { contentDescription = title },
+                                    Modifier.width(if (stacked) 132.dp else 100.dp).semantics { contentDescription = title },
                             )
                             IconButton(
                                 onClick = {
@@ -267,9 +259,10 @@ internal fun Editor(
                                 style = MaterialTheme.typography.bodySmall,
                             )
                     }
+                    }
                 }
             }
-            if (advanced) Toggle(R.string.last_rest, last) { v -> change { it.put("last", v) } }
+            Toggle(R.string.last_rest, last) { v -> change { it.put("last", v) } }
             if (plan != null) {
                 TextButton(onClick = { preview = !preview }) {
                     Text(stringResource(R.string.plan_preview) + if (preview) " ▴" else " ▾")
