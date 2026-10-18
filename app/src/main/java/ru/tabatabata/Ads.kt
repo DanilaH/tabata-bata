@@ -1,6 +1,8 @@
 package ru.tabatabata
 
 import android.app.Activity
+import android.os.Handler
+import android.os.Looper
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -16,6 +18,12 @@ class Ads(private val activity: Activity) {
     private var loader: InterstitialAdLoader? = null
     private var ad: InterstitialAd? = null
     private var dead = false
+    private val handler = Handler(Looper.getMainLooper())
+    private val retry = AdLoadRetry(
+        schedule = { delay, action -> handler.postDelayed(Runnable { action() }, delay); Unit },
+        cancel = { handler.removeCallbacksAndMessages(null) },
+        reload = { load() },
+    )
     var ready by mutableStateOf(false)
         private set
 
@@ -32,7 +40,7 @@ class Ads(private val activity: Activity) {
     }
 
     private fun load() {
-        if (BuildConfig.INTERSTITIAL_ID.isBlank() || dead) return
+        if (BuildConfig.INTERSTITIAL_ID.isBlank() || dead || ad != null || !retry.begin()) return
         Telemetry.event("ad_request", mapOf("format" to "interstitial"))
         if (loader == null) loader = InterstitialAdLoader(activity)
         loader?.loadAd(
@@ -40,12 +48,15 @@ class Ads(private val activity: Activity) {
             object : InterstitialAdLoadListener {
                 override fun onAdLoaded(interstitialAd: InterstitialAd) {
                     if (!dead) {
+                        retry.loaded()
                         this@Ads.ad = interstitialAd
                         Telemetry.event("ad_loaded", mapOf("format" to "interstitial"))
                     }
                 }
 
                 override fun onAdFailedToLoad(error: AdRequestError) {
+                    if (dead) return
+                    retry.failed()
                     Telemetry.event(
                         "ad_error",
                         mapOf("format" to "interstitial", "stage" to "load"),
@@ -93,6 +104,7 @@ class Ads(private val activity: Activity) {
                         "ad_error",
                         mapOf("format" to "interstitial", "stage" to "show"),
                     )
+                    load()
                 }
 
                 override fun onAdDismissed() {
@@ -114,6 +126,7 @@ class Ads(private val activity: Activity) {
 
     fun close() {
         dead = true
+        retry.close()
         ready = false
         ad?.setAdEventListener(null)
         ad = null

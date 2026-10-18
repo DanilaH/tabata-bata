@@ -43,7 +43,8 @@ def service_running():
 
 
 adb("install", "-r", APK)
-adb("shell", "pm", "grant", PACKAGE, "android.permission.POST_NOTIFICATIONS")
+if int(adb("shell", "getprop", "ro.build.version.sdk").strip()) >= 33:
+    adb("shell", "pm", "grant", PACKAGE, "android.permission.POST_NOTIFICATIONS")
 adb("shell", "input", "keyevent", "KEYCODE_WAKEUP")
 adb("shell", "wm", "dismiss-keyguard")
 adb("shell", "am", "force-stop", PACKAGE)

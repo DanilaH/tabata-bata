@@ -59,7 +59,8 @@ class ResilienceTest {
     @Test
     fun backgroundScreenOffNotificationActionsAndCompletion() {
         clean()
-        shell("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
+        if (android.os.Build.VERSION.SDK_INT >= 33)
+            shell("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
         val notifications = context.getSystemService(NotificationManager::class.java)
         val plan = Plan(prepare = 1, work = 3, rest = 1, reps = 2)
         try {
