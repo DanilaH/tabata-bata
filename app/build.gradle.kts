@@ -88,3 +88,11 @@ dependencies {
 }
 
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
+
+// AGP resolves the debug keystore location (it is not always ~/.android).
+tasks.register("writeDebugKeystorePath") {
+    doLast {
+        layout.buildDirectory.file("debug-keystore-path.txt").get().asFile
+            .writeText(android.signingConfigs.getByName("debug").storeFile!!.absolutePath)
+    }
+}
