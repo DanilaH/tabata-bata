@@ -124,7 +124,6 @@ private fun App() {
     val activity = requireNotNull(LocalActivity.current) as ComponentActivity
     val store = remember { Store(context) }
     val scope = rememberCoroutineScope()
-    val lastPlan by store.lastPlan.collectAsStateWithLifecycle<Plan?>(null)
     val lastPresetId by store.lastPresetId.collectAsStateWithLifecycle(null)
     val presets by store.presets.collectAsStateWithLifecycle(emptyList())
     val options by store.options.collectAsStateWithLifecycle(Options())
@@ -254,13 +253,8 @@ private fun App() {
                         if (draftTarget != null && EditorDrafts(context).has(draftTarget!!))
                             ({
                                 TimerService.clearResult()
-                                if (draftTarget == "quick") {
-                                    editorOpen = false
-                                    tab = 1
-                                } else {
-                                    editor = presets.find { it.id == draftTarget }
-                                    editorOpen = true
-                                }
+                                editor = presets.find { it.id == draftTarget }
+                                editorOpen = true
                             })
                         else null,
                     onRepeat = {
@@ -306,16 +300,6 @@ private fun App() {
                             )
                         }
                     }
-                    if (tab != 2)
-                        PrimaryTabRow(tab) {
-                            listOf(R.string.saved, R.string.quick).forEachIndexed { i, r ->
-                                Tab(
-                                    selected = tab == i,
-                                    onClick = { tab = i },
-                                    text = { Text(stringResource(r)) },
-                                )
-                            }
-                        }
                     when (tab) {
                         0 ->
                             Saved(
@@ -372,27 +356,6 @@ private fun App() {
                                     }
                                 },
                             )
-                        1 ->
-                            if (lastPlan == null) CircularProgressIndicator()
-                            else
-                                Editor(
-                                    null,
-                                    initialPlan = lastPlan,
-                                    onCancel = null,
-                                    onSave = { p ->
-                                        scope.launch {
-                                            if (presets.size < 500) {
-                                                store.updatePreset(p)
-                                                EditorDrafts(context).clear("quick")
-                                                tab = 0
-                                            } else
-                                                snackbar.showSnackbar(
-                                                    context.getString(R.string.limit)
-                                                )
-                                        }
-                                    },
-                                    onStart = { launch(it, "quick") },
-                                )
                         2 ->
                             Settings(options, presets, store, snackbar) { o ->
                                 scope.launch { store.saveOptions(o) }
@@ -685,20 +648,13 @@ private fun Settings(
         )
         Slider(o.volume, onValueChange = { onChange(o.copy(volume = it)) })
         Text(stringResource(R.string.listen_signals), style = MaterialTheme.typography.labelLarge)
-        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(Modifier.fillMaxWidth()) {
             listOf(Stage.WORK to R.string.work, Stage.REST to R.string.rest, null to R.string.finish_cue)
                 .forEach { (stage, label) ->
-                    OutlinedButton(onClick = { cues.play(stage, o.copy(voice = false)) },
-                        shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                        Text("▶ " + stringResource(label),
-                            modifier = Modifier.fillMaxWidth().wrapContentHeight(unbounded = true),
-                            lineHeight = 24.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                    }
+                    SoundPreviewRow(stringResource(label)) { cues.play(stage, o.copy(voice = false)) }
                 }
-            OutlinedButton(onClick = { cues.play(Stage.WORK, o.copy(voice = false), countdown = true) },
-                shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth()) {
-                Text("▶ " + stringResource(R.string.countdown_preview))
+            SoundPreviewRow(stringResource(R.string.countdown_preview)) {
+                cues.play(Stage.WORK, o.copy(voice = false), countdown = true)
             }
         }
         Text(stringResource(R.string.sound_hint), style = MaterialTheme.typography.bodySmall)
@@ -822,5 +778,17 @@ private fun Settings(
             ) {
                 Text(stringResource(R.string.privacy))
             }
+    }
+}
+
+@Composable
+private fun SoundPreviewRow(label: String, onPlay: () -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+        IconButton(onClick = onPlay, modifier = Modifier.semantics { contentDescription = label }) {
+            Text("▶", color = MaterialTheme.colorScheme.primary)
+        }
     }
 }

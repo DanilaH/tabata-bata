@@ -170,7 +170,7 @@ class ResilienceTest {
             shell("settings put system font_scale 1.5")
             compose.waitUntil(10000) { compose.activity.resources.configuration.fontScale >= 1.49f }
             compose.waitForIdle()
-            compose.onNodeWithText(text(R.string.quick)).performClick()
+            compose.onNodeWithText("+ " + text(R.string.new_timer)).performClick()
             compose.waitForIdle()
             compose.runOnUiThread {
                 compose.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE

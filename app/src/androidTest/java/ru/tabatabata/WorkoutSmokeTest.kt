@@ -140,7 +140,7 @@ class WorkoutSmokeTest {
     @Test
     fun startPauseResumeAndStop() {
         capture("home")
-        compose.onNodeWithText(text(R.string.quick)).performClick()
+        compose.onNodeWithText("+ " + text(R.string.new_timer)).performClick()
         compose.waitForIdle()
         capture("editor")
         compose.onNodeWithContentDescription("+ " + text(R.string.work)).performClick()

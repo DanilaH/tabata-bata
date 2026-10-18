@@ -43,7 +43,7 @@ class LayoutReviewTest {
             capture("editor-options-en-large")
             compose.onNodeWithText("← " + label(R.string.saved)).performScrollTo().performClick()
             compose.onNodeWithText(label(R.string.settings)).performClick()
-            val finish = compose.onNodeWithText("▶ " + label(R.string.finish_cue))
+            val finish = compose.onNodeWithText(label(R.string.finish_cue))
             finish.performScrollTo().assertIsDisplayed()
             val layouts= mutableListOf<TextLayoutResult>()
             finish.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
