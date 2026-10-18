@@ -691,7 +691,7 @@ private fun Settings(
                     OutlinedButton(onClick = { cues.play(stage, o.copy(voice = false)) },
                         shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                         Text("▶ " + stringResource(label),
-                            modifier = Modifier.wrapContentHeight(unbounded = true),
+                            modifier = Modifier.fillMaxWidth().wrapContentHeight(unbounded = true),
                             lineHeight = 24.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
