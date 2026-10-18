@@ -183,7 +183,8 @@ internal fun Editor(
                         val stacked = maxWidth < 390.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
                         Column {
                         if (stacked) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            StageMark(i, tint)
+                            StageMark(i, if (MaterialTheme.colorScheme.background.red < .3f)
+                                androidx.compose.ui.graphics.lerp(tint, androidx.compose.ui.graphics.Color.White, .55f) else tint)
                             Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         }
                         Row(

@@ -47,7 +47,7 @@ class EditorDraftTest {
             }
             compose.onNodeWithText(p.name).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:45")
-            compose.onNodeWithText("← " + text(R.string.saved)).performClick()
+            compose.onNodeWithText("← " + text(R.string.saved)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.unsaved)).assertExists()
             compose.onNodeWithText(text(R.string.reset)).performClick()
             assertEquals(p, runBlocking { store.presets.first().single() })
