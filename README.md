@@ -27,4 +27,4 @@ APK: `app/build/outputs/apk/debug/app-debug.apk`. GitHub Actions выполня�
 
 Разработка не равна проверенной аппаратной надёжности или опубликованному продукту. Состояние внешних интеграций и оставшиеся действия описаны в RELEASE.md.
 
-Форматирование: `./gradlew formatKotlin`. UI smoke-тест компилируется через `assembleDebugAndroidTest` и запускается через `connectedDebugAndroidTest`; GitHub Actions содержит отдельный job с Android 15 и KVM.
+Форматирование: `./gradlew formatKotlin`. UI smoke-тест компилируется через `assembleDebugAndroidTest` и запускается через `connectedDebugAndroidTest`; GitHub Actions проверяет полный набор на Android 15/16; отдельный прогон Android 8/15 проверяет фон, хранение и обновление с закреплённой версии 0.5.1. Все Android-прогоны используют эмуляторы с KVM.
