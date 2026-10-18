@@ -1,5 +1,6 @@
 """Out-of-process emulator checks; does not claim hardware audio reliability."""
 import hashlib
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -7,8 +8,8 @@ import time
 import xml.etree.ElementTree as ET
 
 PACKAGE = "ru.tabatabata"
-APK = "app/build/outputs/apk/debug/app-debug.apk"
-OUT = Path("app/build/reports/system-check")
+APK = os.environ.get("SMOKE_APK", "app/build/outputs/apk/debug/app-debug.apk")
+OUT = Path(os.environ.get("SMOKE_OUT", "app/build/reports/system-check"))
 OUT.mkdir(parents=True, exist_ok=True)
 
 

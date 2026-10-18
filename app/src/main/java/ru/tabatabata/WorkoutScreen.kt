@@ -27,10 +27,10 @@ internal fun workoutClock(ms: Long): String {
 
 internal fun workoutBackground(stage: Stage?, dark: Boolean): Color =
     when (stage) {
-        Stage.WORK -> if (dark) Color(0xFF193D2B) else Color(0xFF286043)
+        Stage.WORK -> if (dark) Color(0xFF193D2B) else Color(0xFF176B44)
         Stage.REST,
-        Stage.BETWEEN -> if (dark) Color(0xFF16364A) else Color(0xFF245B79)
-        else -> if (dark) Color(0xFF44361D) else Color(0xFF75551F)
+        Stage.BETWEEN -> if (dark) Color(0xFF16364A) else Color(0xFF245ED0)
+        else -> if (dark) Color(0xFF44361D) else Color(0xFF8A5400)
     }
 
 @Composable

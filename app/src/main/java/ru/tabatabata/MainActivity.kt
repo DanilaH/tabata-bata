@@ -32,41 +32,41 @@ import kotlinx.coroutines.*
 
 private val LightPalette =
     lightColorScheme(
-        primary = Color(0xFF244D3B),
-        onPrimary = Color(0xFFFAFBF6),
-        background = Color(0xFFF0F0E9),
-        surface = Color(0xFFF0F0E9),
-        surfaceVariant = Color(0xFFE3E6DD),
-        onSurface = Color(0xFF202624),
-        onBackground = Color(0xFF202624),
-        onSurfaceVariant = Color(0xFF58625B),
-        outline = Color(0xFF747C73),
-        outlineVariant = Color(0xFFC9CBC4),
-        surfaceContainer = Color(0xFFE8EBE2),
-        surfaceContainerLow = Color(0xFFECEEE6),
-        surfaceContainerHigh = Color(0xFFE3E6DD),
-        surfaceContainerHighest = Color(0xFFDEE2D8),
-        secondaryContainer = Color(0xFFE3E6DD),
-        secondary = Color(0xFF58625B),
+        primary = Color(0xFF3049C7),
+        onPrimary = Color(0xFFFFFFFF),
+        background = Color(0xFFF6F7FC),
+        surface = Color(0xFFF6F7FC),
+        surfaceVariant = Color(0xFFE5E9F5),
+        onSurface = Color(0xFF151B30),
+        onBackground = Color(0xFF151B30),
+        onSurfaceVariant = Color(0xFF4C5772),
+        outline = Color(0xFF65718D),
+        outlineVariant = Color(0xFFBBC4DA),
+        surfaceContainer = Color(0xFFEBEEF8),
+        surfaceContainerLow = Color(0xFFF0F2FA),
+        surfaceContainerHigh = Color(0xFFE5E9F5),
+        surfaceContainerHighest = Color(0xFFDDE3F3),
+        secondaryContainer = Color(0xFFE5E9F5),
+        secondary = Color(0xFF4C5772),
     )
 private val DarkPalette =
     darkColorScheme(
-        primary = Color(0xFFA8CCB2),
-        onPrimary = Color(0xFF163526),
-        background = Color(0xFF1B201D),
-        surface = Color(0xFF1B201D),
-        surfaceVariant = Color(0xFF303932),
-        onSurface = Color(0xFFE3E7DF),
-        onBackground = Color(0xFFE3E7DF),
-        onSurfaceVariant = Color(0xFFB5BFB4),
-        outline = Color(0xFF849083),
-        outlineVariant = Color(0xFF454F46),
-        surfaceContainer = Color(0xFF262D28),
-        surfaceContainerLow = Color(0xFF222824),
-        surfaceContainerHigh = Color(0xFF303932),
-        surfaceContainerHighest = Color(0xFF38423A),
-        secondaryContainer = Color(0xFF303932),
-        secondary = Color(0xFFB5BFB4),
+        primary = Color(0xFFB9C5FF),
+        onPrimary = Color(0xFF10216C),
+        background = Color(0xFF111522),
+        surface = Color(0xFF111522),
+        surfaceVariant = Color(0xFF252E44),
+        onSurface = Color(0xFFEDF0FC),
+        onBackground = Color(0xFFEDF0FC),
+        onSurfaceVariant = Color(0xFFBBC5DE),
+        outline = Color(0xFF8996B4),
+        outlineVariant = Color(0xFF424E69),
+        surfaceContainer = Color(0xFF1D2436),
+        surfaceContainerLow = Color(0xFF181F30),
+        surfaceContainerHigh = Color(0xFF252E44),
+        surfaceContainerHighest = Color(0xFF303A53),
+        secondaryContainer = Color(0xFF252E44),
+        secondary = Color(0xFFBBC5DE),
     )
 
 @Composable
@@ -305,6 +305,7 @@ private fun App() {
                             Saved(
                                 presets,
                                 lastPresetId,
+                                options.showReadyModes,
                                 onNew = {
                                     editor = null
                                     editorOpen = true
@@ -441,6 +442,7 @@ private fun App() {
 private fun Saved(
     presets: List<Preset>,
     lastPresetId: String?,
+    showReadyModes: Boolean,
     onNew: () -> Unit,
     onStart: (Preset) -> Unit,
     onEdit: (Preset) -> Unit,
@@ -448,8 +450,12 @@ private fun Saved(
     onDelete: (Preset) -> Unit,
     onMove: (Int, Int) -> Unit,
 ) {
-    val defaultName = stringResource(R.string.classic_tabata)
-    val ready = Preset(id = "builtin-classic", name = defaultName, plan = Plan())
+    val readyModes = listOf(
+        Preset("builtin-classic", stringResource(R.string.classic_tabata), Plan()),
+        Preset("builtin-30-30", "30/30 × 10", Plan(work = 30, rest = 30, reps = 10)),
+        Preset("builtin-40-20", "40/20 × 8", Plan(work = 40, rest = 20, reps = 8)),
+        Preset("builtin-60-30", "60/30 × 6", Plan(work = 60, rest = 30, reps = 6)),
+    )
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -482,10 +488,11 @@ private fun Saved(
                                 modifier =
                                     Modifier.semantics { contentDescription = contextMenuLabel },
                             ) {
-                                Text("•••")
+                                Text("⋮", fontSize = 24.sp)
                             }
                             DropdownMenu(menu, { menu = false }) {
                                 listOf(
+                                        R.string.edit to { onEdit(p) },
                                         R.string.copy to { onCopy(p) },
                                         R.string.up to { onMove(index, index - 1) },
                                         R.string.down to { onMove(index, index + 1) },
@@ -539,18 +546,24 @@ private fun Saved(
                 }
             }
         }
-        item {
-            Text(stringResource(R.string.ready_mode), style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.padding(top = 12.dp))
-            OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(defaultName, style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(R.string.mode_summary, "0:20", "0:10", 8),
-                        style = MaterialTheme.typography.bodyMedium)
-                    Text(formatTime(ready.plan.durationMs()), style = MaterialTheme.typography.labelMedium)
-                    if (lastPresetId == ready.id) Text(stringResource(R.string.last_launch), style = MaterialTheme.typography.labelSmall)
-                    OutlinedButton(onClick = { onStart(ready) }, shape = MaterialTheme.shapes.small) {
-                        Text(stringResource(R.string.start))
+        if (showReadyModes) {
+            item {
+                Text(stringResource(R.string.ready_mode), style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
+            }
+            itemsIndexed(readyModes, key = { _, p -> p.id }) { _, ready ->
+                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(ready.name, style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            Text(formatTime(ready.plan.durationMs()), style = MaterialTheme.typography.labelLarge)
+                        }
+                        Text(stringResource(R.string.mode_summary, durationInput(ready.plan.work),
+                            durationInput(ready.plan.rest), ready.plan.reps), style = MaterialTheme.typography.bodyMedium)
+                        OutlinedButton(onClick = { onStart(ready) }, shape = MaterialTheme.shapes.small) {
+                            Text(stringResource(R.string.start))
+                        }
                     }
                 }
             }
@@ -689,6 +702,7 @@ private fun Settings(
         Toggle(R.string.duck_music, o.duckMusic) { onChange(o.copy(duckMusic = it)) }
         Text(stringResource(R.string.focus_hint), style = MaterialTheme.typography.bodySmall)
         HorizontalDivider()
+        Toggle(R.string.show_ready_modes, o.showReadyModes) { onChange(o.copy(showReadyModes = it)) }
         Text(stringResource(R.string.appearance), style = MaterialTheme.typography.titleMedium)
         listOf(
                 "system" to R.string.theme_system,

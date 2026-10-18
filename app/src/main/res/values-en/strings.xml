@@ -77,8 +77,8 @@
  <string name="limit">Up to 500 timers for file-size safety.</string>
  <string name="sound_hint">Short countdown beeps; stronger start and finish cues. Your phone media volume also affects loudness.</string>
  <string name="focus_hint">Ducking depends on the music app. Disconnecting headphones pauses the timer.</string>
-<string name="support">Contact developer</string><string name="privacy">Privacy policy</string><string name="link_error">Could not open an app for this link</string><string name="classic_tabata">Classic Tabata</string>
-<string name="ready_mode">Ready to start</string>
+<string name="support">Contact developer</string><string name="privacy">Privacy policy</string><string name="link_error">Could not open an app for this link</string><string name="classic_tabata">Tabata 20/10 × 8</string>
+<string name="ready_mode">Ready-made timers</string>
 <string name="seconds_short">s</string>
 <string name="start_workout">Start workout</string>
 <string name="no_saved">No saved timers yet. Add your own or start the ready-made workout.</string>
@@ -128,4 +128,5 @@
     <string name="finish_cue">Finish</string>
     <string name="countdown_preview">Countdown beep</string>
     <string name="vibration_preview">Test strong vibration</string>
+<string name="show_ready_modes">Show ready-made timers</string>
 </resources>

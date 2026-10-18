@@ -21,6 +21,7 @@ data class Options(
     val theme: String = "system",
     val showStages: Boolean = false,
     val voice: Boolean = false,
+    val showReadyModes: Boolean = true,
 )
 
 fun Plan.json(): JSONObject =
@@ -80,6 +81,7 @@ class Store(private val context: Context) {
                 } ?: "system",
                 it[booleanPreferencesKey("showStages")] ?: false,
                 it[booleanPreferencesKey("voice")] ?: false,
+                it[booleanPreferencesKey("showReadyModes")] ?: true,
             )
         }
 
@@ -93,6 +95,7 @@ class Store(private val context: Context) {
             it[stringPreferencesKey("theme")] = o.theme
             it[booleanPreferencesKey("showStages")] = o.showStages
             it[booleanPreferencesKey("voice")] = o.voice
+            it[booleanPreferencesKey("showReadyModes")] = o.showReadyModes
         }
     }
 

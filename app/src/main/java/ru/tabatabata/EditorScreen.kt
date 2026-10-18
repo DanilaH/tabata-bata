@@ -15,6 +15,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import org.json.JSONObject
 
 internal fun parseDuration(value: String): Int? {
@@ -172,18 +176,25 @@ internal fun Editor(
                         modifier = Modifier.padding(top = 12.dp))
                 run {
                     val title = stringResource(labels[i])
-                    BoxWithConstraints {
-                        val stacked = maxWidth < 340.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
+                    val tint = workoutBackground(when(i) { 1 -> Stage.WORK; 2,5 -> Stage.REST; else -> Stage.PREPARE }, false)
+                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
+                    BoxWithConstraints(Modifier.padding(12.dp)) {
+                        val stacked = maxWidth < 390.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
                         Column {
-                        if (stacked) Text(title, style = MaterialTheme.typography.bodyMedium)
+                        if (stacked) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            StageMark(i, tint)
+                            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                        }
                         Row(
                             Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             if (!stacked) Text(title, modifier = Modifier.weight(1f))
                             else Spacer(Modifier.weight(1f))
-                            IconButton(
-                                onClick = {
+                            RepeatButton(
+                                symbol = "−", label = "− $title", tint = tint,
+                                onStep = {
                                     val v =
                                         ((numbers[i] ?: limits[i].first) - 1).coerceIn(limits[i])
                                     change {
@@ -196,10 +207,7 @@ internal fun Editor(
                                     }
                                 },
                                 enabled = numbers[i] != limits[i].first,
-                                modifier = Modifier.semantics { contentDescription = "− $title" },
-                            ) {
-                                Text("−")
-                            }
+                            )
                             OutlinedTextField(
                                 values[i],
                                 { v ->
@@ -211,6 +219,8 @@ internal fun Editor(
                                     )
                                         change { it.getJSONArray("values").put(i, v) }
                                 },
+                                textStyle = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = 26.sp),
                                 singleLine = true,
                                 isError = !valid[i],
                                 keyboardOptions =
@@ -220,10 +230,11 @@ internal fun Editor(
                                             else KeyboardType.Text
                                     ),
                                 modifier =
-                                    Modifier.width(if (stacked) 132.dp else 100.dp).semantics { contentDescription = title },
+                                    Modifier.padding(horizontal = 10.dp).width(if (stacked) 144.dp else 120.dp).semantics { contentDescription = title },
                             )
-                            IconButton(
-                                onClick = {
+                            RepeatButton(
+                                symbol = "+", label = "+ $title", tint = tint,
+                                onStep = {
                                     val v =
                                         ((numbers[i] ?: limits[i].first) + 1).coerceIn(limits[i])
                                     change {
@@ -236,10 +247,7 @@ internal fun Editor(
                                     }
                                 },
                                 enabled = numbers[i] != limits[i].last,
-                                modifier = Modifier.semantics { contentDescription = "+ $title" },
-                            ) {
-                                Text("+")
-                            }
+                            )
                         }
                         if (!valid[i])
                             Text(
@@ -258,6 +266,7 @@ internal fun Editor(
                                 color = MaterialTheme.colorScheme.error,
                                 style = MaterialTheme.typography.bodySmall,
                             )
+                    }
                     }
                     }
                 }

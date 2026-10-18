@@ -24,7 +24,7 @@
  <string name="total">Общая длительность</string>
  <string name="save">Сохранить</string>
  <string name="cancel">Отмена</string>
- <string name="edit">Изменить</string>
+ <string name="edit">Редактировать</string>
  <string name="copy">Копировать</string>
  <string name="delete">Удалить</string>
  <string name="undo">Вернуть</string>
@@ -77,8 +77,8 @@
  <string name="limit">Можно хранить до 500 режимов. Это защитное ограничение размера файла.</string>
  <string name="sound_hint">Отсчёт — короткие сигналы. Начало и финиш — сильнее. Громкость зависит и от громкости мультимедиа телефона.</string>
  <string name="focus_hint">Приглушение зависит от музыкального приложения. После отключения наушников таймер ставится на паузу.</string>
-<string name="support">Связаться с разработчиком</string><string name="privacy">Политика данных</string><string name="link_error">Не удалось открыть приложение для ссылки</string><string name="classic_tabata">Классическая табата</string>
-<string name="ready_mode">Готовый режим</string>
+<string name="support">Связаться с разработчиком</string><string name="privacy">Политика данных</string><string name="link_error">Не удалось открыть приложение для ссылки</string><string name="classic_tabata">Табата 20/10 × 8</string>
+<string name="ready_mode">Готовые режимы</string>
 <string name="seconds_short">с</string>
 <string name="start_workout">Начать тренировку</string>
 <string name="no_saved">Сохранённых режимов пока нет. Добавьте свой или запустите готовый.</string>
@@ -128,4 +128,5 @@
     <string name="finish_cue">Финиш</string>
     <string name="countdown_preview">Сигнал отсчёта</string>
     <string name="vibration_preview">Проверить сильную вибрацию</string>
+<string name="show_ready_modes">Показывать готовые режимы</string>
 </resources>
