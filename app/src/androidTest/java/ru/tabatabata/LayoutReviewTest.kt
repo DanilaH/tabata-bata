@@ -48,8 +48,8 @@ class LayoutReviewTest {
             val layouts= mutableListOf<TextLayoutResult>()
             finish.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
             assertTrue(layouts.isNotEmpty())
-            assertFalse(layouts.any { it.hasVisualOverflow })
             capture("settings-en-large")
+            assertFalse(layouts.joinToString { "text=${it.layoutInput.text} size=${it.size} paragraph=${it.multiParagraph.width}x${it.multiParagraph.height} widthOverflow=${it.didOverflowWidth} heightOverflow=${it.didOverflowHeight}" }, layouts.any { it.hasVisualOverflow })
             compose.onNodeWithText(label(R.string.vibration_preview)).performScrollTo().assertIsDisplayed()
             capture("settings-vibration-en-large")
             compose.runOnUiThread {

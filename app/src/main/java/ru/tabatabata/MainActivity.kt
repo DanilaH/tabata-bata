@@ -690,7 +690,10 @@ private fun Settings(
                 .forEach { (stage, label) ->
                     OutlinedButton(onClick = { cues.play(stage, o.copy(voice = false)) },
                         shape = MaterialTheme.shapes.small, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                        Text("▶ " + stringResource(label), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        Text("▶ " + stringResource(label),
+                            modifier = Modifier.wrapContentHeight(unbounded = true),
+                            lineHeight = 24.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                     }
                 }
             OutlinedButton(onClick = { cues.play(Stage.WORK, o.copy(voice = false), countdown = true) },
