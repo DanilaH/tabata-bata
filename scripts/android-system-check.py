@@ -82,4 +82,10 @@ assert not service_running(), "Opening recovery dialog must not restart the serv
     if release_smoke else
     "PASS: force-stop removes service; checkpoint survives; same-version APK reinstall preserves DataStore and checkpoint; relaunch offers manual recovery without starting service.\n")
 print((OUT / "result.txt").read_text())
+# Leave a clean menu for the next build's smoke without clearing user preferences.
+discard = visible("Не продолжать", "Discard")
+assert discard is not None
+x1, y1, x2, y2 = map(int, re.findall(r"\d+", discard.get("bounds")))
+adb("shell", "input", "tap", str((x1+x2)//2), str((y1+y2)//2))
+wait_for(find_start)
 adb("shell", "am", "force-stop", PACKAGE)
