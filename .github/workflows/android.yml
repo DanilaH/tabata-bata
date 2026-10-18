@@ -71,7 +71,7 @@ jobs:
             python3 scripts/android-system-check.py
             ./gradlew assembleRelease
             $ANDROID_HOME/build-tools/36.0.0/apksigner sign --ks $HOME/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --out /tmp/tabata-release-smoke.apk app/build/outputs/apk/release/app-release-unsigned.apk
-            SMOKE_APK=/tmp/tabata-release-smoke.apk SMOKE_OUT=app/build/reports/release-system-check python3 scripts/android-system-check.py
+            SMOKE_RELEASE=1 SMOKE_APK=/tmp/tabata-release-smoke.apk SMOKE_OUT=app/build/reports/release-system-check python3 scripts/android-system-check.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

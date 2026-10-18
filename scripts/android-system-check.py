@@ -62,18 +62,24 @@ wait_for(service_running)
 time.sleep(2)
 adb("shell", "am", "force-stop", PACKAGE)
 assert not service_running(), "Force-stop must remove the foreground service"
-checkpoint = adb("exec-out", "run-as", PACKAGE, "cat", "shared_prefs/session.xml")
-assert 'name="active"' in checkpoint, "Running session must leave a recovery checkpoint"
-prefs_before = adb("exec-out", "run-as", PACKAGE, "cat", "files/datastore/tabata.preferences_pb", binary=True)
+release_smoke = os.environ.get("SMOKE_RELEASE") == "1"
+if not release_smoke:
+    checkpoint = adb("exec-out", "run-as", PACKAGE, "cat", "shared_prefs/session.xml")
+    assert 'name="active"' in checkpoint, "Running session must leave a recovery checkpoint"
+    prefs_before = adb("exec-out", "run-as", PACKAGE, "cat", "files/datastore/tabata.preferences_pb", binary=True)
 adb("install", "-r", APK)
-prefs_after = adb("exec-out", "run-as", PACKAGE, "cat", "files/datastore/tabata.preferences_pb", binary=True)
-assert hashlib.sha256(prefs_before).digest() == hashlib.sha256(prefs_after).digest(), "Reinstall must preserve DataStore bytes"
-assert checkpoint == adb("exec-out", "run-as", PACKAGE, "cat", "shared_prefs/session.xml"), "Reinstall must preserve checkpoint"
+if not release_smoke:
+    prefs_after = adb("exec-out", "run-as", PACKAGE, "cat", "files/datastore/tabata.preferences_pb", binary=True)
+    assert hashlib.sha256(prefs_before).digest() == hashlib.sha256(prefs_after).digest(), "Reinstall must preserve DataStore bytes"
+    assert checkpoint == adb("exec-out", "run-as", PACKAGE, "cat", "shared_prefs/session.xml"), "Reinstall must preserve checkpoint"
 adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.MainActivity")
 wait_for(lambda: visible("Тренировка была прервана", "Workout interrupted") is not None)
 time.sleep(2)
 assert not service_running(), "Opening recovery dialog must not restart the service"
 (OUT / "recovery.png").write_bytes(adb("exec-out", "screencap", "-p", binary=True))
-(OUT / "result.txt").write_text("PASS: force-stop removes service; checkpoint survives; same-version APK reinstall preserves DataStore and checkpoint; relaunch offers manual recovery without starting service.\n")
+(OUT / "result.txt").write_text(
+    "PASS: minified release starts service; force-stop removes service; recovery dialog survives reinstall without automatic service restart.\n"
+    if release_smoke else
+    "PASS: force-stop removes service; checkpoint survives; same-version APK reinstall preserves DataStore and checkpoint; relaunch offers manual recovery without starting service.\n")
 print((OUT / "result.txt").read_text())
 adb("shell", "am", "force-stop", PACKAGE)
