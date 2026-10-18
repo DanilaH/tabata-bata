@@ -201,7 +201,9 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
         }
         // Waveforms also work on motors without amplitude control.
         vibrator.vibrate(VibrationEffect.createWaveform(timings,
-            IntArray(timings.size) { if (it % 2 == 0) 0 else 255 }, -1))
+            IntArray(timings.size) { if (it % 2 == 0) 0 else 255 }, -1),
+            AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build())
     }
 
     private fun playId(id: Int, o: Options, countdown: Boolean) {
