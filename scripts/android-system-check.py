@@ -51,7 +51,7 @@ button = None
 
 def find_start():
     global button
-    button = visible("Начать тренировку", "Start workout")
+    button = visible("Начать", "Start")
     return button is not None
 
 wait_for(find_start)
