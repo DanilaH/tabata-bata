@@ -580,9 +580,6 @@ private fun Saved(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(ready.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            if (ready.id == "builtin-classic")
-                                Text(stringResource(R.string.mode_summary, durationInput(ready.plan.work),
-                                    durationInput(ready.plan.rest), ready.plan.reps), style = MaterialTheme.typography.bodySmall)
                             Text(formatTime(ready.plan.durationMs()), style = MaterialTheme.typography.labelMedium)
                         }
                         OutlinedButton(onClick = { onStart(ready) }, shape = MaterialTheme.shapes.small) {

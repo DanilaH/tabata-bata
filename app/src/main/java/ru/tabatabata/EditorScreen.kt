@@ -180,6 +180,10 @@ internal fun Editor(
                     Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow) {
                     BoxWithConstraints(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                         val stacked = maxWidth < 390.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
+                        val fieldWidth = if (stacked) maxWidth.value - 104f - 16f else 124f
+                        val valueSize = minOf(26f, (fieldWidth - 32f) /
+                            (values[i].length.coerceAtLeast(4) * .65f * androidx.compose.ui.platform.LocalDensity.current.fontScale))
+                            .coerceAtLeast(14f)
                         Column {
                         if (stacked) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             StageMark(i, if (MaterialTheme.colorScheme.background.red < .3f)
@@ -220,7 +224,7 @@ internal fun Editor(
                                         change { it.getJSONArray("values").put(i, v) }
                                 },
                                 textStyle = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = 26.sp),
+                                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = valueSize.sp),
                                 singleLine = true,
                                 isError = !valid[i],
                                 keyboardOptions =

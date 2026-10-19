@@ -356,7 +356,8 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
                     stringResource(R.string.rounds_ahead, s.plan.reps * s.plan.sets)
                 else if (s.interval?.stage == Stage.COOL) stringResource(R.string.cool)
                 else stringResource(R.string.round_position, s.interval?.rep ?: 0, s.plan.reps),
-                style = MaterialTheme.typography.titleLarge,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                style = MaterialTheme.typography.titleMedium,
             )
             if (s.plan.sets > 1 && (s.interval?.set ?: 0) > 0)
                 Text(
