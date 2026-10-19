@@ -1,6 +1,7 @@
 package ru.tabatabata
 
 import androidx.compose.ui.test.*
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.flow.first
@@ -47,7 +48,11 @@ class EditorDraftTest {
             }
             compose.onNodeWithText(p.name).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:45")
-            compose.onNodeWithText("← " + text(R.string.saved)).performScrollTo().performClick()
+            compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:45")
+            // This test verifies draft state, not hit testing while the IME moves the layout.
+            // Touch input remains covered by WorkoutSmokeTest / EditorControlsTest.
+            compose.onNodeWithText("← " + text(R.string.saved)).performScrollTo()
+                .performSemanticsAction(SemanticsActions.OnClick) { it() }
             compose.onNodeWithText(text(R.string.unsaved)).assertExists()
             compose.onNodeWithText(text(R.string.reset)).performClick()
             assertEquals(p, runBlocking { store.presets.first().single() })
@@ -62,11 +67,9 @@ class EditorDraftTest {
     fun startingEditedModeReturnsToItsDraftAndCanSave() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-            .uiAutomation
-            .executeShellCommand(
-                "pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS"
-            )
-            .close()
+            .uiAutomation.grantRuntimePermission(context.packageName, android.Manifest.permission.POST_NOTIFICATIONS)
+        assertEquals(android.content.pm.PackageManager.PERMISSION_GRANTED,
+            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS))
         val store = Store(context)
         val before = runBlocking { store.presets.first() }
         val lastPlan = runBlocking { store.lastPlan.first() }
@@ -78,7 +81,9 @@ class EditorDraftTest {
             }
             compose.onNodeWithText(p.name).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:45")
-            compose.onNodeWithText(text(R.string.start)).performClick()
+            compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:45")
+            compose.onNodeWithText(text(R.string.start)).assertIsEnabled()
+                .performSemanticsAction(SemanticsActions.OnClick) { it() }
             compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
             assertEquals(p, runBlocking { store.presets.first().single() })
             compose.runOnUiThread { TimerService.command(context, "stop") }
@@ -86,7 +91,8 @@ class EditorDraftTest {
             compose.waitUntil(5000) { TimerService.state.value == null }
             compose.onNodeWithText(p.name).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:45")
-            compose.onNodeWithText(text(R.string.save)).performClick()
+            compose.onNodeWithText(text(R.string.save)).assertIsEnabled()
+                .performSemanticsAction(SemanticsActions.OnClick) { it() }
             compose.waitUntil(10000) {
                 runBlocking { store.presets.first().single().plan.work == 45 }
             }
