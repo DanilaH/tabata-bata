@@ -137,11 +137,15 @@ class Store(private val context: Context) {
 
     suspend fun savePresets(items: List<Preset>) = mutate { items }
 
-    suspend fun updatePreset(p: Preset) = mutate { current ->
-        val items = current.toMutableList()
-        val i = items.indexOfFirst { it.id == p.id }
-        if (i < 0) items.add(p) else items[i] = p
-        items
+    suspend fun updatePreset(p: Preset): PresetWrite {
+        val result = mutate { current ->
+            val items = current.toMutableList()
+            val i = items.indexOfFirst { it.id == p.id }
+            if (i < 0) items.add(p) else items[i] = p
+            items
+        }
+        if (result == PresetWrite.SAVED) Telemetry.event("preset_saved", mapOf("type" to "simple"))
+        return result
     }
 
     suspend fun addPresets(items: List<Preset>) = mutate { it + items }
@@ -196,10 +200,10 @@ class Store(private val context: Context) {
         return (0 until arr.length()).map {
             val o = arr.getJSONObject(it)
             Preset(
-                o.getString("id"),
+                o.getString("id").also { id -> require(id.isNotBlank()) },
                 o.getString("name").also { n -> require(n.length in 1..100) },
                 o.getJSONObject("plan").plan(),
             )
-        }
+        }.also { items -> require(items.map { it.id }.distinct().size == items.size) }
     }
 }

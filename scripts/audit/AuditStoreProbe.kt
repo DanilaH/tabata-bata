@@ -3,6 +3,9 @@ package ru.tabatabata
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -20,6 +23,19 @@ class AuditStoreProbe {
             assertEquals(500, store.presets.first().size)
             assertEquals(PresetWrite.LIMIT, store.updatePreset(list.first()))
             assertEquals(500, store.presets.first().size)
+            // Competing additions both pass a stale UI count; only one may commit.
+            store.savePresets(list.take(499))
+            val results = coroutineScope {
+                listOf("race-a", "race-b").map { id ->
+                    async { store.updatePreset(Preset(id, id, Plan())) }
+                }.awaitAll()
+            }
+            assertEquals(1, results.count { it == PresetWrite.SAVED })
+            assertEquals(1, results.count { it == PresetWrite.LIMIT })
+            assertEquals(500, store.presets.first().size)
+            val legacy = list + Preset("legacy-501", "Legacy", Plan())
+            assertEquals(501, store.parsePresets(store.encode(legacy).toString(), false).size)
+            assertTrue(runCatching { store.parsePresets(store.encode(listOf(list[0], list[0])).toString(), false) }.isFailure)
             store.savePresets(list.take(3))
             val removed = requireNotNull(store.remove(list.first().id))
             assertEquals(PresetWrite.SAVED, store.restore(removed))

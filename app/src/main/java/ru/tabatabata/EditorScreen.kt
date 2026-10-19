@@ -191,7 +191,7 @@ internal fun Editor(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             if (!stacked) Text(title, modifier = Modifier.weight(1f))
-                            
+
                             RepeatButton(
                                 symbol = "−", label = "− $title", tint = tint,
                                 onStep = {

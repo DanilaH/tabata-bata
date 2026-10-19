@@ -5,6 +5,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.*
 import android.view.WindowManager
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.*
@@ -231,6 +234,19 @@ private fun App() {
         if (Build.VERSION.SDK_INT >= 29) activity.window.isNavigationBarContrastEnforced = false
         onDispose {}
     }
+    val screen = when {
+        running -> "workout"
+        snapshot?.status == Status.COMPLETED -> "result"
+        editorOpen -> "editor"
+        tab == 2 -> "settings"
+        else -> "home"
+    }
+    val screenAlpha = remember { Animatable(1f) }
+    LaunchedEffect(screen) {
+        // The service starts immediately; fade only non-workout screens.
+        if (screen == "workout") screenAlpha.snapTo(1f)
+        else { screenAlpha.snapTo(.7f); screenAlpha.animateTo(1f, tween(140)) }
+    }
     Scaffold(
         containerColor =
             if (running) workoutBackground(snapshot?.interval?.stage, darkSurface)
@@ -244,7 +260,7 @@ private fun App() {
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding().graphicsLayer { alpha = screenAlpha.value }) {
             if (snapshot?.status == Status.STOPPED) {
                 // Return to the menu without flashing a result screen.
             } else if (snapshot != null)
@@ -344,6 +360,7 @@ private fun App() {
                                 onDelete = { p ->
                                     scope.launch {
                                         val removed = store.remove(p.id)
+                                        if (removed == null) { showWriteError(PresetWrite.DAMAGED); return@launch }
                                         if (
                                             snackbar.showSnackbar(
                                                 context.getString(R.string.deleted),
@@ -351,7 +368,7 @@ private fun App() {
                                                 duration = SnackbarDuration.Long,
                                             ) == SnackbarResult.ActionPerformed
                                         )
-                                            removed?.let { showWriteError(store.restore(it)) }
+                                            showWriteError(store.restore(removed))
                                     }
                                 },
                                 onMove = { from, to ->
