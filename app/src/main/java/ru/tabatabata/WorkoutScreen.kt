@@ -329,7 +329,14 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
             colors = ButtonDefaults.textButtonColors(contentColor = foreground),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(stringResource(if (restAdded) R.string.rest_added else R.string.add_rest))
+            Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
+                if (restAdded) Text("✓", modifier = Modifier.semantics {
+                    liveRegion = LiveRegionMode.Polite
+                    contentDescription = context.getString(R.string.rest_added)
+                })
+            }
+            Text(stringResource(R.string.add_rest))
+            Spacer(Modifier.width(24.dp))
         }
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
