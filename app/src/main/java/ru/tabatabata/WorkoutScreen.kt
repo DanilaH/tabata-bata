@@ -337,6 +337,7 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
         TextButton(
             onClick = { TimerService.command(context, "previous") },
             enabled = !locked,
+            colors = ButtonDefaults.textButtonColors(contentColor = foreground, disabledContentColor = foreground.copy(alpha = .4f)),
             modifier = Modifier.semantics { contentDescription = previous },
         ) {
             Text("‹", fontSize = 28.sp)
@@ -360,6 +361,7 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
         TextButton(
             onClick = { TimerService.command(context, "next") },
             enabled = !locked,
+            colors = ButtonDefaults.textButtonColors(contentColor = foreground, disabledContentColor = foreground.copy(alpha = .4f)),
             modifier = Modifier.semantics { contentDescription = next },
         ) {
             Text(stringResource(R.string.stage_short), style = MaterialTheme.typography.labelSmall)

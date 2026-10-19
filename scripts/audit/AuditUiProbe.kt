@@ -31,7 +31,14 @@ class AuditUiProbe {
         val dir = File(requireNotNull(InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")), "audit")
         dir.mkdirs()
         File(dir, "$name.png").outputStream().use {
-            InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+            val bitmap = if (compose.onAllNodes(isRoot()).fetchSemanticsNodes().size == 1)
+                compose.onRoot().captureToImage().asAndroidBitmap()
+            else {
+                InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+                SystemClock.sleep(200)
+                InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            }
+            bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
         }
     }
     private fun stop() {
@@ -41,7 +48,7 @@ class AuditUiProbe {
             TimerService.clearResult()
         }
     }
-    @Test fun clockFontChangesAtMinuteBoundary() {
+    @Test fun clockFontStableAtMinuteBoundary() {
         stop()
         val engine = TimerEngine(Plan(prepare=0, work=61, rest=0, reps=1),0)
         val state = mutableStateOf(engine.snapshot(0))
@@ -61,7 +68,7 @@ class AuditUiProbe {
         println("AUDIT clock_font_61sec=$before clock_font_59sec=$after")
         assertEquals(before, after, 0.01f)
     }
-    @Test fun notificationExplanationLostOnRecreation() {
+    @Test fun notificationExplanationRetainedOnRecreation() {
         stop()
         shell("pm revoke ${context.packageName} android.permission.POST_NOTIFICATIONS")
         context.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("notificationAsked", false).commit()
@@ -78,7 +85,7 @@ class AuditUiProbe {
         capture("permission-after-recreate")
         shell("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
     }
-    @Test fun wakeLockExpiresAfterRepeatedPrevious() {
+    @Test fun wakeLockSurvivesRepeatedPrevious() {
         stop()
         compose.runOnUiThread { TimerService.command(context, "start", Plan(prepare=0, work=6, rest=0, reps=1)) }
         compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
