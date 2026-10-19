@@ -1,8 +1,8 @@
-name: Independent timer audit
+name: Timer audit regressions
 on:
   push:
     branches: [main]
-    paths: ['scripts/audit/**', '.github/workflows/audit.yml']
+    paths: ['scripts/audit/**', '.github/workflows/audit.yml', 'app/src/main/**']
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,7 +16,7 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Install audit-only probes
+      - name: Install audit regression tests
         run: |
           cp scripts/audit/AuditEngineProbe.kt app/src/test/java/ru/tabatabata/
           cp scripts/audit/AuditUiProbe.kt scripts/audit/AuditStoreProbe.kt app/src/androidTest/java/ru/tabatabata/

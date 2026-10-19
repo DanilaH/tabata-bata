@@ -153,6 +153,14 @@ class AuditUiProbe {
             capture("editor-320dp")
             shell("settings put system font_scale 2.0")
             compose.waitUntil(10000) { compose.activity.resources.configuration.fontScale >= 1.99f }
+            val work = compose.onNodeWithContentDescription(text(R.string.work))
+            work.performScrollTo().performTextReplacement("60:00")
+            val layouts = mutableListOf<TextLayoutResult>()
+            work.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            assertTrue(layouts.isNotEmpty())
+            val fieldWidth = work.fetchSemanticsNode().boundsInRoot.width
+            assertTrue("Long duration must fit a narrow field at 200% font",
+                layouts.all { it.size.width <= fieldWidth })
             compose.onNodeWithText(text(R.string.start)).assertIsDisplayed()
             capture("editor-320dp-font200")
         } finally {
