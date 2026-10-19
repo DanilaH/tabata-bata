@@ -48,6 +48,9 @@ fun JSONObject.plan(): Plan =
         )
         .also { it.validate() }
 
+enum class PresetWrite { SAVED, LIMIT, DAMAGED }
+data class RemovedPreset(val preset: Preset, val index: Int)
+
 class Store(private val context: Context) {
     private val presetsKey = stringPreferencesKey("presets")
     val lastPlan =
@@ -67,7 +70,21 @@ class Store(private val context: Context) {
         context.dataStore.edit { it[stringPreferencesKey("lastPresetId")] = id }
     }
 
-    val presets = context.dataStore.data.map { parsePresets(it[presetsKey] ?: "[]") }
+    // Legacy oversized lists remain readable and exportable; writes cannot grow them.
+    val presets = context.dataStore.data.map { readStored(it[presetsKey] ?: "[]") }
+    val damagedPresets = context.dataStore.data.map {
+        runCatching { parsePresets(it[presetsKey] ?: "[]", false) }.isFailure
+    }
+    private fun readStored(raw: String): List<Preset> =
+        runCatching { parsePresets(raw, false) }.getOrElse {
+            // Keep the raw value untouched; expose valid entries for export.
+            runCatching {
+                val arr = JSONArray(raw)
+                (0 until arr.length()).mapNotNull { i ->
+                    runCatching { parsePresets(JSONArray().put(arr.get(i)).toString(), false).single() }.getOrNull()
+                }.distinctBy { it.id }
+            }.getOrDefault(emptyList())
+        }
     val options =
         context.dataStore.data.map {
             Options(
@@ -99,26 +116,58 @@ class Store(private val context: Context) {
         }
     }
 
-    suspend fun savePresets(items: List<Preset>) {
-        context.dataStore.edit { it[presetsKey] = encode(items).toString() }
-        Telemetry.event("preset_saved", mapOf("type" to "simple"))
-    }
-
-    suspend fun updatePreset(p: Preset) {
-        context.dataStore.edit {
-            val items = parsePresets(it[presetsKey] ?: "[]").toMutableList()
-            val i = items.indexOfFirst { item -> item.id == p.id }
-            if (i < 0) items.add(p) else items[i] = p
-            it[presetsKey] = encode(items).toString()
+    private suspend fun mutate(transform: (List<Preset>) -> List<Preset>): PresetWrite {
+        var result = PresetWrite.SAVED
+        context.dataStore.edit { prefs ->
+            val current = runCatching { parsePresets(prefs[presetsKey] ?: "[]", false) }.getOrNull()
+            if (current == null) {
+                result = PresetWrite.DAMAGED
+            } else {
+                val next = transform(current)
+                if (next.size > 500 && next.size > current.size) result = PresetWrite.LIMIT
+                else {
+                    require(next.map { it.id }.distinct().size == next.size)
+                    next.forEach { require(it.name.length in 1..100); it.plan.validate() }
+                    prefs[presetsKey] = encode(next).toString()
+                }
+            }
         }
-        Telemetry.event("preset_saved", mapOf("type" to "simple"))
+        return result
     }
 
-    suspend fun remove(id: String) {
-        context.dataStore.edit {
-            it[presetsKey] =
-                encode(parsePresets(it[presetsKey] ?: "[]").filterNot { p -> p.id == id })
-                    .toString()
+    suspend fun savePresets(items: List<Preset>) = mutate { items }
+
+    suspend fun updatePreset(p: Preset) = mutate { current ->
+        val items = current.toMutableList()
+        val i = items.indexOfFirst { it.id == p.id }
+        if (i < 0) items.add(p) else items[i] = p
+        items
+    }
+
+    suspend fun addPresets(items: List<Preset>) = mutate { it + items }
+
+    suspend fun remove(id: String): RemovedPreset? {
+        var removed: RemovedPreset? = null
+        mutate { current ->
+            val index = current.indexOfFirst { it.id == id }
+            if (index >= 0) removed = RemovedPreset(current[index], index)
+            current.filterNot { it.id == id }
+        }
+        return removed
+    }
+
+    suspend fun restore(removed: RemovedPreset) = mutate { current ->
+        if (current.any { it.id == removed.preset.id }) current
+        else current.toMutableList().apply {
+            add(removed.index.coerceIn(0, size), removed.preset)
+        }
+    }
+
+    suspend fun move(id: String, delta: Int) = mutate { current ->
+        current.toMutableList().apply {
+            val from = indexOfFirst { it.id == id }
+            val to = from + delta
+            if (from >= 0 && to in indices) add(to, removeAt(from))
         }
     }
 
@@ -141,9 +190,9 @@ class Store(private val context: Context) {
         return list.map { it.copy(id = UUID.randomUUID().toString()) }
     }
 
-    fun parsePresets(text: String): List<Preset> {
+    fun parsePresets(text: String, enforceLimit: Boolean = true): List<Preset> {
         val arr = JSONArray(text)
-        require(arr.length() <= 500)
+        if (enforceLimit) require(arr.length() <= 500)
         return (0 until arr.length()).map {
             val o = arr.getJSONObject(it)
             Preset(

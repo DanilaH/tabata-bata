@@ -6,7 +6,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
 
-/** Audit probes describe current behaviour; NOT regression acceptance tests. */
+/** Regression acceptance for the independent audit findings. */
 class AuditStoreProbe {
     @Test fun capAndUndoAndImport() = runBlocking {
         val store = Store(InstrumentationRegistry.getInstrumentation().targetContext)
@@ -18,15 +18,13 @@ class AuditStoreProbe {
             store.remove(list.first().id)
             store.updatePreset(Preset("replacement", "Replacement", Plan()))
             assertEquals(500, store.presets.first().size)
-            store.updatePreset(list.first())
-            val failure = runCatching { store.presets.first() }.exceptionOrNull()
-            println("AUDIT cap501_read_failure=${failure?.javaClass?.simpleName}")
-            assertNotNull("Reproduces unguarded 501st write", failure)
+            assertEquals(PresetWrite.LIMIT, store.updatePreset(list.first()))
+            assertEquals(500, store.presets.first().size)
             store.savePresets(list.take(3))
-            store.remove(list.first().id)
-            store.updatePreset(list.first())
+            val removed = requireNotNull(store.remove(list.first().id))
+            assertEquals(PresetWrite.SAVED, store.restore(removed))
             println("AUDIT undo_order=${store.presets.first().map { it.id }}")
-            assertEquals(listOf("audit-1", "audit-2", "audit-0"), store.presets.first().map { it.id })
+            assertEquals(listOf("audit-0", "audit-1", "audit-2"), store.presets.first().map { it.id })
             val rejected = listOf("", "{}", "[]", "null", "{broken", "x".repeat(1_000_001),
                 store.export(listOf(list.first().copy(plan = Plan(work = 0)))),
                 store.export(listOf(list.first().copy(name = ""))),

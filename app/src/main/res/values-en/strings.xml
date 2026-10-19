@@ -129,4 +129,7 @@
     <string name="countdown_preview">Countdown beep</string>
     <string name="vibration_preview">Test strong vibration</string>
 <string name="show_ready_modes">Show ready-made timers</string>
+    <string name="storage_damaged">Storage is damaged. Changes are blocked to preserve your data. Export available timers in Settings.</string>
+    <string name="stage_short">Stage</string>
+    <string name="rest_added">Added 10 sec</string>
 </resources>

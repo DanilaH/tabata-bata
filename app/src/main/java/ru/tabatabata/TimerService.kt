@@ -158,6 +158,9 @@ class TimerService : Service() {
                 engine?.skip(if (intent.action == "next") 1 else -1, now)
                 lastIndex = -1
                 lastSecond = -1
+                lastSaved = -1
+                release()
+                acquire()
                 publish()
             }
             "extendRest" -> {

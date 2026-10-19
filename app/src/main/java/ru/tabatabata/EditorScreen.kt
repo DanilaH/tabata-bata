@@ -177,9 +177,8 @@ internal fun Editor(
                 run {
                     val title = stringResource(labels[i])
                     val tint = workoutBackground(when(i) { 1 -> Stage.WORK; 2,5 -> Stage.REST; else -> Stage.PREPARE }, false)
-                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) {
-                    BoxWithConstraints(Modifier.padding(12.dp)) {
+                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                    BoxWithConstraints(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
                         val stacked = maxWidth < 390.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
                         Column {
                         if (stacked) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -192,7 +191,7 @@ internal fun Editor(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             if (!stacked) Text(title, modifier = Modifier.weight(1f))
-                            else Spacer(Modifier.weight(1f))
+                            
                             RepeatButton(
                                 symbol = "−", label = "− $title", tint = tint,
                                 onStep = {
@@ -231,7 +230,7 @@ internal fun Editor(
                                             else KeyboardType.Text
                                     ),
                                 modifier =
-                                    Modifier.padding(horizontal = 10.dp).width(if (stacked) 144.dp else 120.dp).semantics { contentDescription = title },
+                                    (if (stacked) Modifier.weight(1f) else Modifier.width(140.dp)).padding(horizontal = 8.dp).semantics { contentDescription = title },
                             )
                             RepeatButton(
                                 symbol = "+", label = "+ $title", tint = tint,

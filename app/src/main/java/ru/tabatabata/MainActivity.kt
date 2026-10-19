@@ -129,6 +129,12 @@ private fun App() {
     val options by store.options.collectAsStateWithLifecycle(Options())
     val snapshot by TimerService.state.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    suspend fun showWriteError(result: PresetWrite) {
+        if (result != PresetWrite.SAVED) snackbar.showSnackbar(context.getString(
+            if (result == PresetWrite.LIMIT) R.string.limit else R.string.storage_damaged))
+    }
+    val damaged by store.damagedPresets.collectAsStateWithLifecycle(false)
+    LaunchedEffect(damaged) { if (damaged) showWriteError(PresetWrite.DAMAGED) }
     val ads = remember(activity) { Ads(activity) }
     DisposableEffect(ads) { onDispose { ads.close() } }
     LaunchedEffect(snapshot?.sessionId, snapshot?.status) {
@@ -169,8 +175,11 @@ private fun App() {
                 context.getSharedPreferences("session", Context.MODE_PRIVATE).contains("active")
         )
     }
-    var notificationPrompt by remember { mutableStateOf(false) }
-    var pendingPlan by remember { mutableStateOf<Plan?>(null) }
+    var notificationPrompt by rememberSaveable { mutableStateOf(false) }
+    var pendingPlan by rememberSaveable(stateSaver = Saver<Plan?, String>(
+        save = { it?.json()?.toString() },
+        restore = { runCatching { org.json.JSONObject(it).plan() }.getOrNull() },
+    )) { mutableStateOf<Plan?>(null) }
     val permission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
             pendingPlan?.let { TimerService.command(context, "start", it) }
@@ -269,10 +278,9 @@ private fun App() {
                     onCancel = { editorOpen = false },
                     onSave = { p ->
                         scope.launch {
-                            if (presets.size >= 500 && presets.none { it.id == p.id })
-                                snackbar.showSnackbar(context.getString(R.string.limit))
+                            val result = store.updatePreset(p)
+                            if (result != PresetWrite.SAVED) showWriteError(result)
                             else {
-                                store.updatePreset(p)
                                 EditorDrafts(context).clear(editor?.id ?: "new")
                                 editorOpen = false
                                 snackbar.showSnackbar(context.getString(R.string.saved_ok))
@@ -320,8 +328,7 @@ private fun App() {
                                 },
                                 onCopy = { p ->
                                     scope.launch {
-                                        if (presets.size < 500)
-                                            store.updatePreset(
+                                        showWriteError(store.updatePreset(
                                                 p.copy(
                                                     id = java.util.UUID.randomUUID().toString(),
                                                     name =
@@ -331,12 +338,12 @@ private fun App() {
                                                                 ))
                                                             .take(100),
                                                 )
-                                            )
+                                            ))
                                     }
                                 },
                                 onDelete = { p ->
                                     scope.launch {
-                                        store.remove(p.id)
+                                        val removed = store.remove(p.id)
                                         if (
                                             snackbar.showSnackbar(
                                                 context.getString(R.string.deleted),
@@ -344,15 +351,13 @@ private fun App() {
                                                 duration = SnackbarDuration.Long,
                                             ) == SnackbarResult.ActionPerformed
                                         )
-                                            store.updatePreset(p)
+                                            removed?.let { showWriteError(store.restore(it)) }
                                     }
                                 },
                                 onMove = { from, to ->
                                     scope.launch {
-                                        val list = presets.toMutableList()
-                                        if (to in list.indices) {
-                                            list.add(to, list.removeAt(from))
-                                            store.savePresets(list)
+                                        presets.getOrNull(from)?.let {
+                                            showWriteError(store.move(it.id, to - from))
                                         }
                                     }
                                 },
@@ -474,7 +479,7 @@ private fun Saved(
         itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
             var menu by remember { mutableStateOf(false) }
             val contextMenuLabel = stringResource(R.string.mode_actions, p.name)
-            Card(onClick = { onEdit(p) }, modifier = Modifier.fillMaxWidth()) {
+            Card(onClick = { onEdit(p) }, modifier = Modifier.animateItem().fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -553,14 +558,16 @@ private fun Saved(
             }
             itemsIndexed(readyModes, key = { _, p -> p.id }) { _, ready ->
                 OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(ready.name, style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                            Text(formatTime(ready.plan.durationMs()), style = MaterialTheme.typography.labelLarge)
+                    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(ready.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            if (ready.id == "builtin-classic")
+                                Text(stringResource(R.string.mode_summary, durationInput(ready.plan.work),
+                                    durationInput(ready.plan.rest), ready.plan.reps), style = MaterialTheme.typography.bodySmall)
+                            Text(formatTime(ready.plan.durationMs()), style = MaterialTheme.typography.labelMedium)
                         }
-                        Text(stringResource(R.string.mode_summary, durationInput(ready.plan.work),
-                            durationInput(ready.plan.rest), ready.plan.reps), style = MaterialTheme.typography.bodyMedium)
                         OutlinedButton(onClick = { onStart(ready) }, shape = MaterialTheme.shapes.small) {
                             Text(stringResource(R.string.start))
                         }
@@ -644,10 +651,13 @@ private fun Settings(
                                 }
                                 .getOrNull()
                         }
-                    if (imported != null && presets.size + imported.size <= 500) {
-                        store.savePresets(presets + imported)
-                        snackbar.showSnackbar(context.getString(R.string.import_ok))
-                    } else snackbar.showSnackbar(context.getString(R.string.import_error))
+                    val result = imported?.let { store.addPresets(it) }
+                    snackbar.showSnackbar(context.getString(when (result) {
+                        PresetWrite.SAVED -> R.string.import_ok
+                        PresetWrite.LIMIT -> R.string.limit
+                        PresetWrite.DAMAGED -> R.string.storage_damaged
+                        null -> R.string.import_error
+                    }))
                 }
         }
     Column(

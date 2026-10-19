@@ -9,7 +9,7 @@
  <string name="completed">Готово!</string>
  <string name="pause">Пауза</string>
  <string name="resume">Продолжить</string>
- <string name="stop">Завершить</string>
+ <string name="stop">Остановить</string>
  <string name="start">Начать</string>
  <string name="saved">Мои режимы</string>
  <string name="quick">Быстрый таймер</string>
@@ -129,4 +129,7 @@
     <string name="countdown_preview">Сигнал отсчёта</string>
     <string name="vibration_preview">Проверить сильную вибрацию</string>
 <string name="show_ready_modes">Показывать готовые режимы</string>
+    <string name="storage_damaged">Хранилище повреждено. Изменения заблокированы, чтобы не потерять данные. Экспортируйте доступные режимы в настройках.</string>
+    <string name="stage_short">Этап</string>
+    <string name="rest_added">Добавлено 10 сек</string>
 </resources>

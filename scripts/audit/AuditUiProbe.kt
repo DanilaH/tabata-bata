@@ -19,7 +19,7 @@ import org.junit.Rule
 import org.junit.Test
 import java.io.File
 
-/** Deliberately probes defects on 0.6.1; assertions are evidence, not desired UX. */
+/** Regression acceptance for the independent audit findings. */
 class AuditUiProbe {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
@@ -59,7 +59,7 @@ class AuditUiProbe {
         val after = font("59")
         capture("clock-59")
         println("AUDIT clock_font_61sec=$before clock_font_59sec=$after")
-        assertTrue("Reproduces jump in digit size at minute boundary", after > before)
+        assertEquals(before, after, 0.01f)
     }
     @Test fun notificationExplanationLostOnRecreation() {
         stop()
@@ -69,9 +69,12 @@ class AuditUiProbe {
         compose.onNodeWithText(text(R.string.notification_title)).assertExists()
         capture("permission-before-recreate")
         compose.activityRule.scenario.recreate()
-        compose.onNodeWithText(text(R.string.notification_title)).assertDoesNotExist()
+        compose.onNodeWithText(text(R.string.notification_title)).assertExists()
         assertNull(TimerService.state.value)
-        println("AUDIT first_start_lost_after_recreate=true")
+        println("AUDIT first_start_retained_after_recreate=true")
+        compose.onNodeWithText(text(R.string.later)).performClick()
+        compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
+        stop()
         capture("permission-after-recreate")
         shell("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
     }
@@ -89,7 +92,7 @@ class AuditUiProbe {
         println("AUDIT power_after_previous=\n$dump")
         val held = Regex("(?m)^  PARTIAL_WAKE_LOCK.*TabataBata:Workout").containsMatchIn(dump)
         println("AUDIT after_previous_running=true wake_lock_held=$held")
-        assertFalse("Reproduces wake timeout not extended by previous", held)
+        assertTrue("Wake timeout refreshed by previous", held)
         capture("running-after-wake-expiry")
         stop()
     }
@@ -115,10 +118,10 @@ class AuditUiProbe {
             plus.performClick()
             compose.mainClock.advanceTimeBy(100)
             println("AUDIT canceled_hold_semantics_click_before=$before after=${value()}")
-            assertEquals(before, value())
+            assertEquals(before+1, value())
             plus.performClick()
             compose.mainClock.advanceTimeBy(100)
-            assertEquals(before+1, value())
+            assertEquals(before+2, value())
             capture("plus-released")
         } finally { compose.mainClock.autoAdvance = true; EditorDrafts(context).clear("new") }
     }
@@ -136,6 +139,7 @@ class AuditUiProbe {
                 val node = compose.onNodeWithContentDescription(label).fetchSemanticsNode()
                 val dp = node.boundsInRoot.width / compose.activity.resources.displayMetrics.density
                 println("AUDIT narrow320 label=$label widthDp=$dp bounds=${node.boundsInRoot}")
+                assertTrue("Button must retain at least 48dp", dp >= 48f)
             }
             measure("+ " + text(R.string.work))
             measure("− " + text(R.string.work))

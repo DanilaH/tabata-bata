@@ -2,6 +2,7 @@ package ru.tabatabata
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -30,6 +31,11 @@ internal fun RepeatButton(symbol: String, label: String, enabled: Boolean, tint:
     val pressed by source.collectIsPressedAsState()
     val step by rememberUpdatedState(onStep)
     var repeated by remember { mutableStateOf(false) }
+    LaunchedEffect(source) {
+        source.interactions.collect { interaction ->
+            if (interaction is PressInteraction.Cancel || interaction is PressInteraction.Press) repeated = false
+        }
+    }
     val scale by animateFloatAsState(if (pressed) .92f else 1f, label = "button press")
     LaunchedEffect(pressed, enabled) {
         if (pressed && enabled) {

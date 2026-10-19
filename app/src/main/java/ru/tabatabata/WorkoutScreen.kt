@@ -1,6 +1,8 @@
 package ru.tabatabata
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -30,7 +32,7 @@ internal fun workoutBackground(stage: Stage?, dark: Boolean): Color =
         Stage.WORK -> if (dark) Color(0xFF193D2B) else Color(0xFF176B44)
         Stage.REST,
         Stage.BETWEEN -> if (dark) Color(0xFF16364A) else Color(0xFF245ED0)
-        else -> if (dark) Color(0xFF44361D) else Color(0xFF8A5400)
+        else -> if (dark) Color(0xFF49350A) else Color(0xFF895C00)
     }
 
 @Composable
@@ -48,9 +50,10 @@ internal fun Workout(
     var exit by remember { mutableStateOf(false) }
     val active = s.status in listOf(Status.RUNNING, Status.PAUSED, Status.INTERRUPTED)
     val dark = MaterialTheme.colorScheme.background.red < .3f
-    val background =
-        if (active) workoutBackground(s.interval?.stage, dark)
-        else MaterialTheme.colorScheme.background
+    val background by animateColorAsState(
+        if (active) workoutBackground(s.interval?.stage, dark) else MaterialTheme.colorScheme.background,
+        animationSpec = tween(160), label = "stage color",
+    )
     val foreground = if (active) Color(0xFFF7F8F1) else MaterialTheme.colorScheme.onBackground
     val stage =
         stringResource(
@@ -85,7 +88,6 @@ internal fun Workout(
                         )
                     )
                 } else Text(stringResource(R.string.result_unknown))
-                Text(stringResource(R.string.done_body))
                 Button(
                     onClick = onRepeat,
                     shape = MaterialTheme.shapes.small,
@@ -250,15 +252,17 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val clock = workoutClock(s.remaining)
         val scale = LocalDensity.current.fontScale
+        val digits = workoutClock(s.interval?.duration ?: s.remaining).length.coerceAtLeast(2)
         val size =
             minOf(
                     240f,
-                    maxWidth.value / (clock.length * .62f * scale),
-                    (maxHeight.value - 24f - if (s.status == Status.RUNNING) 0f else 44f * scale) /
+                    maxWidth.value / (digits * .62f * scale),
+                    (maxHeight.value - 24f - 44f * scale) /
                         (1.3f * scale),
                 )
                 .coerceAtLeast(20f)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(Modifier.height(44.dp * scale), contentAlignment = Alignment.Center) {
             if (s.status != Status.RUNNING)
                 Text(
                     stringResource(
@@ -267,6 +271,7 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
                     ),
                     style = MaterialTheme.typography.headlineSmall,
                 )
+            }
             Text(
                 clock,
                 fontSize = size.sp,
@@ -315,24 +320,27 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
     ) {
         Text(stringResource(if (s.status == Status.RUNNING) R.string.pause else R.string.resume))
     }
+    var restAdded by remember(s.sessionId, s.index) { mutableStateOf(false) }
+    LaunchedEffect(restAdded) { if (restAdded) { delay(700); restAdded = false } }
     if (s.interval?.stage in listOf(Stage.REST, Stage.BETWEEN)) {
         TextButton(
-            onClick = { TimerService.command(context, "extendRest") },
+            onClick = { TimerService.command(context, "extendRest"); restAdded = true },
             enabled = !locked && s.status != Status.INTERRUPTED,
             colors = ButtonDefaults.textButtonColors(contentColor = foreground),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text(stringResource(R.string.add_rest))
+            Text(stringResource(if (restAdded) R.string.rest_added else R.string.add_rest))
         }
     }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         val previous = stringResource(R.string.previous)
-        IconButton(
+        TextButton(
             onClick = { TimerService.command(context, "previous") },
             enabled = !locked,
             modifier = Modifier.semantics { contentDescription = previous },
         ) {
-            Text("‹", fontSize = 32.sp)
+            Text("‹", fontSize = 28.sp)
+            Text(stringResource(R.string.stage_short), style = MaterialTheme.typography.labelSmall)
         }
         Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -342,19 +350,20 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
                 else stringResource(R.string.round_position, s.interval?.rep ?: 0, s.plan.reps),
                 style = MaterialTheme.typography.titleLarge,
             )
-            if (s.plan.sets > 1)
+            if (s.plan.sets > 1 && (s.interval?.set ?: 0) > 0)
                 Text(
                     "${stringResource(R.string.sets)} ${s.interval?.set ?: 0} / ${s.plan.sets}",
                     style = MaterialTheme.typography.labelMedium,
                 )
         }
         val next = stringResource(R.string.next)
-        IconButton(
+        TextButton(
             onClick = { TimerService.command(context, "next") },
             enabled = !locked,
             modifier = Modifier.semantics { contentDescription = next },
         ) {
-            Text("›", fontSize = 32.sp)
+            Text(stringResource(R.string.stage_short), style = MaterialTheme.typography.labelSmall)
+            Text("›", fontSize = 28.sp)
         }
     }
     Text(
