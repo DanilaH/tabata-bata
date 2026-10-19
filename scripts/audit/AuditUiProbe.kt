@@ -1,6 +1,11 @@
 package ru.tabatabata
 
 import android.content.Context
+import androidx.activity.compose.setContent
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
 import android.os.SystemClock
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -26,7 +31,7 @@ class AuditUiProbe {
         val dir = File(requireNotNull(InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")), "audit")
         dir.mkdirs()
         File(dir, "$name.png").outputStream().use {
-            compose.onRoot().captureToImage().asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+            InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
         }
     }
     private fun stop() {
@@ -35,6 +40,26 @@ class AuditUiProbe {
             compose.waitUntil(10000) { TimerService.state.value == null || TimerService.state.value?.status == Status.STOPPED }
             TimerService.clearResult()
         }
+    }
+    @Test fun clockFontChangesAtMinuteBoundary() {
+        stop()
+        val engine = TimerEngine(Plan(prepare=0, work=61, rest=0, reps=1),0)
+        val state = mutableStateOf(engine.snapshot(0))
+        compose.runOnUiThread {
+            compose.activity.setContent { MaterialTheme { Workout(state.value, Options(), {}, {}) } }
+        }
+        fun font(label: String): Float {
+            val layouts = mutableListOf<TextLayoutResult>()
+            compose.onNodeWithText(label).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            return layouts.first().layoutInput.style.fontSize.value
+        }
+        val before = font("1:01")
+        capture("clock-61")
+        compose.runOnUiThread { state.value = engine.snapshot(2000) }
+        val after = font("59")
+        capture("clock-59")
+        println("AUDIT clock_font_61sec=$before clock_font_59sec=$after")
+        assertTrue("Reproduces jump in digit size at minute boundary", after > before)
     }
     @Test fun notificationExplanationLostOnRecreation() {
         stop()
@@ -54,13 +79,15 @@ class AuditUiProbe {
         stop()
         compose.runOnUiThread { TimerService.command(context, "start", Plan(prepare=0, work=6, rest=0, reps=1)) }
         compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
-        assertTrue(shell("dumpsys power").contains("TabataBata:Workout"))
+        assertTrue(Regex("(?m)^  PARTIAL_WAKE_LOCK.*TabataBata:Workout").containsMatchIn(shell("dumpsys power")))
         repeat(4) {
             SystemClock.sleep(3000)
             compose.runOnUiThread { TimerService.command(context, "previous") }
         }
         assertEquals(Status.RUNNING, TimerService.state.value?.status)
-        val held = shell("dumpsys power").contains("TabataBata:Workout")
+        val dump = shell("dumpsys power")
+        println("AUDIT power_after_previous=\n$dump")
+        val held = Regex("(?m)^  PARTIAL_WAKE_LOCK.*TabataBata:Workout").containsMatchIn(dump)
         println("AUDIT after_previous_running=true wake_lock_held=$held")
         assertFalse("Reproduces wake timeout not extended by previous", held)
         capture("running-after-wake-expiry")
@@ -72,7 +99,10 @@ class AuditUiProbe {
         compose.onNodeWithText("+ " + text(R.string.new_timer)).performClick()
         val field = compose.onNodeWithContentDescription(text(R.string.work))
         fun value() = parseDuration(field.fetchSemanticsNode().config[SemanticsProperties.EditableText].text)!!
+        field.assertExists()
         val plus = compose.onNodeWithContentDescription("+ " + text(R.string.work))
+        plus.assertExists()
+        compose.waitForIdle()
         compose.mainClock.autoAdvance = false
         try {
             plus.performTouchInput { down(center) }

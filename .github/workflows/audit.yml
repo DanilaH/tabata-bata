@@ -33,10 +33,7 @@ jobs:
           disable-animations: false
           script: |
             ./gradlew testDebugUnitTest assembleDebug assembleDebugAndroidTest
-            adb shell 'screenrecord --time-limit 180 /sdcard/audit.mp4 >/dev/null 2>&1 & echo $!' > /tmp/audit-record.pid
-            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.tabatabata.AuditStoreProbe,ru.tabatabata.AuditUiProbe
-            adb shell kill -2 $(cat /tmp/audit-record.pid)
-            adb pull /sdcard/audit.mp4 app/build/audit.mp4
+            bash scripts/audit/run-ui.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

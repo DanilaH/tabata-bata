@@ -14,7 +14,11 @@ class AuditStoreProbe {
         try {
             val list = (0 until 500).map { Preset("audit-$it", "Audit $it", Plan()) }
             store.savePresets(list)
-            store.updatePreset(Preset("overflow", "Overflow", Plan()))
+            // UI-equivalent sequence: 500 -> delete -> copy another -> undo delete.
+            store.remove(list.first().id)
+            store.updatePreset(Preset("replacement", "Replacement", Plan()))
+            assertEquals(500, store.presets.first().size)
+            store.updatePreset(list.first())
             val failure = runCatching { store.presets.first() }.exceptionOrNull()
             println("AUDIT cap501_read_failure=${failure?.javaClass?.simpleName}")
             assertNotNull("Reproduces unguarded 501st write", failure)
