@@ -27,7 +27,9 @@ class AdsDemoTest {
     }
     private fun await(message: String, timeout: Long = 90000, predicate: () -> Boolean) {
         val deadline = SystemClock.elapsedRealtime() + timeout
-        while (!predicate()) {
+        while (true) {
+            compose.waitForIdle()
+            if (predicate()) return
             if (SystemClock.elapsedRealtime() >= deadline) fail(message + "\n" + logs())
             SystemClock.sleep(500)
         }
@@ -43,6 +45,7 @@ class AdsDemoTest {
         assertEquals("demo-banner-yandex", BuildConfig.BANNER_ID)
         assertEquals("demo-interstitial-yandex", BuildConfig.INTERSTITIAL_ID)
         assertTrue("No production analytics in probe", BuildConfig.APPMETRICA_KEY.isBlank())
+        compose.waitForIdle()
         val prefs = compose.activity.getSharedPreferences("ad-policy", Activity.MODE_PRIVATE)
         lateinit var ads: Ads
         shell("logcat -c")
