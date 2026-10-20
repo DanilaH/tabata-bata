@@ -1,6 +1,9 @@
 package ru.tabatabata
 
 import androidx.compose.ui.test.*
+import androidx.activity.compose.setContent
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -10,6 +13,32 @@ import org.junit.Test
 
 class RestControlsTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+
+    @Test
+    fun clockStaysAtSameHeightAcrossPrepareWorkAndRest() {
+        val plan = Plan(prepare = 5, work = 20, rest = 10, reps = 2)
+        val engine = TimerEngine(plan, 0)
+        val state = mutableStateOf(engine.snapshot(0))
+        compose.runOnUiThread {
+            compose.activity.setContent {
+                MaterialTheme { Workout(state.value, Options(), {}, {}) }
+            }
+        }
+        val prepare = compose.onNodeWithTag("workout-clock").fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithText(compose.activity.getString(R.string.add_rest)).assertDoesNotExist()
+        compose.runOnIdle { engine.skip(1, 0); state.value = engine.snapshot(0) }
+        val work = compose.onNodeWithTag("workout-clock").fetchSemanticsNode().boundsInRoot
+        compose.runOnIdle { engine.skip(1, 0); state.value = engine.snapshot(0) }
+        compose.onNodeWithText(compose.activity.getString(R.string.add_rest)).assertIsDisplayed()
+        val rest = compose.onNodeWithTag("workout-clock").fetchSemanticsNode().boundsInRoot
+        assertEquals(prepare.top, work.top, 1f)
+        assertEquals(work.top, rest.top, 1f)
+        assertEquals(work.bottom, rest.bottom, 1f)
+        compose.runOnIdle { engine.pause(0); state.value = engine.snapshot(0) }
+        val paused = compose.onNodeWithTag("workout-clock").fetchSemanticsNode().boundsInRoot
+        assertEquals(rest.top, paused.top, 1f)
+        assertEquals(rest.bottom, paused.bottom, 1f)
+    }
 
     @Test
     fun restExtensionPauseAndLock() {

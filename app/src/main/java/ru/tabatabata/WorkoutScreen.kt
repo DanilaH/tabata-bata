@@ -14,6 +14,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.TextStyle
@@ -274,6 +276,7 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
             }
             Text(
                 clock,
+                modifier = Modifier.testTag("workout-clock"),
                 fontSize = size.sp,
                 lineHeight = (size * 1.08f).sp,
                 fontWeight = FontWeight.Normal,
@@ -322,12 +325,22 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
     }
     var restAdded by remember(s.sessionId, s.index) { mutableStateOf(false) }
     LaunchedEffect(restAdded) { if (restAdded) { delay(700); restAdded = false } }
-    if (s.interval?.stage in listOf(Stage.REST, Stage.BETWEEN)) {
+    val canExtendRest = s.interval?.stage in listOf(Stage.REST, Stage.BETWEEN)
+    // Measure the same control on every stage, but place/expose it only during rest.
+    // This keeps the weighted clock area identical without a hidden touch target.
+    run {
         TextButton(
             onClick = { TimerService.command(context, "extendRest"); restAdded = true },
-            enabled = !locked && s.status != Status.INTERRUPTED,
+            enabled = canExtendRest && !locked && s.status != Status.INTERRUPTED,
             colors = ButtonDefaults.textButtonColors(contentColor = foreground),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().then(
+                if (canExtendRest) Modifier else Modifier
+                    .clearAndSetSemantics {}
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        layout(placeable.width, placeable.height) {}
+                    }
+            ),
         ) {
             Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
                 if (restAdded) Text("✓", modifier = Modifier.semantics {
