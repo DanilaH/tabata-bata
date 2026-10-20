@@ -60,6 +60,49 @@ class AdsDemoTest {
         for (i in 0 until node.childCount) if (dismissControl(node.getChild(i))) return true
         return false
     }
+    private fun demoLabel(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
+        if (node == null) return null
+        if (node.text?.toString()?.contains("[demo ad]", ignoreCase = true) == true) return node
+        for (i in 0 until node.childCount) demoLabel(node.getChild(i))?.let { return it }
+        return null
+    }
+    private fun storyControl(node: AccessibilityNodeInfo?, width: Int): AccessibilityNodeInfo? {
+        if (node == null) return null
+        val bounds = Rect(); node.getBoundsInScreen(bounds)
+        if (node.className?.toString() == "android.widget.ImageView" && node.isVisibleToUser &&
+            node.isEnabled && bounds.left > width * .85 && bounds.width() in 20..(width / 8) &&
+            bounds.height() in 20..(width / 8)) return node
+        for (i in 0 until node.childCount) storyControl(node.getChild(i), width)?.let { return it }
+        return null
+    }
+    private fun dismissObservedStory(): Boolean {
+        val root = instrumentation.uiAutomation.rootInActiveWindow ?: return false
+        if (root.packageName?.toString() != "ru.tabatabata") return false
+        val screen = Rect(); root.getBoundsInScreen(screen)
+        var row = demoLabel(root)?.parent
+        repeat(8) {
+            val current = row ?: return false
+            val bounds = Rect(); current.getBoundsInScreen(bounds)
+            // Grounded in captured SDK trees: small rightmost image inside the DEMO metadata row.
+            // The metadata row moves between video and static cards; never tap the ad body/CTA.
+            if (bounds.width() > screen.width() * .8 && bounds.height() < screen.height() * .2) {
+                val control = storyControl(current, screen.width())
+                if (control != null) {
+                    val target = Rect(); control.getBoundsInScreen(target)
+                    val now = SystemClock.uptimeMillis()
+                    for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+                        val event = MotionEvent.obtain(now, SystemClock.uptimeMillis(), action, target.exactCenterX(), target.exactCenterY(), 0)
+                        event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+                        instrumentation.uiAutomation.injectInputEvent(event, true)
+                        event.recycle()
+                    }
+                    return true
+                }
+            }
+            row = current.parent
+        }
+        return false
+    }
     private fun tree(node: AccessibilityNodeInfo?, indent: String = ""): String {
         if (node == null) return ""
         val bounds = Rect(); node.getBoundsInScreen(bounds)
@@ -108,12 +151,12 @@ class AdsDemoTest {
             await("Interstitial impression missing") { event("ad_impression", "interstitial") }
             capture("interstitial")
             SystemClock.sleep(10000)
-            dismissControl(instrumentation.uiAutomation.rootInActiveWindow)
+            if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) dismissObservedStory()
             capture("after-skip")
             val deadline = SystemClock.elapsedRealtime() + 60000
             while (!event("ad_closed", "interstitial") && SystemClock.elapsedRealtime() < deadline) {
                 SystemClock.sleep(1000)
-                dismissControl(instrumentation.uiAutomation.rootInActiveWindow)
+                if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) dismissObservedStory()
             }
             await("Demo close callback missing", 5000) { event("ad_closed", "interstitial") }
             compose.runOnUiThread {
