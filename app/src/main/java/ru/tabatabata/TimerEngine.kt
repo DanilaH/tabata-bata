@@ -84,6 +84,8 @@ class TimerEngine(
     now: Long,
     val sessionId: String = java.util.UUID.randomUUID().toString(),
 ) {
+    init { plan.validate() }
+
     private val intervals = plan.stages().toMutableList()
     private var index = 0
     private var deadline = now + intervals.first().duration
@@ -93,10 +95,6 @@ class TimerEngine(
     private var activeMs = 0L
     private val completedWork = mutableSetOf<Int>()
     private var statsAvailable = true
-
-    init {
-        plan.validate()
-    }
 
     fun snapshot(now: Long): Snapshot {
         if (status == Status.RUNNING) {

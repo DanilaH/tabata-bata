@@ -34,6 +34,17 @@ internal fun parseDuration(value: String): Int? {
 internal fun durationInput(seconds: Int): String =
     "%d:%02d".format(java.util.Locale.ROOT, seconds / 60, seconds % 60)
 
+/** Reject damaged containers while retaining incomplete user input inside valid fields. */
+internal fun decodeEditorDraft(raw: String, fallback: String): JSONObject = runCatching {
+    JSONObject(raw).also { obj ->
+        require(obj.getString("name").length <= 100)
+        obj.getBoolean("last")
+        val fields = obj.getJSONArray("values")
+        require(fields.length() == 7)
+        repeat(7) { require(fields.getString(it).length <= 6) }
+    }
+}.getOrElse { JSONObject(fallback) }
+
 /** Raw strings preserve incomplete/invalid input too. Saved modes are never changed here. */
 internal class EditorDrafts(context: Context) {
     private val prefs = context.getSharedPreferences("editor_drafts", Context.MODE_PRIVATE)
@@ -86,8 +97,8 @@ internal fun Editor(
             .put("last", base.lastRest)
             .toString()
     val baseline = remember(key) { initial() }
-    var raw by rememberSaveable(key) { mutableStateOf(drafts.read(key) ?: baseline) }
-    val obj = remember(raw) { runCatching { JSONObject(raw) }.getOrElse { JSONObject(baseline) } }
+    var raw by rememberSaveable(key) { mutableStateOf(decodeEditorDraft(drafts.read(key) ?: baseline, baseline).toString()) }
+    val obj = remember(raw) { decodeEditorDraft(raw, baseline) }
     val values = (0..6).map { obj.getJSONArray("values").getString(it) }
     val name = obj.optString("name")
     val last = obj.optBoolean("last")
@@ -113,7 +124,7 @@ internal fun Editor(
                 .getOrNull()
         else null
     fun change(update: (JSONObject) -> Unit) {
-        val next = JSONObject(raw)
+        val next = JSONObject(obj.toString())
         update(next)
         raw = next.toString()
         drafts.write(key, raw)

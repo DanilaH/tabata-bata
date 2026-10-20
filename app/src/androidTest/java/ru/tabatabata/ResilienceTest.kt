@@ -164,6 +164,20 @@ class ResilienceTest {
     }
 
     @Test
+    fun damagedEditorDraftFallsBackAndRemainsEditable() {
+        clean()
+        val drafts = EditorDrafts(context)
+        try {
+            drafts.write("new", "{}")
+            compose.onNodeWithText("+ " + text(R.string.new_timer)).performClick()
+            compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("35")
+            compose.onNodeWithText(text(R.string.start)).assertIsEnabled()
+            val raw = drafts.read("new")!!
+            assertEquals("35", JSONObject(raw).getJSONArray("values").getString(1))
+        } finally { drafts.clear("new"); clean() }
+    }
+
+    @Test
     fun damagedCheckpointDoesNotCrashOrRepeatRecovery() {
         clean()
         val prefs = context.getSharedPreferences("session", Context.MODE_PRIVATE)

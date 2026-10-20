@@ -4,6 +4,11 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class TimerEngineTest {
+    @org.junit.Test(expected = IllegalArgumentException::class)
+    fun rejectsInvalidPlanBeforeBuildingIntervals() {
+        TimerEngine(Plan(reps = Int.MAX_VALUE, sets = Int.MAX_VALUE), 0)
+    }
+
     @Test
     fun personalDurations() {
         assertEquals(103000, Plan(5, 2, 2, 25).durationMs())
