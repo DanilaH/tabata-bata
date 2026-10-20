@@ -46,6 +46,7 @@ jobs:
     name: emulator (API ${{ matrix.api }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         api: [35, 36]
     steps:
@@ -93,6 +94,7 @@ jobs:
     name: compatibility and upgrade (API ${{ matrix.api }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         api: [26, 35]
     steps:

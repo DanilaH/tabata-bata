@@ -31,8 +31,29 @@ def hierarchy():
     return adb("exec-out", "cat", "/sdcard/tabata-check.xml")
 
 
+launcher_recovered = False
+
+
 def visible(*labels):
+    global launcher_recovered
     xml = hierarchy()
+    nodes = list(ET.fromstring(xml).iter("node"))
+    # API36 emulator Quickstep can ANR after instrumentation. Do not dismiss app ANRs.
+    launcher_anr = any(n.get("package") == "android" and
+                       n.get("resource-id") == "android:id/alertTitle" and
+                       n.get("text") == "Quickstep isn't responding" for n in nodes)
+    if launcher_anr and not launcher_recovered:
+        close = next((n for n in nodes if n.get("package") == "android" and
+                      n.get("resource-id") == "android:id/aerr_close"), None)
+        if close is not None:
+            (OUT / "quickstep-anr.xml").write_text(xml)
+            (OUT / "quickstep-anr.png").write_bytes(adb("exec-out", "screencap", "-p", binary=True))
+            launcher_recovered = True
+            x1, y1, x2, y2 = map(int, re.findall(r"\d+", close.get("bounds")))
+            adb("shell", "input", "tap", str((x1+x2)//2), str((y1+y2)//2))
+            adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.MainActivity")
+            print("Recovered one emulator Quickstep ANR; evidence retained; app errors are not suppressed")
+            xml = hierarchy()
     (OUT / "last-ui.xml").write_text(xml)
     return next((n for n in ET.fromstring(xml).iter("node") if n.get("text") in labels), None)
 
