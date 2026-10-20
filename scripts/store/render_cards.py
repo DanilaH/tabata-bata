@@ -39,9 +39,7 @@ def render():
                  f'<rect width="1080" height="1920" fill="{bg}"/>',
                  f'<circle cx="1100" cy="1360" r="600" fill="none" stroke="{decor}" stroke-width="80"/>',
                  '<g font-family="DejaVu Sans,sans-serif">',
-                 text(80, 90, 'ТАБАТА БАТА', 27, accent, 700, 'letter-spacing="3"'),
-                 text(1000, 90, f'{i:02} / 04', 24, fg, 400, 'text-anchor="end" opacity=".7"'),
-                 f'<path d="M80 126H1000" stroke="{fg}" stroke-opacity=".18"/>']
+                 ]
         for j, line in enumerate(title):
             parts.append(text(76, 258 + j * (font_size + 12), line, font_size, fg, 700, 'letter-spacing="-3"'))
         subtitle_y = 258 + (len(title)-1) * (font_size+12) + 78
