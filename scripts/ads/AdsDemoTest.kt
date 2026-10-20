@@ -39,17 +39,17 @@ class AdsDemoTest {
     private fun dismissControl(node: AccessibilityNodeInfo?): Boolean {
         if (node == null) return false
         val label = "${node.contentDescription} ${node.text} ${node.viewIdResourceName}".lowercase()
-        if (node.isVisibleToUser && Regex("close|skip|закрыть|пропустить").containsMatchIn(label)) {
+        if (node.isVisibleToUser && Regex("close|skip|next|закрыть|пропустить|далее").containsMatchIn(label)) {
             if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
         }
         for (i in 0 until node.childCount) if (dismissControl(node.getChild(i))) return true
         return false
     }
-    private fun tapDemoSkip() {
+    private fun tapDemoSkip(staticCard: Boolean = false) {
         // Observed SDK demo-video skip control at (1013,83) on the Pixel 2 1080x1920 fixture.
         val display = instrumentation.uiAutomation.takeScreenshot()
         val x = display.width * (1013f / 1080f)
-        val y = display.height * (83f / 1920f)
+        val y = display.height * ((if (staticCard) 1130f else 83f) / 1920f)
         val now = SystemClock.uptimeMillis()
         for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
             val event = MotionEvent.obtain(now, SystemClock.uptimeMillis(), action, x, y, 0)
@@ -96,10 +96,15 @@ class AdsDemoTest {
             SystemClock.sleep(10000)
             if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) tapDemoSkip()
             capture("after-skip")
-            val deadline = SystemClock.elapsedRealtime() + 45000
+            val deadline = SystemClock.elapsedRealtime() + 60000
+            var attempts = 0
             while (!event("ad_closed", "interstitial") && SystemClock.elapsedRealtime() < deadline) {
                 SystemClock.sleep(1000)
-                dismissControl(instrumentation.uiAutomation.rootInActiveWindow)
+                if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) {
+                    // The observed demo story switches from video (top-right skip) to
+                    // a static card (skip in its metadata row at y=1130/1920).
+                    tapDemoSkip(staticCard = attempts++ % 2 == 0)
+                }
                 instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
             }
             await("Demo close callback missing", 5000) { event("ad_closed", "interstitial") }
