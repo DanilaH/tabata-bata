@@ -213,14 +213,18 @@ internal fun Workout(
                             ClockFace(s, Modifier.weight(1f).fillMaxWidth())
                             if (options.showStages) StageQueue(s, Modifier.heightIn(max = 100.dp))
                             else
-                                s.next?.let {
+                                run {
+                                    val next = s.next
                                     Text(
                                         stringResource(
                                             R.string.next_stage,
-                                            stringResource(stageString(it.stage)),
-                                            formatTime(it.duration),
+                                            stringResource(stageString(next?.stage ?: Stage.WORK)),
+                                            formatTime(next?.duration ?: 0),
                                         ),
                                         style = MaterialTheme.typography.bodyLarge,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                        modifier = Modifier.hiddenWhen(next == null),
                                     )
                                 }
                             WorkoutControls(s, locked, foreground)
@@ -372,10 +376,11 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 style = MaterialTheme.typography.titleMedium,
             )
-            if (s.plan.sets > 1 && (s.interval?.set ?: 0) > 0)
+            if (s.plan.sets > 1)
                 Text(
                     "${stringResource(R.string.sets)} ${s.interval?.set ?: 0} / ${s.plan.sets}",
                     style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.hiddenWhen((s.interval?.set ?: 0) == 0),
                 )
         }
         val next = stringResource(R.string.next)
@@ -400,9 +405,12 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
 private fun StageQueue(s: Snapshot, modifier: Modifier) {
     val stages = remember(s.plan) { s.plan.stages() }
     Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-        stages.drop(s.index + 1).take(3).forEach {
+        val next = stages.drop(s.index + 1).take(3)
+        repeat(3) { position ->
+            val interval = next.getOrNull(position)
+            val it = interval ?: Interval(Stage.WORK, 0, 0, 0)
             Row(
-                Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                Modifier.fillMaxWidth().padding(vertical = 2.dp).hiddenWhen(interval == null),
                 horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 Text(
@@ -414,3 +422,10 @@ private fun StageQueue(s: Snapshot, modifier: Modifier) {
         }
     }
 }
+
+/** Reserve layout space without drawing or exposing a hidden accessibility target. */
+private fun Modifier.hiddenWhen(hidden: Boolean): Modifier = if (!hidden) this else
+    clearAndSetSemantics {}.layout { measurable, constraints ->
+        val placeable = measurable.measure(constraints)
+        layout(placeable.width, placeable.height) {}
+    }

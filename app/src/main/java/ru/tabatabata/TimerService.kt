@@ -154,53 +154,246 @@ class TimerService : Service() {
                 cues.cancel()
                 engine?.skip(if (intent.action == "next") 1 else -1, now)
                 lastIndex = -1
-     …6767 tokens truncated…edium,
-                    modifier = Modifier.hiddenWhen((s.interval?.set ?: 0) == 0),
-                )
-        }
-        val next = stringResource(R.string.next)
-        TextButton(
-            onClick = { TimerService.command(context, "next") },
-            enabled = !locked,
-            colors = ButtonDefaults.textButtonColors(contentColor = foreground, disabledContentColor = foreground.copy(alpha = .4f)),
-            modifier = Modifier.semantics { contentDescription = next },
-        ) {
-            Text(stringResource(R.string.stage_short), style = MaterialTheme.typography.labelSmall)
-            Text("›", fontSize = 28.sp)
-        }
-    }
-    Text(
-        "${stringResource(R.string.remaining)} ${formatTime(s.totalRemaining)}",
-        style = MaterialTheme.typography.bodySmall,
-        modifier = Modifier.padding(bottom = 4.dp),
-    )
-}
-
-@Composable
-private fun StageQueue(s: Snapshot, modifier: Modifier) {
-    val stages = remember(s.plan) { s.plan.stages() }
-    Column(modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
-        val next = stages.drop(s.index + 1).take(3)
-        repeat(3) { position ->
-            val interval = next.getOrNull(position)
-            val it = interval ?: Interval(Stage.WORK, 0, 0, 0)
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 2.dp).hiddenWhen(interval == null),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text(
-                    stringResource(stageString(it.stage)),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                Text(formatTime(it.duration), style = MaterialTheme.typography.bodySmall)
+                lastSecond = -1
+                lastSaved = -1
+                release()
+                acquire()
+                publish()
+            }
+            "extendRest" -> {
+                if (engine?.extendRest(now) == true) {
+                    cues.cancel()
+                    lastSecond = -1
+                    lastSaved = -1
+                    release()
+                    acquire()
+                    publish()
+                }
+            }
+            "stop" -> {
+                engine?.stop(now)
+                publish()
+                finish(false)
             }
         }
+        if (engine == null) stopSelf()
+        return START_NOT_STICKY
+    }
+
+    private fun foreground() {
+        val n = notification()
+        if (Build.VERSION.SDK_INT >= 34)
+            startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        else startForeground(1, n)
+    }
+
+    private fun acquire() {
+        if (engine?.snapshot(SystemClock.elapsedRealtime())?.status != Status.RUNNING) return
+        if (wake?.isHeld == true) return
+        wake =
+            getSystemService(PowerManager::class.java)
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "TabataBata:Workout")
+                .apply {
+                    setReferenceCounted(false)
+                    acquire(
+                        (engine!!.snapshot(SystemClock.elapsedRealtime()).totalRemaining + 5000)
+                            .coerceAtMost(86405000)
+                    )
+                }
+    }
+
+    private fun release() {
+        if (wake?.isHeld == true) wake?.release()
+        wake = null
+    }
+
+    private fun pause() {
+        if (engine?.snapshot(SystemClock.elapsedRealtime())?.status == Status.RUNNING) {
+            activeMs += SystemClock.elapsedRealtime() - startedAt
+            pauses++
+        }
+        engine?.pause(SystemClock.elapsedRealtime())
+        cues.cancel()
+        release()
+        publish()
+    }
+
+    private fun startTicker() {
+        ticker?.cancel()
+        ticker =
+            scope.launch {
+                optionsReady.await()
+                while (isActive && engine != null) {
+                    publish()
+                    delay(50)
+                }
+            }
+    }
+
+    private fun publish() {
+        val s = engine?.snapshot(SystemClock.elapsedRealtime()) ?: return
+        mutable.value = s
+        val second = (s.remaining + 999) / 1000
+        if (s.status == Status.RUNNING) {
+            if (s.index != lastIndex) {
+                lastIndex = s.index
+                lastSecond = second
+                cues.play(
+                    s.interval?.stage,
+                    options,
+                    lastRound =
+                        s.interval?.stage == Stage.WORK &&
+                            s.interval.rep == s.plan.reps &&
+                            s.interval.set == s.plan.sets,
+                )
+            } else if (
+                options.countdown &&
+                    (s.interval?.duration ?: 0) >= 4000 &&
+                    second in 1..3 &&
+                    second != lastSecond
+            )
+                cues.play(s.interval?.stage, options, true)
+            lastSecond = second
+        }
+        if (s.status == Status.COMPLETED) {
+            cues.play(null, options)
+            finish(true)
+            return
+        }
+        if (s.status == Status.STOPPED) return
+        val now = SystemClock.elapsedRealtime()
+        val changed = s.status != lastStatus
+        if (now - lastSaved >= 1000 || changed) {
+            prefs
+                .edit()
+                .putString(
+                    "active",
+                    JSONObject()
+                        .put("plan", s.plan.json())
+                        .put("index", s.index)
+                        .put("remaining", s.remaining)
+                        .put("currentDuration", s.interval?.duration)
+                        .put("sessionId", s.sessionId)
+                        .put("activeMs", s.activeMs)
+                        .put("completedWork", org.json.JSONArray(s.completedWork.toList()))
+                        .put("statsAvailable", s.statsAvailable)
+                        .toString(),
+                )
+                .apply()
+            lastSaved = now
+        }
+        if (now - lastNotification >= 1000 || changed) {
+            getSystemService(NotificationManager::class.java).notify(1, notification())
+            lastNotification = now
+        }
+        lastStatus = s.status
+    }
+
+    private fun finish(completed: Boolean) {
+        val e = engine
+        if (e != null) {
+            val s = mutable.value
+            val elapsed = s?.activeMs ?: 0L
+            Telemetry.event(
+                "workout_finished",
+                mapOf(
+                    "session_id" to e.sessionId,
+                    "result" to if (completed) "completed" else "stopped",
+                    "active_seconds" to elapsed / 1000,
+                    "pauses" to pauses,
+                    "skips" to skips,
+                ),
+            )
+        }
+        prefs.edit().remove("active").apply()
+        release()
+        ticker?.cancel()
+        engine = null
+        if (!completed) cues.cancel()
+        if (!completed) stopForeground(STOP_FOREGROUND_REMOVE)
+        finishJob?.cancel()
+        if (completed)
+            finishJob = scope.launch {
+                delay(4500)
+                if (engine == null) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                }
+            }
+        else stopSelf()
+    }
+
+    private fun notification(): Notification {
+        val s = engine?.snapshot(SystemClock.elapsedRealtime())
+        val open =
+            PendingIntent.getActivity(
+                this,
+                0,
+                Intent(this, MainActivity::class.java),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+        fun action(name: String) =
+            PendingIntent.getService(
+                this,
+                name.hashCode(),
+                Intent(this, TimerService::class.java).setAction(name),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+        val running = s?.status == Status.RUNNING
+        return Notification.Builder(this, "workout")
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(getString(R.string.app_name))
+            .setContentText(
+                "${getString(stageString(s?.interval?.stage))} · ${formatTime(s?.remaining ?: 0)}"
+            )
+            .setContentIntent(open)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .addAction(
+                Notification.Action.Builder(
+                        null,
+                        getString(if (running) R.string.pause else R.string.resume),
+                        action(if (running) "pause" else "resume"),
+                    )
+                    .build()
+            )
+            .addAction(
+                Notification.Action.Builder(null, getString(R.string.stop), action("stop")).build()
+            )
+            .build()
+    }
+
+    override fun onDestroy() {
+        ticker?.cancel()
+        release()
+        cues.close()
+        unregisterReceiver(noisy)
+        scope.cancel()
+        super.onDestroy()
     }
 }
 
-/** Reserve layout space without drawing or exposing a hidden accessibility target. */
-private fun Modifier.hiddenWhen(hidden: Boolean): Modifier = if (!hidden) this else
-    clearAndSetSemantics {}.layout { measurable, constraints ->
-        val placeable = measurable.measure(constraints)
-        layout(placeable.width, placeable.height) {}
+fun stageString(stage: Stage?): Int =
+    when (stage) {
+        Stage.PREPARE -> R.string.prepare
+        Stage.WORK -> R.string.work
+        Stage.REST -> R.string.rest
+        Stage.BETWEEN -> R.string.between
+        Stage.COOL -> R.string.cool
+        null -> R.string.completed
+    }
+
+fun formatTime(ms: Long): String {
+    val seconds = (ms.coerceAtLeast(0) + 999) / 1000
+    return if (seconds >= 3600)
+        "%d:%02d:%02d".format(seconds / 3600, seconds / 60 % 60, seconds % 60)
+    else "%d:%02d".format(seconds / 60, seconds % 60)
+}
+
+fun durationBucket(ms: Long): String =
+    when {
+        ms < 60000 -> "under_1m"
+        ms < 300000 -> "1_5m"
+        ms < 1800000 -> "5_30m"
+        else -> "30m_plus"
     }
