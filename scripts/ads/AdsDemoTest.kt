@@ -222,8 +222,12 @@ class AdsDemoTest {
                 assertSafeBanner("result-narrow-$landscape")
                 compose.onNodeWithText(compose.activity.getString(R.string.home)).performScrollTo().assertIsDisplayed()
             }
+            compose.activity.getSharedPreferences("ui", Activity.MODE_PRIVATE).edit()
+                .putBoolean("notificationAsked", false).commit()
             compose.onNodeWithText(compose.activity.getString(R.string.repeat)).performScrollTo().assertIsDisplayed().performClick()
             assertNoBanner()
+            capture("repeat-permission-no-banner")
+            compose.onNodeWithText(compose.activity.getString(R.string.later)).performClick()
             compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
             compose.onNodeWithText(compose.activity.getString(R.string.home)).assertIsDisplayed()
             compose.runOnUiThread { TimerService.clearResult() }

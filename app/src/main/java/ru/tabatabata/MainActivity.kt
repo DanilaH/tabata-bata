@@ -254,7 +254,7 @@ private fun App() {
             else MaterialTheme.colorScheme.background,
         bottomBar = {
             if (
-                (snapshot == null && !editorOpen && tab == 0) ||
+                (snapshot == null && !editorOpen && tab == 0 && !notificationPrompt && pendingPlan == null) ||
                     snapshot?.status == Status.COMPLETED
             )
                 AdBanner(ads)

@@ -151,39 +151,39 @@ fun AdBanner(ads: Ads) {
         // Reserve the SDK-calculated height before init/load and after a failed load.
         // A late creative must not move controls underneath the user's finger.
         Box(Modifier.fillMaxWidth().height(size.height.dp)) {
-        if (ads.ready) key(width) {
-            AndroidView(
-                factory = {
-                    BannerAdView(context).apply {
-                        setAdSize(size)
-                        setBannerAdEventListener(
-                            object : BannerAdEventListener {
-                                override fun onAdLoaded() {
-                                    Telemetry.event("ad_loaded", mapOf("format" to "banner"))
+            if (ads.ready) key(width) {
+                AndroidView(
+                    factory = {
+                        BannerAdView(context).apply {
+                            setAdSize(size)
+                            setBannerAdEventListener(
+                                object : BannerAdEventListener {
+                                    override fun onAdLoaded() {
+                                        Telemetry.event("ad_loaded", mapOf("format" to "banner"))
+                                    }
+    
+                                    override fun onAdFailedToLoad(error: AdRequestError) {
+                                        Telemetry.event(
+                                            "ad_error",
+                                            mapOf("format" to "banner", "stage" to "load"),
+                                        )
+                                    }
+    
+                                    override fun onAdClicked() {}
+    
+                                    override fun onImpression(impressionData: ImpressionData?) {
+                                        Telemetry.event("ad_impression", mapOf("format" to "banner"))
+                                    }
                                 }
-
-                                override fun onAdFailedToLoad(error: AdRequestError) {
-                                    Telemetry.event(
-                                        "ad_error",
-                                        mapOf("format" to "banner", "stage" to "load"),
-                                    )
-                                }
-
-                                override fun onAdClicked() {}
-
-                                override fun onImpression(impressionData: ImpressionData?) {
-                                    Telemetry.event("ad_impression", mapOf("format" to "banner"))
-                                }
-                            }
-                        )
-                        Telemetry.event("ad_request", mapOf("format" to "banner"))
-                        loadAd(AdRequest.Builder(BuildConfig.BANNER_ID).build())
-                    }
-                },
-                modifier = Modifier.fillMaxSize(),
-                onRelease = { it.destroy() },
-            )
+                            )
+                            Telemetry.event("ad_request", mapOf("format" to "banner"))
+                            loadAd(AdRequest.Builder(BuildConfig.BANNER_ID).build())
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    onRelease = { it.destroy() },
+                )
+            }
         }
-    }
     }
 }
