@@ -1,0 +1,39 @@
+{
+  "version": "0.7.1",
+  "versionCode": 11,
+  "package": "ru.tabatabata",
+  "commit": "68f4ce4f7d93791cb050de1c7536973e9be8a3f2",
+  "workflow_run": 39390162681,
+  "artifact": 12250105348,
+  "capture": "Actual Android API 35 app; Compose root, no system bars; original PNG bytes, no mockups. Ads disabled in this preview.",
+  "screenshots": [
+    {
+      "file": "screenshots/01-work.png",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 77718,
+      "sha256": "5ead24763e3fe43c465139dd444293986a1f407ddb41f73d8b7baf619e05d540"
+    },
+    {
+      "file": "screenshots/02-editor.png",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 100425,
+      "sha256": "78d2365c6eebefcf1edc45af29bdc00fda5e57160c158eb7d5316b9d15a9149b"
+    },
+    {
+      "file": "screenshots/03-ready-modes.png",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 76514,
+      "sha256": "09fdf19e35bd7c94388d2490593d6d1e5899444e7dd784af2b3d255ffdb7a080"
+    },
+    {
+      "file": "screenshots/04-rest-dark.png",
+      "width": 1080,
+      "height": 1920,
+      "bytes": 77748,
+      "sha256": "d702fcb440aa0d3b92fc81696a6f60fb99113b4d3dab2a614a2151be2375b253"
+    }
+  ]
+}
