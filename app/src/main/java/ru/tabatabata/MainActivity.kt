@@ -25,6 +25,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -260,7 +261,7 @@ private fun App() {
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding().graphicsLayer { alpha = screenAlpha.value }) {
+        Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding().testTag("app-content").graphicsLayer { alpha = screenAlpha.value }) {
             if (snapshot?.status == Status.STOPPED) {
                 // Return to the menu without flashing a result screen.
             } else if (snapshot != null)

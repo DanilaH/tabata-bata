@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.yandex.mobile.ads.banner.*
 import com.yandex.mobile.ads.common.*
@@ -138,7 +139,13 @@ class Ads(private val activity: Activity) {
 fun AdBanner(ads: Ads) {
     if (!ads.ready || BuildConfig.BANNER_ID.isBlank()) return
     val context = LocalContext.current
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
+    // Scaffold delegates bottom-bar insets to this component. Measure the SDK banner
+    // only inside the safe width, including side navigation/cutouts in landscape.
+    BoxWithConstraints(
+        Modifier.fillMaxWidth()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+            .padding(top = 8.dp)
+    ) {
         val width = maxWidth.value.toInt()
         key(width) {
             AndroidView(

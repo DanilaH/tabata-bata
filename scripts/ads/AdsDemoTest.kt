@@ -10,6 +10,12 @@ import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.test.*
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import android.view.View
+import android.view.ViewGroup
+import com.yandex.mobile.ads.banner.BannerAdView
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
@@ -119,6 +125,111 @@ class AdsDemoTest {
         File(dir, "events.txt").writeText(logs())
         File(dir, "$name-tree.txt").writeText(tree(instrumentation.uiAutomation.rootInActiveWindow))
     }
+    private fun banner(view: View): BannerAdView? {
+        if (view is BannerAdView) return view
+        if (view is ViewGroup) for (i in 0 until view.childCount) {
+            banner(view.getChildAt(i))?.let { return it }
+        }
+        return null
+    }
+    private fun assertSafeBanner(name: String) {
+        await("Banner did not become visible: $name") {
+            var visible = false
+            compose.runOnUiThread {
+                visible = banner(compose.activity.window.decorView)?.let { it.isShown && it.height > 0 } == true
+            }
+            visible && event("ad_impression", "banner")
+        }
+        val content = compose.onNodeWithTag("app-content").fetchSemanticsNode().boundsInRoot
+        compose.runOnUiThread {
+            val decor = compose.activity.window.decorView
+            val view = requireNotNull(banner(decor))
+            val insets = requireNotNull(ViewCompat.getRootWindowInsets(decor)).getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+            val origin = IntArray(2); decor.getLocationOnScreen(origin)
+            val point = IntArray(2); view.getLocationOnScreen(point)
+            val x = point[0] - origin[0]; val y = point[1] - origin[1]
+            assertTrue("Left safe area: $name", x >= insets.left)
+            assertTrue("Right safe area: $name", x + view.width <= decor.width - insets.right)
+            assertTrue("Bottom safe area: $name", y + view.height <= decor.height - insets.bottom)
+            assertTrue("Content overlap: $name", content.bottom <= y - 7 * view.resources.displayMetrics.density)
+        }
+        capture(name)
+    }
+    private fun assertNoBanner() {
+        compose.waitForIdle()
+        compose.runOnUiThread { assertNull(banner(compose.activity.window.decorView)) }
+    }
+    @Test fun realScreensRespectSafeAreasAndRemoveAdsDuringWorkout() {
+        assertEquals("demo-banner-yandex", BuildConfig.BANNER_ID)
+        assertTrue(BuildConfig.APPMETRICA_KEY.isBlank())
+        val originalNav = shell("cmd overlay list").lineSequence().firstOrNull {
+            it.startsWith("[x]") && it.contains("com.android.internal.systemui.navbar.")
+        }?.substringAfter("] ")?.trim()
+        try {
+            for (nav in listOf("gestural", "threebutton")) {
+                shell("cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.$nav")
+                for (landscape in listOf(false, true)) {
+                    shell("logcat -c")
+                    compose.runOnUiThread {
+                        compose.activity.requestedOrientation = if (landscape)
+                            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                        else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    }
+                    SystemClock.sleep(1500)
+                    assertSafeBanner("home-$nav-$landscape")
+                }
+            }
+            // Narrow portrait: actual app, actual SDK view, no replacement setContent.
+            shell("wm size 720x1280")
+            shell("wm density 360")
+            shell("logcat -c")
+            compose.runOnUiThread {
+                compose.activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
+            SystemClock.sleep(1500)
+            assertSafeBanner("home-narrow")
+            compose.onNodeWithText(compose.activity.getString(R.string.settings)).performClick()
+            assertNoBanner()
+            instrumentation.runOnMainSync { compose.activity.onBackPressedDispatcher.onBackPressed() }
+            compose.onNodeWithText(compose.activity.getString(R.string.new_timer)).performClick()
+            assertNoBanner()
+            instrumentation.runOnMainSync { compose.activity.onBackPressedDispatcher.onBackPressed() }
+            compose.runOnUiThread { TimerService.command(compose.activity, "start", Plan(0, 30, 10, 2)) }
+            compose.waitUntil(5000) { TimerService.state.value?.status == Status.RUNNING }
+            assertNoBanner()
+            compose.runOnUiThread { TimerService.command(compose.activity, "pause") }
+            compose.waitUntil(5000) { TimerService.state.value?.status == Status.PAUSED }
+            assertNoBanner()
+            compose.runOnUiThread { TimerService.command(compose.activity, "stop") }
+            compose.waitUntil(5000) { TimerService.state.value == null }
+            shell("logcat -c")
+            compose.runOnUiThread { TimerService.command(compose.activity, "start", Plan(0, 1, 0, 1)) }
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
+            assertSafeBanner("result-narrow")
+            compose.onNodeWithText(compose.activity.getString(R.string.repeat)).assertIsDisplayed().performClick()
+            assertNoBanner()
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
+            compose.onNodeWithText(compose.activity.getString(R.string.home)).assertIsDisplayed()
+            compose.runOnUiThread { TimerService.clearResult() }
+            shell("svc wifi disable"); shell("svc data disable"); shell("logcat -c")
+            compose.activityRule.scenario.recreate()
+            await("Offline banner failure callback missing", 120000) { event("ad_error", "banner") }
+            capture("home-offline")
+            compose.onNodeWithText(compose.activity.getString(R.string.new_timer)).assertIsDisplayed().performClick()
+            assertNoBanner()
+            compose.runOnUiThread { TimerService.command(compose.activity, "start", Plan(0, 30, 0, 1)) }
+            compose.waitUntil(5000) { TimerService.state.value?.status == Status.RUNNING }
+            assertNoBanner()
+        } finally {
+            capture("real-screens-final")
+            compose.runOnUiThread { TimerService.command(compose.activity, "stop") }
+            shell("svc wifi enable"); shell("svc data enable")
+            shell("wm size reset"); shell("wm density reset")
+            if (originalNav != null) shell("cmd overlay enable-exclusive --category $originalNav")
+        }
+    }
+
     @Test fun actualDemoBannerAndInterstitialRespectFrequency() {
         assertEquals("demo-banner-yandex", BuildConfig.BANNER_ID)
         assertEquals("demo-interstitial-yandex", BuildConfig.INTERSTITIAL_ID)
