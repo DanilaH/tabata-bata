@@ -133,6 +133,7 @@ class AdsDemoTest {
         return null
     }
     private fun assertSafeBanner(name: String) {
+        val beforeLoad = compose.onNodeWithTag("app-content").fetchSemanticsNode().boundsInRoot
         await("Banner did not become visible: $name") {
             var visible = false
             compose.runOnUiThread {
@@ -141,6 +142,7 @@ class AdsDemoTest {
             visible && event("ad_impression", "banner")
         }
         val content = compose.onNodeWithTag("app-content").fetchSemanticsNode().boundsInRoot
+        assertEquals("Loading must not change content height: $name", beforeLoad.bottom, content.bottom, 1f)
         compose.runOnUiThread {
             val decor = compose.activity.window.decorView
             val view = requireNotNull(banner(decor))

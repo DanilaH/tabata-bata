@@ -137,7 +137,7 @@ class Ads(private val activity: Activity) {
 
 @Composable
 fun AdBanner(ads: Ads) {
-    if (!ads.ready || BuildConfig.BANNER_ID.isBlank()) return
+    if (BuildConfig.BANNER_ID.isBlank()) return
     val context = LocalContext.current
     // Scaffold delegates bottom-bar insets to this component. Measure the SDK banner
     // only inside the safe width, including side navigation/cutouts in landscape.
@@ -147,11 +147,15 @@ fun AdBanner(ads: Ads) {
             .padding(top = 8.dp)
     ) {
         val width = maxWidth.value.toInt()
-        key(width) {
+        val size = remember(context, width) { BannerAdSize.sticky(context, width) }
+        // Reserve the SDK-calculated height before init/load and after a failed load.
+        // A late creative must not move controls underneath the user's finger.
+        Box(Modifier.fillMaxWidth().height(size.height.dp)) {
+        if (ads.ready) key(width) {
             AndroidView(
                 factory = {
                     BannerAdView(context).apply {
-                        setAdSize(BannerAdSize.sticky(context, width))
+                        setAdSize(size)
                         setBannerAdEventListener(
                             object : BannerAdEventListener {
                                 override fun onAdLoaded() {
@@ -176,9 +180,10 @@ fun AdBanner(ads: Ads) {
                         loadAd(AdRequest.Builder(BuildConfig.BANNER_ID).build())
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxSize(),
                 onRelease = { it.destroy() },
             )
         }
+    }
     }
 }
