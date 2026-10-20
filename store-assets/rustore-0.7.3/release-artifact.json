@@ -1,0 +1,16 @@
+{
+  "package": "ru.tabatabata",
+  "versionName": "0.7.3",
+  "versionCode": 13,
+  "minSdk": 26,
+  "targetSdk": 36,
+  "filename": "tabata-bata-0.7.3-candidate.apk",
+  "bytes": 5303968,
+  "sha256": "257f22bf79dc96a5b6216737d6f3016c51e2f79685fef3b26cf980a556b63fc2",
+  "certificateSha256": "1ac792b1f821fac59532fdc3121827732c8ffea4104bfa6b456d9d4d770684de",
+  "sourceCommit": "89ac2a31642df511ac728ea1fbcc2e666b46c240",
+  "configuredWorkflowRun": 39417520752,
+  "unsignedArtifactId": 12261759495,
+  "privacyUrl": "https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md",
+  "supportEmail": "hityov.danila@yandex.ru"
+}

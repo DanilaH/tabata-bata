@@ -1,0 +1,14 @@
+{
+  "version": "0.7.3",
+  "source_commit": "89ac2a31642df511ac728ea1fbcc2e666b46c240",
+  "workflow_run": 39417520721,
+  "artifact_id": 12262750344,
+  "device": "Android 16 API 36 emulator",
+  "screenshots_sha256": {
+    "01-work.png": "5f7e6830e375c4c609cff81b030abf2277a8aa7fabb8470910e380341c13c6a3",
+    "02-editor.png": "78d2365c6eebefcf1edc45af29bdc00fda5e57160c158eb7d5316b9d15a9149b",
+    "03-ready-modes.png": "09fdf19e35bd7c94388d2490593d6d1e5899444e7dd784af2b3d255ffdb7a080",
+    "04-rest-dark.png": "d702fcb440aa0d3b92fc81696a6f60fb99113b4d3dab2a614a2151be2375b253"
+  },
+  "note": "Original app captures. All 23 instrumentation tests passed. A following Quickstep launcher ANR was isolated; final full CI 39419374984 passed all five jobs. No loaded production ads in captures."
+}
