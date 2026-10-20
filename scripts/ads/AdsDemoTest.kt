@@ -1,10 +1,11 @@
 package ru.tabatabata
 
 import android.app.Activity
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.graphics.Rect
 import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
-import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.compose.setContent
@@ -37,25 +38,34 @@ class AdsDemoTest {
         }
     }
     private fun dismissControl(node: AccessibilityNodeInfo?): Boolean {
-        if (node == null) return false
-        val label = "${node.contentDescription} ${node.text} ${node.viewIdResourceName}".lowercase()
-        if (node.isVisibleToUser && Regex("close|skip|next|закрыть|пропустить|далее").containsMatchIn(label)) {
-            if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+        if (node == null || node.packageName?.toString() != "ru.tabatabata") return false
+        val id = node.viewIdResourceName.orEmpty().substringAfterLast('/')
+        val description = node.contentDescription?.toString().orEmpty().lowercase()
+        val isControl = id in setOf("monetization_ads_close", "monetization_ads_instream_skip") ||
+            description in setOf("close", "skip", "close ad", "skip ad", "закрыть", "пропустить", "закрыть рекламу", "пропустить рекламу")
+        if (isControl && node.isVisibleToUser && node.isEnabled) {
+            val bounds = Rect()
+            node.getBoundsInScreen(bounds)
+            if (!bounds.isEmpty) {
+                val now = SystemClock.uptimeMillis()
+                for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+                    val event = MotionEvent.obtain(now, SystemClock.uptimeMillis(), action, bounds.exactCenterX(), bounds.exactCenterY(), 0)
+                    event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+                    instrumentation.uiAutomation.injectInputEvent(event, true)
+                    event.recycle()
+                }
+                return true
+            }
         }
         for (i in 0 until node.childCount) if (dismissControl(node.getChild(i))) return true
         return false
     }
-    private fun tapDemoSkip(staticCard: Boolean = false) {
-        // Observed SDK demo-video skip control at (1013,83) on the Pixel 2 1080x1920 fixture.
-        val display = instrumentation.uiAutomation.takeScreenshot()
-        val x = display.width * (1013f / 1080f)
-        val y = display.height * ((if (staticCard) 1130f else 83f) / 1920f)
-        val now = SystemClock.uptimeMillis()
-        for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
-            val event = MotionEvent.obtain(now, SystemClock.uptimeMillis(), action, x, y, 0)
-            event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
-            instrumentation.uiAutomation.injectInputEvent(event, true)
-            event.recycle()
+    private fun tree(node: AccessibilityNodeInfo?, indent: String = ""): String {
+        if (node == null) return ""
+        val bounds = Rect(); node.getBoundsInScreen(bounds)
+        return buildString {
+            appendLine("$indent${node.className} id=${node.viewIdResourceName} text=${node.text} desc=${node.contentDescription} enabled=${node.isEnabled} visible=${node.isVisibleToUser} bounds=$bounds")
+            for (i in 0 until node.childCount) append(tree(node.getChild(i), indent + "  "))
         }
     }
     private fun capture(name: String) {
@@ -64,11 +74,15 @@ class AdsDemoTest {
             File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
         File(dir, "events.txt").writeText(logs())
+        File(dir, "$name-tree.txt").writeText(tree(instrumentation.uiAutomation.rootInActiveWindow))
     }
     @Test fun actualDemoBannerAndInterstitialRespectFrequency() {
         assertEquals("demo-banner-yandex", BuildConfig.BANNER_ID)
         assertEquals("demo-interstitial-yandex", BuildConfig.INTERSTITIAL_ID)
         assertTrue("No production analytics in probe", BuildConfig.APPMETRICA_KEY.isBlank())
+        val serviceInfo = instrumentation.uiAutomation.serviceInfo
+        serviceInfo.flags = serviceInfo.flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+        instrumentation.uiAutomation.serviceInfo = serviceInfo
         compose.waitForIdle()
         val prefs = compose.activity.getSharedPreferences("ad-policy", Activity.MODE_PRIVATE)
         lateinit var ads: Ads
@@ -94,18 +108,12 @@ class AdsDemoTest {
             await("Interstitial impression missing") { event("ad_impression", "interstitial") }
             capture("interstitial")
             SystemClock.sleep(10000)
-            if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) tapDemoSkip()
+            dismissControl(instrumentation.uiAutomation.rootInActiveWindow)
             capture("after-skip")
             val deadline = SystemClock.elapsedRealtime() + 60000
-            var attempts = 0
             while (!event("ad_closed", "interstitial") && SystemClock.elapsedRealtime() < deadline) {
                 SystemClock.sleep(1000)
-                if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) {
-                    // The observed demo story switches from video (top-right skip) to
-                    // a static card (skip in its metadata row at y=1130/1920).
-                    tapDemoSkip(staticCard = attempts++ % 2 == 0)
-                }
-                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+                dismissControl(instrumentation.uiAutomation.rootInActiveWindow)
             }
             await("Demo close callback missing", 5000) { event("ad_closed", "interstitial") }
             compose.runOnUiThread {
