@@ -197,6 +197,8 @@ class AdsDemoTest {
             compose.onNodeWithText(compose.activity.getString(R.string.new_timer), substring = true).performClick()
             assertNoBanner()
             instrumentation.runOnMainSync { compose.activity.onBackPressedDispatcher.onBackPressed() }
+            compose.activity.getSharedPreferences("ui", Activity.MODE_PRIVATE).edit()
+                .putBoolean("notificationAsked", true).commit()
             compose.runOnUiThread { TimerService.command(compose.activity, "start", Plan(0, 30, 10, 2)) }
             compose.waitUntil(5000) { TimerService.state.value?.status == Status.RUNNING }
             assertNoBanner()
@@ -209,7 +211,18 @@ class AdsDemoTest {
             compose.runOnUiThread { TimerService.command(compose.activity, "start", Plan(0, 1, 0, 1)) }
             compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
             assertSafeBanner("result-narrow")
-            compose.onNodeWithText(compose.activity.getString(R.string.repeat)).assertIsDisplayed().performClick()
+            for (landscape in listOf(true, false)) {
+                shell("logcat -c")
+                compose.runOnUiThread {
+                    compose.activity.requestedOrientation = if (landscape)
+                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                    else android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                }
+                SystemClock.sleep(1500)
+                assertSafeBanner("result-narrow-$landscape")
+                compose.onNodeWithText(compose.activity.getString(R.string.home)).performScrollTo().assertIsDisplayed()
+            }
+            compose.onNodeWithText(compose.activity.getString(R.string.repeat)).performScrollTo().assertIsDisplayed().performClick()
             assertNoBanner()
             compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
             compose.onNodeWithText(compose.activity.getString(R.string.home)).assertIsDisplayed()
