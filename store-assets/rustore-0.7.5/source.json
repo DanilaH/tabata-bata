@@ -1,0 +1,38 @@
+{
+  "dimensions": [
+    1080,
+    1920
+  ],
+  "method": "Code-rendered SVG layouts with original app PNG inserts; no generated/redrawn UI",
+  "captureSourceCommit": "89ac2a31642df511ac728ea1fbcc2e666b46c240",
+  "cards": [
+    {
+      "card": "01-work.png",
+      "source": "store-assets/rustore-0.7.3/screenshots/01-work.png",
+      "sourceSha256": "5f7e6830e375c4c609cff81b030abf2277a8aa7fabb8470910e380341c13c6a3",
+      "title": "Интервальный таймер",
+      "subtitle": "Крупные цифры, звуки и вибрация."
+    },
+    {
+      "card": "02-editor.png",
+      "source": "store-assets/rustore-0.7.3/screenshots/02-editor.png",
+      "sourceSha256": "78d2365c6eebefcf1edc45af29bdc00fda5e57160c158eb7d5316b9d15a9149b",
+      "title": "Свои интервалы работы и отдыха",
+      "subtitle": "Подготовка, раунды, серии и заминка."
+    },
+    {
+      "card": "03-ready-modes.png",
+      "source": "store-assets/rustore-0.7.3/screenshots/03-ready-modes.png",
+      "sourceSha256": "09fdf19e35bd7c94388d2490593d6d1e5899444e7dd784af2b3d255ffdb7a080",
+      "title": "Готовые режимы",
+      "subtitle": "Выбери подходящий и запускай."
+    },
+    {
+      "card": "04-rest-dark.png",
+      "source": "store-assets/rustore-0.7.3/screenshots/04-rest-dark.png",
+      "sourceSha256": "d702fcb440aa0d3b92fc81696a6f60fb99113b4d3dab2a614a2151be2375b253",
+      "title": "Управление во время тренировки",
+      "subtitle": "Пауза, переход между этапами и +10 секунд отдыха."
+    }
+  ]
+}
