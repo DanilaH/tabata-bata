@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.view.KeyEvent
+import android.view.MotionEvent
+import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -32,6 +34,28 @@ class AdsDemoTest {
             if (predicate()) return
             if (SystemClock.elapsedRealtime() >= deadline) fail(message + "\n" + logs())
             SystemClock.sleep(500)
+        }
+    }
+    private fun dismissControl(node: AccessibilityNodeInfo?): Boolean {
+        if (node == null) return false
+        val label = "${node.contentDescription} ${node.text} ${node.viewIdResourceName}".lowercase()
+        if (node.isVisibleToUser && Regex("close|skip|закрыть|пропустить").containsMatchIn(label)) {
+            if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+        }
+        for (i in 0 until node.childCount) if (dismissControl(node.getChild(i))) return true
+        return false
+    }
+    private fun tapDemoSkip() {
+        // Observed SDK demo-video skip control at (1013,83) on the Pixel 2 1080x1920 fixture.
+        val display = instrumentation.uiAutomation.takeScreenshot()
+        val x = display.width * (1013f / 1080f)
+        val y = display.height * (83f / 1920f)
+        val now = SystemClock.uptimeMillis()
+        for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+            val event = MotionEvent.obtain(now, SystemClock.uptimeMillis(), action, x, y, 0)
+            event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+            instrumentation.uiAutomation.injectInputEvent(event, true)
+            event.recycle()
         }
     }
     private fun capture(name: String) {
@@ -70,8 +94,15 @@ class AdsDemoTest {
             await("Interstitial impression missing") { event("ad_impression", "interstitial") }
             capture("interstitial")
             SystemClock.sleep(10000)
-            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-            await("Demo close callback missing", 20000) { event("ad_closed", "interstitial") }
+            if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) tapDemoSkip()
+            capture("after-skip")
+            val deadline = SystemClock.elapsedRealtime() + 45000
+            while (!event("ad_closed", "interstitial") && SystemClock.elapsedRealtime() < deadline) {
+                SystemClock.sleep(1000)
+                dismissControl(instrumentation.uiAutomation.rootInActiveWindow)
+                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            }
+            await("Demo close callback missing", 5000) { event("ad_closed", "interstitial") }
             compose.runOnUiThread {
                 ads.completed("third-demo")
                 assertFalse("24h cap must prevent another ad", ads.maybeShow(Status.COMPLETED))
