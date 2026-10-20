@@ -1,0 +1,34 @@
+# Оформление магазина и иконка 0.7.5
+
+По запросу пользователя обновлены иконка и четыре скриншота карточки. Тексты описывают функции без рекламных лозунгов.
+
+## Что изменено
+
+- Новая иконка: кобальтовый фон, светлый секундомер и зелёный сегмент интервала. Создана встроенным ImageGen; точный запрос сохранён в store-assets/rustore-0.7.5/icon-prompt.txt. Экспорт — непрозрачный RGB PNG 512×512, 206113 байт.
+- Та же иконка включена в Android drawable-nodpi/ic_timer.png. Старый launcher vector удалён; notification small icon — отдельный монохромный ресурс.
+- Четыре карточки 1080×1920: «Интервальный таймер», «Свои интервалы работы и отдыха», «Готовые режимы», «Управление во время тренировки». Полный интерфейс вставлен из оригинальных app captures в исходной пропорции. Элементы интерфейса не перерисовывались нейросетью.
+- Карточки собраны программной SVG-вёрсткой; скрипт scripts/store/render_cards.py. Предусмотрены поля, читаемые заголовки и единая композиция. Все изображения непрозрачные и укладываются в ограничения формы RuStore.
+- Продуктовый код таймера, рекламы и аналитики не менялся. Версия 0.7.5 / versionCode 15.
+
+## APK
+
+Продуктовый commit: 78a9f8e4ff764b58efb0a5c818f01bcceb680b8c. Configured run 39476495533, unsigned artifact 12289348263.
+
+Подписанная APK: tabata-bata-0.7.5-candidate.apk, 5512864 байт. SHA256 e6a3e7c1d8d7a9503bb32a53fcd810ba95d87887700b0c444b257f0c9f58e878.
+
+Прежний сертификат SHA256 1ac792b1f821fac59532fdc3121827732c8ffea4104bfa6b456d9d4d770684de. apksigner verify и zipalign -P 16 PASS. Из бинарного manifest прочитаны versionName 0.7.5, versionCode 15, minSdk26, targetSdk36; debuggable/testOnly отсутствуют. Пиксели launcher PNG внутри фактической APK совпадают с store icon (res/nB.png).
+
+## Проверки
+
+- Configured APK + demo SDK: https://github.com/DanilaH/tabata-bata/actions/runs/39476495533 — оба jobs PASS. 2 demo-теста; отдельный minified offline smoke PASS. Артефакт доказательств 12291040278.
+- Audit: https://github.com/DanilaH/tabata-bata/actions/runs/39476495625 — PASS.
+- Основной CI: https://github.com/DanilaH/tabata-bata/actions/runs/39476495570 — build, emulator API35, emulator API36, compatibility/upgrade API26 PASS. По 23 теста на API35/36, debug/minified system smoke PASS. Compatibility API35 job повторно запущен и на 18:56 UTC ещё выполняется; весь workflow пока не объявляется зелёным.
+- Android-проверки выполнены на эмуляторах. Новый прогон не подтверждает физическую слышимость или работу всех OEM-устройств.
+
+ZIP материалов: tabata-bata-rustore-media-0.7.5.zip, 13 файлов, 673636 байт; CRC архива PASS. SHA256 5f4dbb78551be3e18332185c71121008c2c32a1207fad99471d6a4946f2a0896.
+
+Постоянное сохранение APK/ZIP не удалось до создания файлов. Пользователю доступны локальные файлы для скачивания; исходники оформления и PNG сохраняются в GitHub. В архиве нет APK, SDK Secrets или ключа подписи.
+
+Первый compatibility/API35 job остановился до запуска приложения: SDK manager получил повреждённый архив Intel x86_64 Atom System Image («Error on ZipFile unknown archive»), эмулятор не запустился. Это не результат тестирования приложения; требуется повтор job.
+
+Публикация в RuStore не выполнена. Пользователь заполняет карточку вручную. Для черновика заменить прежнюю APK 0.7.4 на 0.7.5 и использовать новый комплект store-assets/rustore-0.7.5. Старые изображения не смешивать с новой серией.
