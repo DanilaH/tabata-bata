@@ -192,7 +192,7 @@ class AdsDemoTest {
             compose.onNodeWithText(compose.activity.getString(R.string.settings)).performClick()
             assertNoBanner()
             instrumentation.runOnMainSync { compose.activity.onBackPressedDispatcher.onBackPressed() }
-            compose.onNodeWithText(compose.activity.getString(R.string.new_timer)).performClick()
+            compose.onNodeWithText(compose.activity.getString(R.string.new_timer), substring = true).performClick()
             assertNoBanner()
             instrumentation.runOnMainSync { compose.activity.onBackPressedDispatcher.onBackPressed() }
             compose.runOnUiThread { TimerService.command(compose.activity, "start", Plan(0, 30, 10, 2)) }
@@ -216,7 +216,7 @@ class AdsDemoTest {
             compose.activityRule.scenario.recreate()
             await("Offline banner failure callback missing", 120000) { event("ad_error", "banner") }
             capture("home-offline")
-            compose.onNodeWithText(compose.activity.getString(R.string.new_timer)).assertIsDisplayed().performClick()
+            compose.onNodeWithText(compose.activity.getString(R.string.new_timer), substring = true).assertIsDisplayed().performClick()
             assertNoBanner()
             compose.runOnUiThread { TimerService.command(compose.activity, "start", Plan(0, 30, 0, 1)) }
             compose.waitUntil(5000) { TimerService.state.value?.status == Status.RUNNING }
