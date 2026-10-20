@@ -41,6 +41,28 @@ class RestControlsTest {
     }
 
     @Test
+    fun clockStableThroughAllSeriesAndFinalStageWithEitherQueueSetting() {
+        val plan = Plan(prepare = 5, work = 20, rest = 10, reps = 2,
+            sets = 2, between = 20, cool = 5)
+        val state = mutableStateOf(TimerEngine(plan, 0).snapshot(0))
+        val options = mutableStateOf(Options())
+        compose.runOnUiThread {
+            compose.activity.setContent { MaterialTheme { Workout(state.value, options.value, {}, {}) } }
+        }
+        for (queue in listOf(false, true)) {
+            val engine = TimerEngine(plan, 0)
+            compose.runOnIdle { options.value = Options(showStages = queue); state.value = engine.snapshot(0) }
+            val initial = compose.onNodeWithTag("workout-clock").fetchSemanticsNode().boundsInRoot
+            repeat(plan.stages().size - 1) {
+                compose.runOnIdle { engine.skip(1, 0); state.value = engine.snapshot(0) }
+                val bounds = compose.onNodeWithTag("workout-clock").fetchSemanticsNode().boundsInRoot
+                assertEquals("Stage ${state.value.index}, queue=$queue", initial.top, bounds.top, 1f)
+                assertEquals(initial.bottom, bounds.bottom, 1f)
+            }
+        }
+    }
+
+    @Test
     fun restExtensionPauseAndLock() {
         val c = compose.activity
         compose.runOnIdle {

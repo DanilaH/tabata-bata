@@ -6,8 +6,8 @@ import java.util.Random
 
 class AuditEngineProbe {
     @Test fun randomizedTimelineAndActions() {
-        val r = Random(20261019)
-        repeat(1000) {
+        val r = Random(20261020)
+        repeat(2000) {
             val p = Plan(r.nextInt(6), 1+r.nextInt(30), r.nextInt(15), 1+r.nextInt(20), 1+r.nextInt(4), r.nextInt(20), r.nextInt(8), r.nextBoolean())
             assertEquals(p.durationMs(), p.stages().sumOf { it.duration })
             val e = TimerEngine(p, 0)
@@ -34,6 +34,6 @@ class AuditEngineProbe {
             assertEquals(Status.COMPLETED, uninterrupted.snapshot(p.durationMs()).status)
             assertEquals(p.reps*p.sets, uninterrupted.snapshot(p.durationMs()).completedWork.size)
         }
-        println("AUDIT random_plans=1000 random_actions=150000 invariants=PASS")
+        println("AUDIT random_plans=2000 random_actions=300000 invariants=PASS")
     }
 }

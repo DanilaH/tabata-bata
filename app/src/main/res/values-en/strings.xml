@@ -132,4 +132,5 @@
     <string name="storage_damaged">Storage is damaged. Changes are blocked to preserve your data. Export available timers in Settings.</string>
     <string name="stage_short">Stage</string>
     <string name="rest_added">Added 10 sec</string>
+    <string name="recovery_error">Could not restore the interrupted workout. Your saved timers are available.</string>
 </resources>

@@ -164,6 +164,46 @@ class ResilienceTest {
     }
 
     @Test
+    fun damagedCheckpointDoesNotCrashOrRepeatRecovery() {
+        clean()
+        val prefs = context.getSharedPreferences("session", Context.MODE_PRIVATE)
+        try {
+            for (raw in listOf("not json", JSONObject().put("plan", Plan().json()).toString(),
+                JSONObject().put("plan", Plan().json()).put("index", 1).put("remaining", 1000)
+                    .put("completedWork", org.json.JSONArray().put("bad")).toString())) {
+                prefs.edit().putString("active", raw).commit()
+                compose.runOnUiThread { TimerService.command(context, "recover") }
+                await { !prefs.contains("active") }
+                assertNull(TimerService.state.value)
+                SystemClock.sleep(300)
+            }
+            compose.runOnUiThread { TimerService.command(context, "start", Plan(0, 20, 0, 1)) }
+            await { TimerService.state.value?.status == Status.RUNNING }
+        } finally { clean() }
+    }
+
+    @Test
+    fun rapidRepeatKeepsItsOwnFinishWindow() {
+        clean()
+        if (android.os.Build.VERSION.SDK_INT >= 33)
+            shell("pm grant ${context.packageName} android.permission.POST_NOTIFICATIONS")
+        val notifications = context.getSystemService(NotificationManager::class.java)
+        try {
+            compose.runOnUiThread { TimerService.command(context, "start", Plan(0, 1, 0, 1)) }
+            await { TimerService.state.value?.status == Status.COMPLETED }
+            val first = TimerService.state.value!!.sessionId
+            compose.runOnUiThread { TimerService.command(context, "start", Plan(0, 2, 0, 1)) }
+            await { TimerService.state.value?.status == Status.RUNNING && TimerService.state.value?.sessionId != first }
+            await { TimerService.state.value?.status == Status.COMPLETED }
+            // Past the first session's cleanup deadline, inside the second session's window.
+            SystemClock.sleep(3200)
+            assertTrue("Previous cleanup must not destroy the new finish cue window",
+                notifications.activeNotifications.any { it.id == 1 })
+            await { notifications.activeNotifications.none { it.id == 1 } }
+        } finally { clean() }
+    }
+
+    @Test
     fun largeFontLandscapeEditorRemainsUsable() {
         clean()
         val original = shell("settings get system font_scale").trim()

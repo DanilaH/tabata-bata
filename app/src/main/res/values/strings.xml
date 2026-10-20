@@ -132,4 +132,5 @@
     <string name="storage_damaged">Хранилище повреждено. Изменения заблокированы, чтобы не потерять данные. Экспортируйте доступные режимы в настройках.</string>
     <string name="stage_short">Этап</string>
     <string name="rest_added">Добавлено 10 сек</string>
+    <string name="recovery_error">Не удалось восстановить прерванную тренировку. Сохранённые режимы доступны.</string>
 </resources>
