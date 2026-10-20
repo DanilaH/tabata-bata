@@ -80,12 +80,18 @@ class TimerService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val now = SystemClock.elapsedRealtime()
+        // Fulfil startForegroundService's contract even if input is rejected below.
+        if (intent?.action in listOf("start", "recover") && engine == null) foreground()
         when (intent?.action) {
             "start" -> {
                 if (engine == null) {
                     val plan =
                         runCatching { JSONObject(intent.getStringExtra("plan")!!).plan() }
-                            .getOrNull() ?: return START_NOT_STICKY
+                            .getOrNull() ?: run {
+                                stopForeground(STOP_FOREGROUND_REMOVE)
+                                stopSelf(startId)
+                                return START_NOT_STICKY
+                            }
                     finishJob?.cancel()
                     cues.cancel()
                     engine = TimerEngine(plan, now)
@@ -127,7 +133,8 @@ class TimerService : Service() {
                         prefs.edit().remove("active").apply()
                         android.widget.Toast.makeText(this, R.string.recovery_error,
                             android.widget.Toast.LENGTH_LONG).show()
-                        stopSelf()
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf(startId)
                         return START_NOT_STICKY
                     }
                     finishJob?.cancel()
