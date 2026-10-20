@@ -1,0 +1,92 @@
+name: Configured release candidate and demo ads
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/release-candidate.yml', 'scripts/ads/**', 'docs/privacy-policy.md']
+permissions:
+  contents: read
+jobs:
+  configured-release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      ORG_GRADLE_PROJECT_appMetricaKey: ${{ secrets.APPMETRICA_API_KEY }}
+      ORG_GRADLE_PROJECT_bannerId: ${{ secrets.YANDEX_BANNER_ID }}
+      ORG_GRADLE_PROJECT_interstitialId: ${{ secrets.YANDEX_INTERSTITIAL_ID }}
+      ORG_GRADLE_PROJECT_supportEmail: hityov.danila@yandex.ru
+      ORG_GRADLE_PROJECT_privacyUrl: https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required configuration without printing values
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in appMetricaKey bannerId interstitialId; do
+            var="ORG_GRADLE_PROJECT_${name}"
+            if [ -z "${!var}" ]; then echo "Missing configuration: $name"; exit 1; fi
+          done
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+      - name: Build configured candidate (never run production ads in tests)
+        run: ./gradlew --no-configuration-cache assembleRelease lintRelease
+      - name: Export merged permissions
+        run: |
+          mkdir -p app/build/release-evidence
+          python3 scripts/ads/export-permissions.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tabata-configured-release-unsigned
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: configured-release-evidence
+          path: |
+            app/build/release-evidence/
+            app/build/reports/lint-results-release.html
+  demo-ads:
+    runs-on: ubuntu-latest
+    env:
+      ORG_GRADLE_PROJECT_bannerId: demo-banner-yandex
+      ORG_GRADLE_PROJECT_interstitialId: demo-interstitial-yandex
+      ORG_GRADLE_PROJECT_supportEmail: hityov.danila@yandex.ru
+      ORG_GRADLE_PROJECT_privacyUrl: https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install isolated demo probe
+        run: cp scripts/ads/AdsDemoTest.kt app/src/androidTest/java/ru/tabatabata/
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          script: ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.tabatabata.AdsDemoTest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: demo-ads-evidence
+          path: |
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+            app/build/outputs/connected_android_test_additional_output/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tabata-demo-ads-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
