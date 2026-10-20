@@ -6,7 +6,11 @@
 
 Материалы карточки: store-assets/rustore-0.7.1/. Название 30 символов, краткое описание 68, полное описание 1227. Четыре исходных PNG актуального приложения 1080×1920, иконка 512×512; без системных панелей. Без обещаний медицинского эффекта, отсутствия рекламы или полного отсутствия сбора данных.
 
-## Данные от владельца
+## Данные от владельца — обновлено 20.10.2026
+
+Получены ФИО Хитев Данила Сергеевич и email hityov.danila@yandex.ru. Пользователь добавил в Repository Secrets APPMETRICA_API_KEY, YANDEX_BANNER_ID, YANDEX_INTERSTITIAL_ID. Workflow release-candidate.yml проверил наличие всех трёх без вывода значений. Дополнительные Variables не нужны.
+
+Политика размещена: https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md — публичный HTTP 200 без авторизации, ФИО/email проверены в ответе. Следующая таблица описывает назначения параметров; перечисленные выше реквизиты повторно запрашивать не нужно.
 
 | Данные | Назначение | Куда передать при сборке |
 | --- | --- | --- |
@@ -14,7 +18,7 @@
 | ФИО / наименование оператора | Точное имя ответственного в политике данных | В текст политики; не выводить из ника |
 | Публичный HTTPS-адрес готовой политики | Кнопка в настройках и карточка | privacyUrl |
 | AppMetrica API key приложения | Production-аналитика | appMetricaKey |
-| Отдельный тестовый AppMetrica API key | Проверка событий без загрязнения production | appMetricaKey только в тестовой сборке |
+| Отдельный тестовый AppMetrica API key (не предоставлен, необязателен для demo-рекламы) | Проверка событий без загрязнения production | В текущем demo job аналитика выключена |
 | Yandex Mobile Ads banner ID | Баннер вне занятия | bannerId |
 | Yandex Mobile Ads interstitial ID | Полноэкранный блок после занятия по ограничениям частоты | interstitialId |
 
@@ -51,3 +55,8 @@
 Источники требований, проверено 20.10.2026:
 - https://www.rustore.ru/help/developers/publishing-and-verifying-apps/app-publication
 - https://www.rustore.ru/help/developers/publishing-and-verifying-apps/requirement-apps
+
+
+## Завершено в SDK-проходе
+
+Secrets подключены, configured release и lint PASS, прежняя подпись проверена. Публичная policy/email встроены. Demo-проверка 39413657367 PASS: показ обоих форматов, закрытие, ограничения первой тренировки/Stop/24 часа. Полный CI 39410010087 PASS. Следующий внешний шаг — проверить данные в AppMetrica и заполнить/отправить карточку RuStore. Подробный протокол: audits/2026-10-20-sdk-configuration.md.
