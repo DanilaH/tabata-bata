@@ -153,6 +153,7 @@ class AdsDemoTest {
             val x = point[0] - origin[0]; val y = point[1] - origin[1]
             assertTrue("Left safe area: $name", x >= insets.left)
             assertTrue("Right safe area: $name", x + view.width <= decor.width - insets.right)
+            assertTrue("Top safe area: $name", y >= insets.top)
             assertTrue("Bottom safe area: $name", y + view.height <= decor.height - insets.bottom)
             assertTrue("Content overlap: $name", content.bottom <= y - 7 * view.resources.displayMetrics.density)
         }
@@ -249,6 +250,38 @@ class AdsDemoTest {
         }
     }
 
+    @Test fun completedWorkoutToMenuShowsPrefetchedDemoThroughActualUi() {
+        val prefs = compose.activity.getSharedPreferences("ad-policy", Activity.MODE_PRIVATE)
+        try {
+            prefs.edit().clear().putInt("completed", 1).commit()
+            compose.activity.getSharedPreferences("ui", Activity.MODE_PRIVATE).edit()
+                .putBoolean("notificationAsked", true).commit()
+            shell("logcat -c")
+            compose.activityRule.scenario.recreate()
+            await("Actual app did not prefetch interstitial") { event("ad_loaded", "interstitial") }
+            compose.runOnUiThread { TimerService.command(compose.activity, "start", Plan(0, 1, 0, 1)) }
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
+            compose.onNodeWithText(compose.activity.getString(R.string.home)).performScrollTo().performClick()
+            await("Result-to-menu did not show interstitial") { event("ad_shown", "interstitial") }
+            val deadline = SystemClock.elapsedRealtime() + 90000
+            while (!event("ad_closed", "interstitial") && SystemClock.elapsedRealtime() < deadline) {
+                SystemClock.sleep(1000)
+                if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) dismissObservedStory()
+            }
+            await("Actual UI demo did not close", 5000) { event("ad_closed", "interstitial") }
+            compose.onNodeWithText(compose.activity.getString(R.string.new_timer), substring = true).assertIsDisplayed()
+            assertNull(TimerService.state.value)
+            capture("actual-result-menu-interstitial")
+            val count = logs().lineSequence().count { it.contains("ad_request ") && it.contains("interstitial") }
+            SystemClock.sleep(16000)
+            assertEquals("No prefetch after successful show inside daily cap", count,
+                logs().lineSequence().count { it.contains("ad_request ") && it.contains("interstitial") })
+        } finally {
+            compose.runOnUiThread { TimerService.clearResult() }
+            prefs.edit().clear().commit()
+        }
+    }
+
     @Test fun actualDemoBannerAndInterstitialRespectFrequency() {
         assertEquals("demo-banner-yandex", BuildConfig.BANNER_ID)
         assertEquals("demo-interstitial-yandex", BuildConfig.INTERSTITIAL_ID)
@@ -263,7 +296,12 @@ class AdsDemoTest {
         compose.runOnUiThread {
             prefs.edit().clear().commit()
             ads = Ads(compose.activity)
-            compose.activity.setContent { MaterialTheme { AdBanner(ads) } }
+            compose.activity.setContent { MaterialTheme {
+                if (ads.foreground && !ads.fullscreen) AdBanner(ads)
+            } }
+            ads.setPlacementAllowed(true)
+            ads.completed("first-demo")
+            assertFalse("First completion must not show an ad", ads.maybeShow(Status.COMPLETED))
         }
         try {
             await("Demo banner did not load") { event("ad_loaded", "banner") }
@@ -271,8 +309,6 @@ class AdsDemoTest {
             capture("banner")
             await("Demo interstitial did not load") { event("ad_loaded", "interstitial") }
             compose.runOnUiThread {
-                ads.completed("first-demo")
-                assertFalse("First completion must not show an ad", ads.maybeShow(Status.COMPLETED))
                 ads.completed("second-demo")
                 assertFalse("Stop must not show an ad", ads.maybeShow(Status.STOPPED))
                 assertTrue("Loaded second completion should show demo", ads.maybeShow(Status.COMPLETED))

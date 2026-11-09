@@ -40,7 +40,8 @@ object Telemetry {
                     name,
                     params +
                         mapOf(
-                            "schema" to 1,
+                            "schema" to 2,
+                            "app_version" to BuildConfig.VERSION_NAME,
                             "build" to if (BuildConfig.DEBUG) "debug" else "release",
                         ),
                 )

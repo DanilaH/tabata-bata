@@ -248,15 +248,15 @@ private fun App() {
         if (screen == "workout") screenAlpha.snapTo(1f)
         else { screenAlpha.snapTo(.7f); screenAlpha.animateTo(1f, tween(140)) }
     }
+    val adPlacementAllowed = !recovery && !notificationPrompt && pendingPlan == null &&
+        ((snapshot == null && !editorOpen && tab == 0) || snapshot?.status == Status.COMPLETED)
+    SideEffect { ads.setPlacementAllowed(adPlacementAllowed) }
     Scaffold(
         containerColor =
             if (running) workoutBackground(snapshot?.interval?.stage, darkSurface)
             else MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (
-                (snapshot == null && !editorOpen && tab == 0 && !notificationPrompt && pendingPlan == null) ||
-                    snapshot?.status == Status.COMPLETED
-            )
+            if (adPlacementAllowed && ads.foreground && !ads.fullscreen)
                 AdBanner(ads)
         },
         snackbarHost = { SnackbarHost(snackbar) },

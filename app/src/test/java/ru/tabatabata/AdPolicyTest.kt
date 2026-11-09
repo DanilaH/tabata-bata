@@ -4,6 +4,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AdPolicyTest {
+    @Test fun prefetchOnlyAfterFirstCompletionAndOutsideDailyCap() {
+        assertFalse(AdPolicy.mayPrefetch(0, 0, 172800000))
+        assertTrue(AdPolicy.mayPrefetch(1, 0, 172800000))
+        assertFalse(AdPolicy.mayPrefetch(10, 172800000, 172800001))
+        assertFalse(AdPolicy.mayPrefetch(10, 172800000, 86400000))
+        assertTrue(AdPolicy.mayPrefetch(10, 86400000, 172800000))
+    }
+
     @Test
     fun stoppedAndInterruptedNeverTriggerAds() {
         for (status in listOf(Status.STOPPED, Status.INTERRUPTED, Status.RUNNING, Status.PAUSED)) {
