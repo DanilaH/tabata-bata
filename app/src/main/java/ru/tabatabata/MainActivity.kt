@@ -130,7 +130,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun App() {
     val context = LocalContext.current
-    val activity = requireNotNull(LocalActivity.current) as ComponentActivity
+    val activity = requireNotNull(LocalActivity.current) as MainActivity
     val store = remember { Store(context) }
     val scope = rememberCoroutineScope()
     val lastPresetId by store.lastPresetId.collectAsStateWithLifecycle(null)
