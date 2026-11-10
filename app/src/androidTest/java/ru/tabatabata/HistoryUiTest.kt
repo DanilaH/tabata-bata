@@ -19,6 +19,9 @@ class HistoryUiTest {
         val root = requireNotNull(InstrumentationRegistry.getArguments().getString("additionalTestOutputDir"))
         val dir = File(root,"history-090").apply { mkdirs() }
         compose.waitForIdle()
+        if (name != "history-plan") compose.onNodeWithText(text(R.string.history)).assertIsDisplayed()
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        android.os.SystemClock.sleep(250)
         val image = requireNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
         File(dir,"$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
     }
