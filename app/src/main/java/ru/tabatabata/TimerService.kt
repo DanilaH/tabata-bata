@@ -326,9 +326,10 @@ class TimerService : Service() {
     private fun finish(completed: Boolean) {
         val e = engine
         if (e != null) {
-            val s = mutable.value
-            val elapsed = s?.activeMs ?: 0L
-            if (s != null) {
+            // UI may clear the displayed result; persistence belongs to the engine.
+            val s = e.snapshot(SystemClock.elapsedRealtime())
+            val elapsed = s.activeMs
+            run {
                 val meta = mutablePreset.value
                 runCatching {
                     history.enqueue(WorkoutRecord(e.sessionId, s.plan, meta?.name.orEmpty(),
