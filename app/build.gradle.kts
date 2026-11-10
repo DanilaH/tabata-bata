@@ -11,8 +11,8 @@ android {
         applicationId = "ru.tabatabata"
         minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "0.9.0"
+        versionCode = 19
+        versionName = "0.10.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField(
             "String",
@@ -32,7 +32,7 @@ android {
         buildConfigField(
             "String",
             "SUPPORT_EMAIL",
-            "\"${providers.gradleProperty("supportEmail").orElse("").get()}\"",
+            "\"${providers.gradleProperty("supportEmail").orElse("hityov.danila@yandex.ru").get()}\"",
         )
         buildConfigField(
             "String",
@@ -68,6 +68,7 @@ android {
 }
 
 dependencies {
+    implementation("ru.rustore.sdk:review:10.5.2")
     implementation("io.appmetrica.analytics:analytics:8.6.0")
     implementation("com.yandex.android:mobileads:8.6.0")
     implementation(platform("androidx.compose:compose-bom:2025.09.01"))
@@ -78,6 +79,7 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation(platform("androidx.compose:compose-bom:2025.09.01"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")

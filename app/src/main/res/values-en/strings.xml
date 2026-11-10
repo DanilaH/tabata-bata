@@ -191,4 +191,16 @@
     <string name="history_clear_body">Workout results will be deleted from this device. Saved timers will remain. This cannot be undone.</string>
     <string name="history_error">Could not read or save workout history. Please try again.</string>
     <string name="history_retry">Try again</string>
+    <string name="feedback_section">Feedback</string>
+    <string name="report_problem">Report a problem</string>
+    <string name="report_hint">Describe what happened and what you expected. Your email app will open so you can review and edit the message before sending.</string>
+    <string name="report_description">What happened?</string>
+    <string name="report_included">Technical details included</string>
+    <string name="report_privacy">Only app version, Android version, device model and language are added. Workout history, timer names and logs are not attached.</string>
+    <string name="report_subject">Tabata Bata — problem report</string>
+    <string name="report_email">Open email</string>
+    <string name="report_copy">Copy</string>
+    <string name="report_no_mail">Could not open an email app. Copy the message and send it to the developer yourself.</string>
+    <string name="report_copied">Message copied</string>
+    <string name="review_store_link">Review on RuStore</string>
 </resources>

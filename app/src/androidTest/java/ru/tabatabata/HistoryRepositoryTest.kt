@@ -64,4 +64,23 @@ class HistoryRepositoryTest {
             assertEquals(1,loaded.week.incompleteStats)
         } finally { repository.clear() }
     }
+    @Test fun reviewExperienceUsesSavedWorkAcrossDaysAndExcludesStoppedUnknownAndSkipped() = runBlocking {
+        val repository=HistoryRepository(context)
+        repository.clear()
+        try {
+            val now=System.currentTimeMillis()
+            repository.enqueue(record("review-1",now,235000).copy(completedRounds=8))
+            repository.enqueue(record("review-2",now-1000,235000).copy(completedRounds=8))
+            repository.enqueue(record("review-stopped",now-86400000,1000000,false))
+            repository.enqueue(record("review-unknown",now-86400000,1000000).copy(statsAvailable=false))
+            repository.enqueue(record("review-skipped",now-86400000,1000000).copy(completedRounds=0))
+            assertEquals(ReviewExperience(2,1,470000,true),repository.reviewExperience("review-1"))
+            assertFalse(repository.reviewExperience("review-stopped").currentEligible)
+            repository.enqueue(record("review-3",now-86400000,235000).copy(completedRounds=8))
+            assertEquals(ReviewExperience(3,2,600000,true),repository.reviewExperience("review-1"))
+            repository.clear()
+            assertFalse(repository.reviewExperience("review-1").currentEligible)
+        } finally { repository.clear() }
+    }
+
 }

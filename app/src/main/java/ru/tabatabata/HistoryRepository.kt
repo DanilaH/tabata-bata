@@ -101,6 +101,32 @@ internal class HistoryRepository(context: Context) {
         }
     }
 
+    suspend fun reviewExperience(session: String, zone: ZoneId = ZoneId.systemDefault()): ReviewExperience =
+        withContext(Dispatchers.IO) {
+            synchronized(lock) {
+                flush()
+                val database = db()
+                val current = database.rawQuery("SELECT record FROM workouts WHERE session_id = ?", arrayOf(session))
+                    .use { if (it.moveToFirst()) JSONObject(it.getString(0)).workoutRecord() else null }
+                if (current == null || !current.completed || !current.statsAvailable || current.completedRounds == 0)
+                    return@synchronized ReviewExperience()
+                var sessions = 0
+                var active = 0L
+                val days = mutableSetOf<java.time.LocalDate>()
+                database.rawQuery("SELECT record FROM workouts WHERE completed=1 AND stats_available=1 ORDER BY finished_at DESC", null).use { c ->
+                    while (c.moveToNext()) {
+                        val r = JSONObject(c.getString(0)).workoutRecord()
+                        if (r.completedRounds == 0) continue
+                        sessions = (sessions + 1).coerceAtMost(3)
+                        active += r.activeMs.coerceAtMost(600_000 - active)
+                        if (days.size < 2) days.add(java.time.Instant.ofEpochMilli(r.finishedAt).atZone(zone).toLocalDate())
+                        if (sessions >= 3 && days.size >= 2 && active >= 600_000) break
+                    }
+                }
+                ReviewExperience(sessions, days.size, active, true)
+            }
+        }
+
     fun observe(limit: Int): Flow<Result<HistoryPage>> = revision.map {
         runCatching { load(limit) }
     }.flowOn(Dispatchers.IO)

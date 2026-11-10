@@ -110,6 +110,11 @@ private fun TabataTheme(content: @Composable () -> Unit) {
 }
 
 class MainActivity : ComponentActivity() {
+    internal var onUserAction: (() -> Unit)? = null
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        onUserAction?.invoke()
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         volumeControlStream = android.media.AudioManager.STREAM_MUSIC
@@ -188,6 +193,37 @@ private fun App() {
         restore = { runCatching { org.json.JSONObject(it).plan() }.getOrNull() },
     )) { mutableStateOf<Plan?>(null) }
     var pendingPreset by rememberSaveable(stateSaver = editorSaver) { mutableStateOf<Preset?>(null) }
+    val reviewLedger = remember { ReviewPreferences(context) }
+    val reviewHistory = remember { HistoryRepository(context) }
+    val reviews = remember(activity) {
+        ReviewCoordinator(scope, reviewLedger, RuStoreReviews(activity),
+            experience = { reviewHistory.reviewExperience(it) },
+            allowed = {
+                TimerService.state.value == null && tab == 0 && !editorOpen &&
+                    previewPreset == null && !recovery && !notificationPrompt && pendingPlan == null &&
+                    !ads.fullscreen && !activity.isFinishing && !activity.isDestroyed &&
+                    activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+            },
+            event = { Telemetry.event("review_flow", mapOf("outcome" to it)) })
+    }
+    val reviewPhase by reviews.phase.collectAsStateWithLifecycle()
+    DisposableEffect(reviews, activity) {
+        val interaction: () -> Unit = { reviews.cancelPreparation() }
+        activity.onUserAction = interaction
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, _ ->
+            if (!activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
+                reviews.cancelPreparation()
+        }
+        activity.lifecycle.addObserver(observer)
+        onDispose {
+            if (activity.onUserAction === interaction) activity.onUserAction = null
+            activity.lifecycle.removeObserver(observer)
+            reviews.close()
+        }
+    }
+    LaunchedEffect(snapshot?.sessionId, snapshot?.status) {
+        reviews.inspect(snapshot?.takeIf { it.status == Status.COMPLETED }?.sessionId)
+    }
     val permission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
             pendingPlan?.let { TimerService.command(context, "start", it, pendingPreset) }
@@ -196,6 +232,7 @@ private fun App() {
         }
     var draftTarget by rememberSaveable { mutableStateOf<String?>(null) }
     fun launch(plan: Plan, draftKey: String? = null, preset: Preset? = null) {
+        reviews.cancelPreparation()
         draftTarget = draftKey
         scope.launch {
             store.saveLastPlan(plan)
@@ -211,6 +248,7 @@ private fun App() {
         ) {
             pendingPlan = plan
             pendingPreset = preset
+            reviewLedger.externalWindow()
             notificationPrompt = true
         } else TimerService.command(context, "start", plan, preset)
     }
@@ -255,7 +293,7 @@ private fun App() {
         if (screen == "workout") screenAlpha.snapTo(1f)
         else { screenAlpha.snapTo(.7f); screenAlpha.animateTo(1f, tween(140)) }
     }
-    val adPlacementAllowed = previewPreset == null && !recovery && !notificationPrompt && pendingPlan == null &&
+    val adPlacementAllowed = reviewPhase == ReviewPhase.IDLE && previewPreset == null && !recovery && !notificationPrompt && pendingPlan == null &&
         ((snapshot == null && !editorOpen && tab == 0) || snapshot?.status == Status.COMPLETED)
     SideEffect { ads.setPlacementAllowed(adPlacementAllowed) }
     Scaffold(
@@ -277,10 +315,11 @@ private fun App() {
                     options,
                     onClose = {
                         val result = snapshot?.status ?: Status.STOPPED
+                        val reviewReserved = result == Status.COMPLETED && snapshot?.sessionId?.let { reviews.requestOnReturn(it) } == true
                         tab = 0
                         editorOpen = false
                         TimerService.clearResult()
-                        ads.maybeShow(result)
+                        if (!reviewReserved) ads.maybeShow(result)
                     },
                     onDraft =
                         if (draftTarget != null && EditorDrafts(context).has(draftTarget!!))
@@ -402,7 +441,9 @@ private fun App() {
                             snackbar = snackbar,
                         )
                         2 ->
-                            Settings(options, presets, store, snackbar) { o ->
+                            Settings(options, presets, store, snackbar, onExternal = {
+                                reviews.cancelPreparation(); reviewLedger.externalWindow()
+                            }) { o ->
                                 scope.launch { store.saveOptions(o) }
                             }
                     }
@@ -459,6 +500,7 @@ private fun App() {
                             .edit()
                             .putBoolean("notificationAsked", true)
                             .apply()
+                        reviewLedger.externalWindow()
                         permission.launch(Manifest.permission.POST_NOTIFICATIONS)
                     }
                 ) {
@@ -507,10 +549,13 @@ private fun Settings(
     presets: List<Preset>,
     store: Store,
     snackbar: SnackbarHostState,
+    onExternal: () -> Unit,
     onChange: (Options) -> Unit,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var reportOpen by rememberSaveable { mutableStateOf(false) }
+    if (reportOpen) SupportDialog(onClose = { reportOpen = false }, onExternal = onExternal)
     val cues = remember { Cues(context) {} }
     DisposableEffect(Unit) { onDispose { cues.close() } }
     val export =
@@ -696,32 +741,21 @@ private fun Settings(
         }
         Text(stringResource(R.string.about), style = MaterialTheme.typography.titleLarge)
         Text(stringResource(R.string.about_body))
-        if (BuildConfig.SUPPORT_EMAIL.isNotBlank())
-            OutlinedButton(
-                shape = MaterialTheme.shapes.small,
-                onClick = {
-                    runCatching {
-                            context.startActivity(
-                                android.content.Intent(
-                                    android.content.Intent.ACTION_SENDTO,
-                                    android.net.Uri.fromParts(
-                                        "mailto",
-                                        BuildConfig.SUPPORT_EMAIL,
-                                        null,
-                                    ),
-                                )
-                            )
-                        }
-                        .onFailure {
-                            scope.launch {
-                                snackbar.showSnackbar(context.getString(R.string.link_error))
-                            }
-                        }
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.support))
+        Text(stringResource(R.string.feedback_section), style = MaterialTheme.typography.titleMedium)
+        if (BuildConfig.SUPPORT_EMAIL.isNotBlank()) OutlinedButton(
+            onClick = { reportOpen = true }, modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.small,
+        ) { Text(stringResource(R.string.report_problem)) }
+        OutlinedButton(onClick = {
+            onExternal()
+            runCatching { context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,
+                android.net.Uri.parse(STORE_PAGE))) }.onFailure {
+                scope.launch { snackbar.showSnackbar(context.getString(R.string.link_error)) }
             }
+            Telemetry.event("store_review_opened")
+        }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.small) {
+            Text(stringResource(R.string.review_store_link))
+        }
         if (BuildConfig.PRIVACY_URL.isNotBlank())
             TextButton(
                 onClick = {
