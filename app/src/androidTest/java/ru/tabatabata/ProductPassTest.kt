@@ -2,7 +2,6 @@ package ru.tabatabata
 
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -19,9 +18,9 @@ class ProductPassTest {
     private fun text(id: Int) = compose.activity.getString(id)
     private fun capture(name: String) {
         val dir = File(requireNotNull(InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")), "product-080").apply { mkdirs() }
-        File(dir,"$name.png").outputStream().use {
-            compose.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG,100,it)
-        }
+        compose.waitForIdle()
+        val bitmap = requireNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+        File(dir,"$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
     }
 
     @Test fun previewRotationAndAppearanceEditingKeepTheSavedPlan() {
@@ -89,6 +88,7 @@ class ProductPassTest {
             compose.activityRule.scenario.recreate()
             assertEquals("bell",runBlocking { store.options.first().soundProfile })
             compose.onNodeWithText(text(R.string.profile_bell)).performScrollTo().assertExists()
+            compose.onNodeWithText(text(R.string.sound_profile)).performScrollTo()
             capture("signals")
             compose.onNodeWithText("← " + text(R.string.saved)).performClick()
             compose.onNodeWithText("+ " + text(R.string.new_timer)).performClick()
