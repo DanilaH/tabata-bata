@@ -37,6 +37,7 @@ class TimerService : Service() {
     private var finishJob: Job? = null
     private var lastIndex = -1
     private var lastSecond = -1L
+    private var lastRemaining = Long.MAX_VALUE
     private var lastNotification = -1L
     private var lastSaved = -1L
     private var lastStatus: Status? = null
@@ -153,6 +154,7 @@ class TimerService : Service() {
                 engine?.resume(now)
                 acquire()
                 lastIndex = engine?.snapshot(now)?.index ?: -1
+                lastRemaining = engine?.snapshot(now)?.remaining ?: 0
                 publish()
             }
             "next",
@@ -252,6 +254,9 @@ class TimerService : Service() {
                         s.interval?.stage == Stage.WORK &&
                             s.interval.rep == s.plan.reps &&
                             s.interval.set == s.plan.sets,
+                    round = s.interval?.let { (it.set - 1) * s.plan.reps + it.rep } ?: 0,
+                    totalRounds = s.plan.reps * s.plan.sets,
+                    allowVoice = (s.interval?.duration ?: 0) >= 4000,
                 )
             } else if (
                 options.countdown &&
@@ -260,6 +265,9 @@ class TimerService : Service() {
                     second != lastSecond
             )
                 cues.play(s.interval?.stage, options, true)
+            else if (options.halfway && crossedHalfway(s.interval?.stage, s.interval?.duration ?: 0,
+                lastRemaining, s.remaining)) cues.play(s.interval?.stage, options, halfway = true)
+            lastRemaining = s.remaining
             lastSecond = second
         }
         if (s.status == Status.COMPLETED) {

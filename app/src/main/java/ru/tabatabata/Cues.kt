@@ -18,16 +18,8 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
                     .build()
             )
             .build()
-    private val sounds =
-        mapOf(
-            Stage.WORK to pool.load(context, R.raw.work, 1),
-            Stage.REST to pool.load(context, R.raw.rest, 1),
-            Stage.BETWEEN to pool.load(context, R.raw.rest, 1),
-            Stage.PREPARE to pool.load(context, R.raw.prepare, 1),
-            Stage.COOL to pool.load(context, R.raw.rest, 1),
-        )
-    private val finish = pool.load(context, R.raw.finish, 1)
-    private val tick = pool.load(context, R.raw.tick, 1)
+    private data class CueSet(val prepare: Int, val work: Int, val rest: Int, val finish: Int, val tick: Int, val halfway: Int)
+    private val banks: Map<String, CueSet>
     private val handler = Handler(Looper.getMainLooper())
     private val releaseFocus = Runnable { audio.abandonAudioFocusRequest(focus) }
     private val focus =
@@ -51,6 +43,7 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
 
     init {
         pool.setOnLoadCompleteListener { _, id, status ->
+            if (closed) return@setOnLoadCompleteListener
             if (status == 0) {
                 loaded.add(id)
                 pending?.let {
@@ -61,6 +54,12 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
                 }
             }
         }
+            fun cue(id: Int) = pool.load(context, id, 1)
+        banks = mapOf(
+            "electronic" to CueSet(cue(R.raw.prepare), cue(R.raw.work), cue(R.raw.rest), cue(R.raw.finish), cue(R.raw.tick), cue(R.raw.halfway)),
+            "beep" to CueSet(cue(R.raw.beep_prepare), cue(R.raw.beep_work), cue(R.raw.beep_rest), cue(R.raw.beep_finish), cue(R.raw.beep_tick), cue(R.raw.beep_halfway)),
+            "bell" to CueSet(cue(R.raw.bell_prepare), cue(R.raw.bell_work), cue(R.raw.bell_rest), cue(R.raw.bell_finish), cue(R.raw.bell_tick), cue(R.raw.bell_halfway)),
+        )
     }
 
     private val voiceMutable = kotlinx.coroutines.flow.MutableStateFlow("loading")
@@ -144,11 +143,13 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
 
     private var stream = 0
 
-    fun play(stage: Stage?, o: Options, countdown: Boolean = false, lastRound: Boolean = false) {
+    fun play(stage: Stage?, o: Options, countdown: Boolean = false, lastRound: Boolean = false,
+        round: Int = 0, totalRounds: Int = 0, halfway: Boolean = false, allowVoice: Boolean = true) {
         // The countdown takes priority over speech when an interval is short.
+        if (closed) return
         cancel()
-        if (o.vibrate) vibrate(stage, countdown)
-        if (!countdown && o.voice && o.volume > 0 && voiceMutable.value == "ready") {
+        if (o.vibrate) vibrate(stage, countdown, halfway)
+        if (!countdown && !halfway && allowVoice && o.voice && o.volume > 0 && voiceMutable.value == "ready") {
             if (
                 o.duckMusic &&
                     audio.requestAudioFocus(focus) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED
@@ -157,11 +158,10 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
             val id = java.util.UUID.randomUUID().toString()
             utterance = id
             speechFallback = { play(stage, o.copy(voice = false), lastRound = lastRound) }
-            val text =
-                context.getString(
-                    if (stage == null) R.string.voice_finish
-                    else if (lastRound) R.string.voice_last_round else stageString(stage)
-                )
+            val text = if (o.voiceRounds && stage == Stage.WORK && round > 0 && totalRounds > 0)
+                context.getString(R.string.voice_round, round, totalRounds)
+            else context.getString(if (stage == null) R.string.voice_finish
+                else if (lastRound) R.string.voice_last_round else stageString(stage))
             val params =
                 Bundle().apply {
                     putFloat(android.speech.tts.TextToSpeech.Engine.KEY_PARAM_VOLUME, o.volume)
@@ -181,7 +181,15 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
         )
             return
         if (stream != 0) pool.stop(stream)
-        val id = if (countdown) tick else if (stage == null) finish else sounds.getValue(stage)
+        val bank = banks[o.soundProfile] ?: banks.getValue("electronic")
+        val id = when {
+            countdown -> bank.tick
+            halfway -> bank.halfway
+            stage == null -> bank.finish
+            stage == Stage.PREPARE -> bank.prepare
+            stage == Stage.WORK -> bank.work
+            else -> bank.rest
+        }
         if (o.volume > 0) {
             if (loaded.contains(id)) playId(id, o, countdown)
             else {
@@ -192,8 +200,9 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
         if (o.duckMusic) handler.postDelayed(releaseFocus, if (countdown) 250 else 1100)
     }
 
-    private fun vibrate(stage: Stage?, countdown: Boolean) {
+    private fun vibrate(stage: Stage?, countdown: Boolean, halfway: Boolean) {
         val timings = when {
+            halfway -> longArrayOf(0, 80)
             countdown -> longArrayOf(0, 120)
             stage == Stage.WORK -> longArrayOf(0, 450)
             stage == null -> longArrayOf(0, 300, 120, 500)
@@ -228,6 +237,7 @@ class Cues(private val context: Context, private val onFocusLoss: () -> Unit) {
         closed = true
         cancel()
         tts?.shutdown()
+        pool.setOnLoadCompleteListener(null)
         pool.release()
     }
 }

@@ -31,11 +31,12 @@ internal fun workoutClock(ms: Long): String {
 
 internal fun workoutBackground(stage: Stage?, dark: Boolean): Color =
     when (stage) {
-        Stage.WORK -> if (dark) Color(0xFF193D2B) else Color(0xFF176B44)
-        Stage.REST,
-        Stage.BETWEEN -> if (dark) Color(0xFF16364A) else Color(0xFF245ED0)
-        else -> if (dark) Color(0xFF49350A) else Color(0xFF895C00)
+        Stage.WORK -> if (dark) Color(0xFF70251B) else Color(0xFFB9341C)
+        Stage.REST, Stage.BETWEEN -> if (dark) Color(0xFF183C70) else Color(0xFF2457B8)
+        Stage.COOL -> if (dark) Color(0xFF16483F) else Color(0xFF126451)
+        else -> if (dark) Color(0xFF60400A) else Color(0xFF825700)
     }
+
 
 @Composable
 internal fun Workout(
@@ -222,6 +223,7 @@ internal fun Workout(
                                             formatTime(next?.duration ?: 0),
                                         ),
                                         style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = FontWeight.SemiBold,
                                         maxLines = 1,
                                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                         modifier = Modifier.hiddenWhen(next == null),

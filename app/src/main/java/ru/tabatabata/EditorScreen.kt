@@ -95,6 +95,7 @@ internal fun Editor(
                 ),
             )
             .put("last", base.lastRest)
+            .put("accent", preset?.accent ?: "blue").put("mark", preset?.mark ?: 0)
             .toString()
     val baseline = remember(key) { initial() }
     var raw by rememberSaveable(key) { mutableStateOf(decodeEditorDraft(drafts.read(key) ?: baseline, baseline).toString()) }
@@ -139,6 +140,8 @@ internal fun Editor(
                     preset?.id ?: java.util.UUID.randomUUID().toString(),
                     name.trim().ifEmpty { context.getString(R.string.default_name) },
                     it,
+                    obj.optString("accent", preset?.accent ?: "blue").takeIf { a -> a in presetAccents } ?: "blue",
+                    obj.optInt("mark", preset?.mark ?: 0).takeIf { m -> m in 0..3 } ?: 0,
                 )
             )
         }
@@ -181,16 +184,17 @@ internal fun Editor(
                     R.string.between,
                     R.string.cool,
                 )
-            for (i in 0..6) {
-                if (i == 4)
-                    Text(stringResource(R.string.advanced), style = MaterialTheme.typography.titleSmall,
+            Text(stringResource(R.string.editor_main), style = MaterialTheme.typography.titleSmall)
+            for (i in listOf(1, 2, 3, 0, 4, 5, 6)) {
+                if (i == 0)
+                    Text(stringResource(R.string.editor_extra), style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(top = 12.dp))
                 run {
                     val title = stringResource(labels[i])
                     val tint = workoutBackground(when(i) { 1 -> Stage.WORK; 2,5 -> Stage.REST; else -> Stage.PREPARE }, false)
-                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                    BoxWithConstraints(Modifier.padding(horizontal = 8.dp, vertical = 6.dp)) {
-                        val stacked = maxWidth < 390.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
+                    Surface(color = MaterialTheme.colorScheme.surface) {
+                    BoxWithConstraints(Modifier.padding(vertical = 4.dp)) {
+                        val stacked = maxWidth < 400.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
                         val fieldWidth = if (stacked) maxWidth.value - 104f - 16f else 124f
                         val valueSize = minOf(26f, (fieldWidth - 32f) /
                             (values[i].length.coerceAtLeast(4) * .65f * androidx.compose.ui.platform.LocalDensity.current.fontScale))
@@ -287,30 +291,33 @@ internal fun Editor(
                 }
             }
             Toggle(R.string.last_rest, last) { v -> change { it.put("last", v) } }
-            if (plan != null) {
-                TextButton(onClick = { preview = !preview }) {
-                    Text(stringResource(R.string.plan_preview) + if (preview) " ▴" else " ▾")
-                }
-                if (preview)
-                    Text(
-                        plan.stages().take(8).joinToString(" → ") {
-                            "${context.getString(stageString(it.stage))} ${durationInput((it.duration/1000).toInt())}"
-                        } + if (plan.stages().size > 8) " …" else ""
-                    )
-            }
+            HorizontalDivider()
+            PresetAppearance(
+                obj.optString("accent", preset?.accent ?: "blue"), obj.optInt("mark", preset?.mark ?: 0),
+            ) { accent, mark -> change { it.put("accent", accent).put("mark", mark) } }
+
         }
         HorizontalDivider()
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Text(
-                if (plan != null)
-                    stringResource(R.string.total) + ": " + formatTime(plan.durationMs())
-                else if (valid.all { it }) stringResource(R.string.too_long)
-                else stringResource(R.string.fix_fields),
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.total), style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(if (plan != null) formatTime(plan.durationMs())
+                        else if (valid.all { it }) stringResource(R.string.too_long)
+                        else stringResource(R.string.fix_fields),
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                }
+                val previewLabel = stringResource(R.string.plan_preview)
+                TextButton(onClick = { preview = true
+                    Telemetry.event("plan_preview", mapOf("source" to "editor")) },
+                    enabled = plan != null, modifier = Modifier.semantics { contentDescription = previewLabel }) {
+                    Text(stringResource(R.string.view_plan_short))
+                }
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(
                     onClick = {
@@ -336,6 +343,7 @@ internal fun Editor(
             }
         }
     }
+    if (preview && plan != null) PlanPreviewDialog(plan, name.takeIf { it.isNotBlank() }) { preview = false }
     if (leave)
         AlertDialog(
             onDismissRequest = { leave = false },

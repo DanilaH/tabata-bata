@@ -24,3 +24,24 @@ save('work',tone(950,.12)+gap(.045)+tone(1450,.32,.95))
 save('rest',tone(1000,.16)+gap(.045)+tone(650,.24))
 save('prepare',tone(800,.25,.8,end=1100))
 save('finish',tone(1100,.17,.95)+gap(.07)+tone(1400,.17,.95)+gap(.07)+tone(1750,.42,.95))
+
+# Additional profiles. Mono 24kHz PCM, no external recordings or licenses.
+def bell(freq, seconds, gain=.8):
+    n=int(seconds*RATE)
+    return [gain*min(1.,i/(RATE*.003))*(1-i/n)**2.5*(
+        .72*math.sin(2*math.pi*freq*i/RATE)+
+        .18*math.sin(2*math.pi*freq*2.76*i/RATE)+
+        .10*math.sin(2*math.pi*freq*5.4*i/RATE)) for i in range(n)]
+save('halfway',tone(1150,.10,.65)+gap(.04)+tone(1150,.10,.65))
+save('beep_tick',tone(1500,.075,.7))
+save('beep_prepare',tone(750,.16,.8))
+save('beep_work',tone(1300,.19,.9))
+save('beep_rest',tone(700,.19,.85))
+save('beep_finish',tone(1300,.18,.9)+gap(.06)+tone(1650,.26,.95))
+save('beep_halfway',tone(1050,.085,.7)+gap(.05)+tone(1050,.085,.7))
+save('bell_tick',bell(1500,.12,.65))
+save('bell_prepare',bell(660,.38))
+save('bell_work',bell(880,.6,.9))
+save('bell_rest',bell(440,.6,.9))
+save('bell_finish',bell(880,.2,.9)+bell(1320,.62,.95))
+save('bell_halfway',bell(1100,.22,.7))

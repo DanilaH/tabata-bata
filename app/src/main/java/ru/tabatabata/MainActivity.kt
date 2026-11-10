@@ -154,7 +154,7 @@ private fun App() {
                         .JSONObject()
                         .put("id", it.id)
                         .put("name", it.name)
-                        .put("plan", it.plan.json())
+                        .put("plan", it.plan.json()).put("accent", it.accent).put("mark", it.mark)
                         .toString()
                 }
             },
@@ -165,12 +165,14 @@ private fun App() {
                             obj.getString("id"),
                             obj.getString("name"),
                             obj.getJSONObject("plan").plan(),
+                            obj.optString("accent", "blue"), obj.optInt("mark", 0),
                         )
                     }
                     .getOrNull()
             },
         )
     }
+    var previewPreset by rememberSaveable(stateSaver = editorSaver) { mutableStateOf<Preset?>(null) }
     var editor by rememberSaveable(stateSaver = editorSaver) { mutableStateOf<Preset?>(null) }
     var editorOpen by rememberSaveable { mutableStateOf(false) }
     var recovery by remember {
@@ -248,7 +250,7 @@ private fun App() {
         if (screen == "workout") screenAlpha.snapTo(1f)
         else { screenAlpha.snapTo(.7f); screenAlpha.animateTo(1f, tween(140)) }
     }
-    val adPlacementAllowed = !recovery && !notificationPrompt && pendingPlan == null &&
+    val adPlacementAllowed = previewPreset == null && !recovery && !notificationPrompt && pendingPlan == null &&
         ((snapshot == null && !editorOpen && tab == 0) || snapshot?.status == Status.COMPLETED)
     SideEffect { ads.setPlacementAllowed(adPlacementAllowed) }
     Scaffold(
@@ -343,6 +345,10 @@ private fun App() {
                                     editor = it
                                     editorOpen = true
                                 },
+                                onPreview = { p ->
+                                    previewPreset = p
+                                    Telemetry.event("plan_preview", mapOf("source" to "saved"))
+                                },
                                 onCopy = { p ->
                                     scope.launch {
                                         showWriteError(store.updatePreset(
@@ -388,6 +394,7 @@ private fun App() {
                 }
         }
     }
+    previewPreset?.let { p -> PlanPreviewDialog(p.plan, p.name) { previewPreset = null } }
     if (recovery)
         AlertDialog(
             onDismissRequest = {},
@@ -459,139 +466,6 @@ private fun App() {
                 }
             },
         )
-}
-
-@Composable
-private fun Saved(
-    presets: List<Preset>,
-    lastPresetId: String?,
-    showReadyModes: Boolean,
-    onNew: () -> Unit,
-    onStart: (Preset) -> Unit,
-    onEdit: (Preset) -> Unit,
-    onCopy: (Preset) -> Unit,
-    onDelete: (Preset) -> Unit,
-    onMove: (Int, Int) -> Unit,
-) {
-    val readyModes = listOf(
-        Preset("builtin-classic", stringResource(R.string.classic_tabata), Plan()),
-        Preset("builtin-30-30", "30/30 × 10", Plan(work = 30, rest = 30, reps = 10)),
-        Preset("builtin-40-20", "40/20 × 8", Plan(work = 40, rest = 20, reps = 8)),
-        Preset("builtin-60-30", "60/30 × 6", Plan(work = 60, rest = 30, reps = 6)),
-    )
-    LazyColumn(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        contentPadding = PaddingValues(top = 20.dp, bottom = 20.dp),
-    ) {
-        item {
-            Button(onClick = onNew, shape = MaterialTheme.shapes.small,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                Text("+ " + stringResource(R.string.new_timer))
-            }
-        }
-        if (presets.isNotEmpty()) item {
-            Text(stringResource(R.string.saved), style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(top = 12.dp))
-        }
-        itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
-            var menu by remember { mutableStateOf(false) }
-            val contextMenuLabel = stringResource(R.string.mode_actions, p.name)
-            Card(onClick = { onEdit(p) }, modifier = Modifier.animateItem().fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            p.name,
-                            style = MaterialTheme.typography.titleLarge,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Box {
-                            TextButton(
-                                onClick = { menu = true },
-                                modifier =
-                                    Modifier.semantics { contentDescription = contextMenuLabel },
-                            ) {
-                                Text("⋮", fontSize = 24.sp)
-                            }
-                            DropdownMenu(menu, { menu = false }) {
-                                listOf(
-                                        R.string.edit to { onEdit(p) },
-                                        R.string.copy to { onCopy(p) },
-                                        R.string.up to { onMove(index, index - 1) },
-                                        R.string.down to { onMove(index, index + 1) },
-                                        R.string.delete to { onDelete(p) },
-                                    )
-                                    .forEach { (r, f) ->
-                                        DropdownMenuItem(
-                                            text = { Text(stringResource(r)) },
-                                            enabled =
-                                                (r != R.string.up || index > 0) &&
-                                                    (r != R.string.down ||
-                                                        index < presets.lastIndex),
-                                            onClick = {
-                                                menu = false
-                                                f()
-                                            },
-                                        )
-                                    }
-                            }
-                        }
-                    }
-                    if (p.id == lastPresetId)
-                        Text(
-                            stringResource(R.string.last_launch),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    Text(
-                        stringResource(
-                            R.string.mode_summary,
-                            durationInput(p.plan.work),
-                            durationInput(p.plan.rest),
-                            p.plan.reps,
-                        ) +
-                            if (p.plan.sets > 1)
-                                " · " + stringResource(R.string.set_count, p.plan.sets)
-                            else "",
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        formatTime(p.plan.durationMs()),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Button(
-                        shape = MaterialTheme.shapes.small,
-                        onClick = { onStart(p) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.start))
-                    }
-                }
-            }
-        }
-        if (showReadyModes) {
-            item {
-                Text(stringResource(R.string.ready_mode), style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
-            }
-            itemsIndexed(readyModes, key = { _, p -> p.id }) { _, ready ->
-                OutlinedCard(modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(ready.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                            Text(formatTime(ready.plan.durationMs()), style = MaterialTheme.typography.labelMedium)
-                        }
-                        OutlinedButton(onClick = { onStart(ready) }, shape = MaterialTheme.shapes.small) {
-                            Text(stringResource(R.string.start))
-                        }
-                    }
-                }
-            }
-        }
-    }
-
 }
 
 @Composable
@@ -685,6 +559,23 @@ private fun Settings(
             style = MaterialTheme.typography.titleSmall,
         )
         Slider(o.volume, onValueChange = { onChange(o.copy(volume = it)) })
+        Text(stringResource(R.string.sound_profile), style = MaterialTheme.typography.titleSmall)
+        soundProfiles.forEachIndexed { index, profile ->
+            val title = stringResource(listOf(R.string.profile_electronic, R.string.profile_beep, R.string.profile_bell)[index])
+            val previewLabel = stringResource(R.string.profile_preview, title)
+            Row(Modifier.fillMaxWidth().toggleable(o.soundProfile == profile,
+                role = androidx.compose.ui.semantics.Role.RadioButton,
+                onValueChange = { onChange(o.copy(soundProfile = profile))
+                    Telemetry.event("sound_profile_selected", mapOf("profile" to profile)) }),
+                verticalAlignment = Alignment.CenterVertically) {
+                RadioButton(selected = o.soundProfile == profile, onClick = null)
+                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                TextButton(onClick = { cues.play(Stage.WORK, o.copy(soundProfile = profile, voice = false)) },
+                    modifier = Modifier.semantics { contentDescription = previewLabel }) {
+                    Text(stringResource(R.string.listen_profile))
+                }
+            }
+        }
         Text(stringResource(R.string.listen_signals), style = MaterialTheme.typography.labelLarge)
         Column(Modifier.fillMaxWidth()) {
             listOf(Stage.WORK to R.string.work, Stage.REST to R.string.rest, null to R.string.finish_cue)
@@ -696,8 +587,24 @@ private fun Settings(
             }
         }
         Text(stringResource(R.string.sound_hint), style = MaterialTheme.typography.bodySmall)
+        Toggle(R.string.halfway, o.halfway) { onChange(o.copy(halfway = it)) }
+        Text(stringResource(R.string.halfway_hint), style = MaterialTheme.typography.bodySmall)
+        if (o.halfway) SoundPreviewRow(stringResource(R.string.halfway_preview)) {
+            cues.play(Stage.WORK, o.copy(voice = false), halfway = true)
+        }
+        HorizontalDivider()
+        Text(stringResource(R.string.voice_section), style = MaterialTheme.typography.titleMedium)
         Toggle(R.string.voice, o.voice) { onChange(o.copy(voice = it)) }
         if (o.voice) {
+            for (rounds in listOf(false, true)) {
+                Row(Modifier.fillMaxWidth().toggleable(o.voiceRounds == rounds,
+                    role = androidx.compose.ui.semantics.Role.RadioButton,
+                    onValueChange = { onChange(o.copy(voiceRounds = rounds)) }),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(o.voiceRounds == rounds, onClick = null)
+                    Text(stringResource(if (rounds) R.string.voice_stages_rounds else R.string.voice_stages))
+                }
+            }
             val voiceState by cues.voiceState.collectAsStateWithLifecycle()
             Text(
                 stringResource(
@@ -710,12 +617,14 @@ private fun Settings(
                 style = MaterialTheme.typography.bodySmall,
             )
             OutlinedButton(
-                onClick = { cues.play(Stage.WORK, o, lastRound = true) },
+                onClick = { cues.play(Stage.WORK, o, lastRound = true, round = 3, totalRounds = 8) },
                 enabled = voiceState == "ready",
             ) {
                 Text(stringResource(R.string.listen_voice))
             }
         }
+        HorizontalDivider()
+        Text(stringResource(R.string.vibration_section), style = MaterialTheme.typography.titleMedium)
         Toggle(R.string.vibrate, o.vibrate) { onChange(o.copy(vibrate = it)) }
         OutlinedButton(onClick = { cues.play(Stage.WORK, o.copy(volume = 0f, vibrate = true, voice = false)) },
             modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.vibration_preview)) }

@@ -8,9 +8,13 @@ import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
+internal val soundProfiles = listOf("electronic", "beep", "bell")
+internal val presetAccents = listOf("blue", "green", "orange", "violet")
+
 private val Context.dataStore by preferencesDataStore("tabata")
 
-data class Preset(val id: String = UUID.randomUUID().toString(), val name: String, val plan: Plan)
+data class Preset(val id: String = UUID.randomUUID().toString(), val name: String, val plan: Plan,
+    val accent: String = "blue", val mark: Int = 0)
 
 data class Options(
     val volume: Float = .8f,
@@ -22,6 +26,9 @@ data class Options(
     val showStages: Boolean = false,
     val voice: Boolean = false,
     val showReadyModes: Boolean = true,
+    val soundProfile: String = "electronic",
+    val halfway: Boolean = false,
+    val voiceRounds: Boolean = false,
 )
 
 fun Plan.json(): JSONObject =
@@ -99,6 +106,9 @@ class Store(private val context: Context) {
                 it[booleanPreferencesKey("showStages")] ?: false,
                 it[booleanPreferencesKey("voice")] ?: false,
                 it[booleanPreferencesKey("showReadyModes")] ?: true,
+                it[stringPreferencesKey("soundProfile")]?.takeIf { p -> p in soundProfiles } ?: "electronic",
+                it[booleanPreferencesKey("halfway")] ?: false,
+                it[booleanPreferencesKey("voiceRounds")] ?: false,
             )
         }
 
@@ -113,6 +123,9 @@ class Store(private val context: Context) {
             it[booleanPreferencesKey("showStages")] = o.showStages
             it[booleanPreferencesKey("voice")] = o.voice
             it[booleanPreferencesKey("showReadyModes")] = o.showReadyModes
+            it[stringPreferencesKey("soundProfile")] = o.soundProfile.takeIf { p -> p in soundProfiles } ?: "electronic"
+            it[booleanPreferencesKey("halfway")] = o.halfway
+            it[booleanPreferencesKey("voiceRounds")] = o.voiceRounds
         }
     }
 
@@ -127,7 +140,7 @@ class Store(private val context: Context) {
                 if (next.size > 500 && next.size > current.size) result = PresetWrite.LIMIT
                 else {
                     require(next.map { it.id }.distinct().size == next.size)
-                    next.forEach { require(it.name.length in 1..100); it.plan.validate() }
+                    next.forEach { require(it.name.length in 1..100); require(it.accent in presetAccents && it.mark in 0..3); it.plan.validate() }
                     prefs[presetsKey] = encode(next).toString()
                 }
             }
@@ -178,7 +191,8 @@ class Store(private val context: Context) {
     fun encode(items: List<Preset>): JSONArray =
         JSONArray().apply {
             items.forEach {
-                put(JSONObject().put("id", it.id).put("name", it.name).put("plan", it.plan.json()))
+                put(JSONObject().put("id", it.id).put("name", it.name).put("plan", it.plan.json())
+                    .put("accent", it.accent).put("mark", it.mark))
             }
         }
 
@@ -203,6 +217,8 @@ class Store(private val context: Context) {
                 o.getString("id").also { id -> require(id.isNotBlank()) },
                 o.getString("name").also { n -> require(n.length in 1..100) },
                 o.getJSONObject("plan").plan(),
+                o.optString("accent", "blue").takeIf { it in presetAccents } ?: "blue",
+                o.optInt("mark", 0).takeIf { it in 0..3 } ?: 0,
             )
         }.also { items -> require(items.map { it.id }.distinct().size == items.size) }
     }
