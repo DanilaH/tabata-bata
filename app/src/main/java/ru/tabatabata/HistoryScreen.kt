@@ -9,6 +9,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -75,7 +76,7 @@ internal fun HistoryScreen(onRepeat: (Preset) -> Unit, onPreview: (Preset) -> Un
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(stringResource(R.string.history_this_week), style = MaterialTheme.typography.titleMedium)
-                        val locale = context.resources.configuration.locales[0]
+                        val locale = LocalConfiguration.current.locales[0]
                         val zone = ZoneId.systemDefault()
                         val dates = DateTimeFormatter.ofPattern("d MMM", locale).withZone(zone)
                         Text("${dates.format(Instant.ofEpochMilli(page.window.start))} — ${dates.format(Instant.ofEpochMilli(page.window.end - 1))}",
@@ -121,7 +122,7 @@ private fun HistoryCard(record: WorkoutRecord, onRepeat: () -> Unit, onPreview: 
     val context = LocalContext.current
     val dark = MaterialTheme.colorScheme.background.red < .3f
     val tint = presetTint(record.accent, dark)
-    val date = DateTimeFormatter.ofPattern("d MMM yyyy · HH:mm", context.resources.configuration.locales[0])
+    val date = DateTimeFormatter.ofPattern("d MMM yyyy · HH:mm", LocalConfiguration.current.locales[0])
         .withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(record.finishedAt))
     Card(Modifier.fillMaxWidth().testTag("history-${record.sessionId}"),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
