@@ -17,7 +17,7 @@ internal fun Saved(
     presets: List<Preset>, lastPresetId: String?, showReadyModes: Boolean,
     onNew: () -> Unit, onStart: (Preset) -> Unit, onEdit: (Preset) -> Unit,
     onPreview: (Preset) -> Unit, onCopy: (Preset) -> Unit, onDelete: (Preset) -> Unit,
-    onMove: (Int, Int) -> Unit,
+    onMove: (Int, Int) -> Unit, onHistory: () -> Unit,
 ) {
     val readyModes = listOf(
         Preset("builtin-classic", stringResource(R.string.classic_tabata), Plan(), "green", 2),
@@ -45,6 +45,9 @@ internal fun Saved(
                 }
             }
         }
+        item { TextButton(onClick = onHistory, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.history_open) + " →")
+        } }
         itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
             var menu by remember { mutableStateOf(false) }
             val dark = MaterialTheme.colorScheme.background.red < .3f

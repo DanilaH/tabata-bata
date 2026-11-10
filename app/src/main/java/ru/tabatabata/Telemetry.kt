@@ -8,6 +8,7 @@ import kotlinx.coroutines.*
 class TabataApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        HistoryRepository(this).flushInBackground()
         Telemetry.activate(this)
     }
 }

@@ -170,4 +170,25 @@
     <string name="next_label">UP NEXT</string>
     <string name="preview_expanded">Expanded</string>
     <string name="preview_collapsed">Collapsed</string>
+    <string name="history">History</string>
+    <string name="history_open">Workout history</string>
+    <string name="history_this_week">This week</string>
+    <string name="history_active_time">Active time · pauses excluded</string>
+    <string name="history_week_counts">Completed: %1$d · Stopped: %2$d</string>
+    <string name="history_partial_week">Sessions with incomplete statistics are excluded from the time total.</string>
+    <string name="history_local_hint">History stays on this device. New sessions appear here when completed or stopped.</string>
+    <string name="history_empty_title">No workouts yet</string>
+    <string name="history_empty_body">Start any timer. After the session, its result and plan will be available here.</string>
+    <string name="history_completed">Completed</string>
+    <string name="history_stopped">Stopped</string>
+    <string name="history_session_time">Active time: %1$s</string>
+    <string name="history_rounds">Rounds completed: %1$d of %2$d</string>
+    <string name="history_partial_record">Detailed statistics unavailable: this session was recovered from an older version.</string>
+    <string name="history_saved_plan">Original plan</string>
+    <string name="history_more">Show more</string>
+    <string name="history_clear">Clear history</string>
+    <string name="history_clear_title">Delete all workout history?</string>
+    <string name="history_clear_body">Workout results will be deleted from this device. Saved timers will remain. This cannot be undone.</string>
+    <string name="history_error">Could not read or save workout history. Please try again.</string>
+    <string name="history_retry">Try again</string>
 </resources>

@@ -170,4 +170,25 @@
     <string name="next_label">ДАЛЕЕ</string>
     <string name="preview_expanded">Развёрнуто</string>
     <string name="preview_collapsed">Свёрнуто</string>
+    <string name="history">История</string>
+    <string name="history_open">История тренировок</string>
+    <string name="history_this_week">Эта неделя</string>
+    <string name="history_active_time">Активное время · без пауз</string>
+    <string name="history_week_counts">Завершено: %1$d · Остановлено: %2$d</string>
+    <string name="history_partial_week">Время занятий с неполными данными в итог не включено.</string>
+    <string name="history_local_hint">История хранится только на этом устройстве. Новые занятия появятся здесь после завершения или остановки.</string>
+    <string name="history_empty_title">Пока нет тренировок</string>
+    <string name="history_empty_body">Начни любой таймер — после занятия здесь останется его результат и план для повтора.</string>
+    <string name="history_completed">Завершено</string>
+    <string name="history_stopped">Остановлено</string>
+    <string name="history_session_time">Активное время: %1$s</string>
+    <string name="history_rounds">Выполнено раундов: %1$d из %2$d</string>
+    <string name="history_partial_record">Подробная статистика недоступна: занятие восстановлено из старой версии.</string>
+    <string name="history_saved_plan">Исходный план</string>
+    <string name="history_more">Показать ещё</string>
+    <string name="history_clear">Очистить историю</string>
+    <string name="history_clear_title">Удалить всю историю?</string>
+    <string name="history_clear_body">Результаты тренировок будут удалены с устройства. Сохранённые режимы останутся. Отменить удаление нельзя.</string>
+    <string name="history_error">Не удалось прочитать или сохранить историю. Попробуй ещё раз.</string>
+    <string name="history_retry">Попробовать ещё раз</string>
 </resources>

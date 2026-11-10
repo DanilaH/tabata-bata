@@ -13,15 +13,19 @@ class TimerService : Service() {
     companion object {
         private val mutable = MutableStateFlow<Snapshot?>(null)
         val state = mutable.asStateFlow()
+        private val mutablePreset = MutableStateFlow<Preset?>(null)
+        val sessionPreset = mutablePreset.asStateFlow()
 
         fun clearResult() {
             if (mutable.value?.status in listOf(Status.COMPLETED, Status.STOPPED))
                 mutable.value = null
         }
 
-        fun command(context: Context, action: String, plan: Plan? = null) {
+        fun command(context: Context, action: String, plan: Plan? = null, preset: Preset? = null) {
             val intent = Intent(context, TimerService::class.java).setAction(action)
             if (plan != null) intent.putExtra("plan", plan.json().toString())
+            if (preset != null) intent.putExtra("historyName", preset.name)
+                .putExtra("historyAccent", preset.accent).putExtra("historyMark", preset.mark)
             if (action == "start" || action == "recover") context.startForegroundService(intent)
             else context.startService(intent)
         }
@@ -43,6 +47,8 @@ class TimerService : Service() {
     private var lastStatus: Status? = null
     private var startedAt = 0L
     private var activeMs = 0L
+    private var historyStartedAt: Long? = null
+    private val history by lazy { HistoryRepository(this) }
     private var pauses = 0
     private var skips = 0
     private val prefs by lazy { getSharedPreferences("session", MODE_PRIVATE) }
@@ -96,6 +102,10 @@ class TimerService : Service() {
                     finishJob?.cancel()
                     cues.cancel()
                     engine = TimerEngine(plan, now)
+                    historyStartedAt = System.currentTimeMillis()
+                    mutablePreset.value = Preset(name = intent.getStringExtra("historyName").orEmpty().take(100),
+                        plan = plan, accent = intent.getStringExtra("historyAccent")?.takeIf { it in presetAccents } ?: "blue",
+                        mark = intent.getIntExtra("historyMark", 0).coerceIn(0, 3))
                     startedAt = now
                     activeMs = 0
                     pauses = 0
@@ -141,6 +151,11 @@ class TimerService : Service() {
                     finishJob?.cancel()
                     cues.cancel()
                     engine = restored
+                    val checkpoint = JSONObject(prefs.getString("active", null)!!)
+                    historyStartedAt = checkpoint.optLong("historyStartedAt", 0).takeIf { it > 0 }
+                    mutablePreset.value = Preset(name = checkpoint.optString("historyName", "").take(100),
+                        plan = restored.plan, accent = checkpoint.optString("historyAccent", "blue").takeIf { it in presetAccents } ?: "blue",
+                        mark = checkpoint.optInt("historyMark", 0).coerceIn(0, 3))
                     Telemetry.event("session_recovered", mapOf("reason" to "interrupted_unknown"))
                     foreground()
                     publish()
@@ -289,6 +304,10 @@ class TimerService : Service() {
                         .put("remaining", s.remaining)
                         .put("currentDuration", s.interval?.duration)
                         .put("sessionId", s.sessionId)
+                        .put("historyStartedAt", historyStartedAt)
+                        .put("historyName", mutablePreset.value?.name.orEmpty())
+                        .put("historyAccent", mutablePreset.value?.accent ?: "blue")
+                        .put("historyMark", mutablePreset.value?.mark ?: 0)
                         .put("activeMs", s.activeMs)
                         .put("completedWork", org.json.JSONArray(s.completedWork.toList()))
                         .put("statsAvailable", s.statsAvailable)
@@ -309,6 +328,15 @@ class TimerService : Service() {
         if (e != null) {
             val s = mutable.value
             val elapsed = s?.activeMs ?: 0L
+            if (s != null) {
+                val meta = mutablePreset.value
+                runCatching {
+                    history.enqueue(WorkoutRecord(e.sessionId, s.plan, meta?.name.orEmpty(),
+                        meta?.accent ?: "blue", meta?.mark ?: 0, historyStartedAt, System.currentTimeMillis(),
+                        completed, s.activeMs, s.completedWork.size, s.statsAvailable))
+                    history.flushInBackground()
+                }.onFailure { android.util.Log.e("TabataHistory", "Terminal result could not be stored") }
+            }
             Telemetry.event(
                 "workout_finished",
                 mapOf(
@@ -320,7 +348,7 @@ class TimerService : Service() {
                 ),
             )
         }
-        prefs.edit().remove("active").apply()
+        // enqueue atomically replaces active with the terminal outbox entry.
         release()
         ticker?.cancel()
         engine = null

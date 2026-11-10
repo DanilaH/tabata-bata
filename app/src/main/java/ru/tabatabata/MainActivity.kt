@@ -132,6 +132,7 @@ private fun App() {
     val presets by store.presets.collectAsStateWithLifecycle(emptyList())
     val options by store.options.collectAsStateWithLifecycle(Options())
     val snapshot by TimerService.state.collectAsStateWithLifecycle()
+    val sessionPreset by TimerService.sessionPreset.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     suspend fun showWriteError(result: PresetWrite) {
         if (result != PresetWrite.SAVED) snackbar.showSnackbar(context.getString(
@@ -145,7 +146,7 @@ private fun App() {
         if (snapshot?.status == Status.COMPLETED) ads.completed(snapshot!!.sessionId)
     }
     var tab by rememberSaveable { mutableIntStateOf(0) }
-    BackHandler(enabled = tab == 2 && snapshot == null) { tab = 0 }
+    BackHandler(enabled = tab != 0 && snapshot == null) { tab = 0 }
     val editorSaver = remember {
         Saver<Preset?, String>(
             save = { preset ->
@@ -186,13 +187,15 @@ private fun App() {
         save = { it?.json()?.toString() },
         restore = { runCatching { org.json.JSONObject(it).plan() }.getOrNull() },
     )) { mutableStateOf<Plan?>(null) }
+    var pendingPreset by rememberSaveable(stateSaver = editorSaver) { mutableStateOf<Preset?>(null) }
     val permission =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
-            pendingPlan?.let { TimerService.command(context, "start", it) }
+            pendingPlan?.let { TimerService.command(context, "start", it, pendingPreset) }
             pendingPlan = null
+            pendingPreset = null
         }
     var draftTarget by rememberSaveable { mutableStateOf<String?>(null) }
-    fun launch(plan: Plan, draftKey: String? = null) {
+    fun launch(plan: Plan, draftKey: String? = null, preset: Preset? = null) {
         draftTarget = draftKey
         scope.launch {
             store.saveLastPlan(plan)
@@ -207,8 +210,9 @@ private fun App() {
                     .getBoolean("notificationAsked", false)
         ) {
             pendingPlan = plan
+            pendingPreset = preset
             notificationPrompt = true
-        } else TimerService.command(context, "start", plan)
+        } else TimerService.command(context, "start", plan, preset)
     }
     LaunchedEffect(snapshot?.sessionId, snapshot?.status) {
         if (snapshot?.status == Status.STOPPED) {
@@ -242,6 +246,7 @@ private fun App() {
         snapshot?.status == Status.COMPLETED -> "result"
         editorOpen -> "editor"
         tab == 2 -> "settings"
+        tab == 3 -> "history"
         else -> "home"
     }
     val screenAlpha = remember { Animatable(1f) }
@@ -288,7 +293,7 @@ private fun App() {
                     onRepeat = {
                         val p = snapshot!!.plan
                         TimerService.clearResult()
-                        launch(p, draftTarget)
+                        launch(p, draftTarget, sessionPreset)
                     },
                 )
             else if (editorOpen)
@@ -306,7 +311,7 @@ private fun App() {
                             }
                         }
                     },
-                    onStart = { launch(it, editor?.id ?: "new") },
+                    onStart = { launch(it.plan, editor?.id ?: "new", it) },
                 )
             else
                 Column(Modifier.fillMaxSize()) {
@@ -315,14 +320,14 @@ private fun App() {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            stringResource(R.string.app_name),
+                            stringResource(if (tab == 3) R.string.history else R.string.app_name),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(onClick = { tab = if (tab == 2) 0 else 2 }) {
+                        TextButton(onClick = { tab = if (tab != 0) 0 else 2 }) {
                             Text(
-                                if (tab == 2) "← " + stringResource(R.string.saved)
+                                if (tab != 0) "← " + stringResource(R.string.saved)
                                 else stringResource(R.string.settings)
                             )
                         }
@@ -339,7 +344,7 @@ private fun App() {
                                 },
                                 onStart = { p ->
                                     scope.launch { store.saveLastPreset(p.id) }
-                                    launch(p.plan)
+                                    launch(p.plan, preset = p)
                                 },
                                 onEdit = {
                                     editor = it
@@ -378,6 +383,7 @@ private fun App() {
                                             showWriteError(store.restore(removed))
                                     }
                                 },
+                                onHistory = { tab = 3; Telemetry.event("history_opened") },
                                 onMove = { from, to ->
                                     scope.launch {
                                         presets.getOrNull(from)?.let {
@@ -386,6 +392,15 @@ private fun App() {
                                     }
                                 },
                             )
+                        3 -> HistoryScreen(
+                            onRepeat = { p ->
+                                Telemetry.event("history_repeat")
+                                launch(p.plan, preset = p)
+                            },
+                            onPreview = { p -> previewPreset = p
+                                Telemetry.event("plan_preview", mapOf("source" to "history")) },
+                            snackbar = snackbar,
+                        )
                         2 ->
                             Settings(options, presets, store, snackbar) { o ->
                                 scope.launch { store.saveOptions(o) }
@@ -429,8 +444,9 @@ private fun App() {
         AlertDialog(
             onDismissRequest = {
                 notificationPrompt = false
-                pendingPlan?.let { TimerService.command(context, "start", it) }
+                pendingPlan?.let { TimerService.command(context, "start", it, pendingPreset) }
                 pendingPlan = null
+                pendingPreset = null
             },
             title = { Text(stringResource(R.string.notification_title)) },
             text = { Text(stringResource(R.string.notification_body)) },
@@ -458,8 +474,9 @@ private fun App() {
                             .edit()
                             .putBoolean("notificationAsked", true)
                             .apply()
-                        pendingPlan?.let { TimerService.command(context, "start", it) }
+                        pendingPlan?.let { TimerService.command(context, "start", it, pendingPreset) }
                         pendingPlan = null
+                        pendingPreset = null
                     }
                 ) {
                     Text(stringResource(R.string.later))

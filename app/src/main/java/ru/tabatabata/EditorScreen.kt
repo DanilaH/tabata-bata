@@ -68,7 +68,7 @@ internal fun Editor(
     initialPlan: Plan? = null,
     onCancel: (() -> Unit)?,
     onSave: (Preset) -> Unit,
-    onStart: (Plan) -> Unit,
+    onStart: (Preset) -> Unit,
 ) {
     val context = LocalContext.current
     val drafts = remember { EditorDrafts(context) }
@@ -323,7 +323,10 @@ internal fun Editor(
                     onClick = {
                         plan?.let {
                             drafts.write(key, raw)
-                            onStart(it)
+                            onStart(Preset(preset?.id ?: "new",
+                                name.trim().ifEmpty { context.getString(R.string.default_name) }, it,
+                                obj.optString("accent", "blue").takeIf { a -> a in presetAccents } ?: "blue",
+                                obj.optInt("mark", 0).coerceIn(0, 3)))
                         }
                     },
                     enabled = plan != null,

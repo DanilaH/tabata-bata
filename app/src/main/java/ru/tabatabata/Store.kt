@@ -8,9 +8,6 @@ import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal val soundProfiles = listOf("electronic", "beep", "bell")
-internal val presetAccents = listOf("blue", "green", "orange", "violet")
-
 private val Context.dataStore by preferencesDataStore("tabata")
 
 data class Preset(val id: String = UUID.randomUUID().toString(), val name: String, val plan: Plan,
