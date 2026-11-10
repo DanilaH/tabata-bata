@@ -57,6 +57,7 @@ class HistoryServiceTest {
         try {
             compose.runOnUiThread { TimerService.command(context,"start",plan,Preset(name="Короткая",plan=plan)) }
             compose.waitUntil(10000) { TimerService.state.value?.status==Status.COMPLETED }
+            compose.waitUntil(10000) { runBlocking { repository.load().total }==1 }
             val first = runBlocking { repository.load().records.single() }
             assertTrue(first.completed)
             assertEquals(1000L,first.activeMs)

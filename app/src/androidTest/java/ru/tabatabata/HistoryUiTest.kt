@@ -113,6 +113,7 @@ class HistoryUiTest {
             shell("settings put system font_scale 1.5")
             compose.waitUntil(10000) { compose.activity.resources.configuration.fontScale>=1.49f }
             compose.onNodeWithText(text(R.string.history_open)+" →").performScrollTo().performClick()
+            compose.waitUntil(10000) { compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithTag("history-list").performScrollToNode(hasTestTag("history-large-ui"))
             compose.onNodeWithText(text(R.string.repeat)).performScrollTo().assertIsDisplayed()
             compose.onNodeWithText(text(R.string.history_saved_plan)).performScrollTo().assertIsDisplayed()

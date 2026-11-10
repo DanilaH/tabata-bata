@@ -37,6 +37,8 @@ class WorkoutSmokeTest {
     private fun text(id: Int) = compose.activity.getString(id)
 
     private fun capture(name: String) {
+        compose.waitUntil(5000) { compose.onAllNodes(isRoot()).fetchSemanticsNodes().size == 1 }
+        compose.waitForIdle()
         val image = compose.onRoot().captureToImage().asAndroidBitmap()
         val output =
             requireNotNull(
