@@ -51,7 +51,7 @@ class EngagementTest {
             compose.activityRule.scenario.recreate()
             compose.onNodeWithTag("support-description").assertTextContains("Test: sound stopped")
             compose.onNodeWithText(text(R.string.preview_close)).performClick()
-            compose.onNodeWithText(text(R.string.review_store_link)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.review_store_link)).performScrollTo().assertIsDisplayed()
         } finally { runBlocking { store.savePresets(before) } }
     }
 
