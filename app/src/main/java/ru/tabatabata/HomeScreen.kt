@@ -17,7 +17,7 @@ internal fun Saved(
     presets: List<Preset>, lastPresetId: String?, showReadyModes: Boolean,
     onNew: () -> Unit, onStart: (Preset) -> Unit, onEdit: (Preset) -> Unit,
     onPreview: (Preset) -> Unit, onCopy: (Preset) -> Unit, onDelete: (Preset) -> Unit,
-    onMove: (Int, Int) -> Unit, onHistory: () -> Unit,
+    onMove: (Int, Int) -> Unit, onHistory: () -> Unit, onInteraction: () -> Unit,
 ) {
     val readyModes = listOf(
         Preset("builtin-classic", stringResource(R.string.classic_tabata), Plan(), "green", 2),
@@ -63,7 +63,7 @@ internal fun Saved(
                             fontWeight = FontWeight.Bold, maxLines = 3, overflow = TextOverflow.Ellipsis)
                         Box {
                             val label = stringResource(R.string.mode_actions, p.name)
-                            TextButton(onClick = { menu = true }, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                            TextButton(onClick = { onInteraction(); menu = true }, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                 .semantics { contentDescription = label }) { Text("⋮", fontSize = 24.sp) }
                             DropdownMenu(menu, { menu = false }) {
                                 listOf(

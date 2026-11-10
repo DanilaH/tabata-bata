@@ -364,7 +364,7 @@ private fun App() {
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.weight(1f),
                         )
-                        TextButton(onClick = { tab = if (tab != 0) 0 else 2 }) {
+                        TextButton(onClick = { reviews.cancelPreparation(); tab = if (tab != 0) 0 else 2 }) {
                             Text(
                                 if (tab != 0) "← " + stringResource(R.string.saved)
                                 else stringResource(R.string.settings)
@@ -378,6 +378,7 @@ private fun App() {
                                 lastPresetId,
                                 options.showReadyModes,
                                 onNew = {
+                                    reviews.cancelPreparation()
                                     editor = null
                                     editorOpen = true
                                 },
@@ -386,14 +387,17 @@ private fun App() {
                                     launch(p.plan, preset = p)
                                 },
                                 onEdit = {
+                                    reviews.cancelPreparation()
                                     editor = it
                                     editorOpen = true
                                 },
                                 onPreview = { p ->
+                                    reviews.cancelPreparation()
                                     previewPreset = p
                                     Telemetry.event("plan_preview", mapOf("source" to "saved"))
                                 },
                                 onCopy = { p ->
+                                    reviews.cancelPreparation()
                                     scope.launch {
                                         showWriteError(store.updatePreset(
                                                 p.copy(
@@ -409,6 +413,7 @@ private fun App() {
                                     }
                                 },
                                 onDelete = { p ->
+                                    reviews.cancelPreparation()
                                     scope.launch {
                                         val removed = store.remove(p.id)
                                         if (removed == null) { showWriteError(PresetWrite.DAMAGED); return@launch }
@@ -422,8 +427,10 @@ private fun App() {
                                             showWriteError(store.restore(removed))
                                     }
                                 },
-                                onHistory = { tab = 3; Telemetry.event("history_opened") },
+                                onInteraction = { reviews.cancelPreparation() },
+                                onHistory = { reviews.cancelPreparation(); tab = 3; Telemetry.event("history_opened") },
                                 onMove = { from, to ->
+                                    reviews.cancelPreparation()
                                     scope.launch {
                                         presets.getOrNull(from)?.let {
                                             showWriteError(store.move(it.id, to - from))
@@ -752,7 +759,7 @@ private fun Settings(
                 android.net.Uri.parse(STORE_PAGE))) }.onFailure {
                 scope.launch { snackbar.showSnackbar(context.getString(R.string.link_error)) }
             }
-            Telemetry.event("store_review_opened")
+            Telemetry.event("store_review_open_attempt")
         }, modifier = Modifier.fillMaxWidth(), shape = MaterialTheme.shapes.small) {
             Text(stringResource(R.string.review_store_link))
         }
