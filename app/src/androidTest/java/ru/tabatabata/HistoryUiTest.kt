@@ -48,7 +48,7 @@ class HistoryUiTest {
             capture("history-landscape")
             compose.runOnUiThread { compose.activity.requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
             compose.waitUntil(10000) { compose.activity.resources.configuration.orientation==android.content.res.Configuration.ORIENTATION_PORTRAIT }
-            compose.onNodeWithTag("history-ui-stopped").performScrollTo()
+            compose.onNodeWithTag("history-list").performScrollToNode(hasTestTag("history-ui-stopped"))
             capture("history-stopped")
             compose.onNode(hasAnyAncestor(hasTestTag("history-ui-stopped")) and hasText(text(R.string.history_saved_plan))).performClick()
             compose.onNodeWithTag("preview-total").assertTextEquals("4:45")
@@ -63,7 +63,7 @@ class HistoryUiTest {
             TimerService.command(context,"stop")
             compose.waitUntil(10000) { TimerService.state.value==null }
             compose.onNodeWithText(text(R.string.history_open)+" →").performScrollTo().performClick()
-            compose.waitUntil(10000) { runBlocking { repository.load().total }==3 }
+            compose.waitUntil(10000) { compose.onAllNodesWithText(compose.activity.getString(R.string.history_week_counts,1,2)).fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithTag("history-week-counts").assertTextEquals(compose.activity.getString(R.string.history_week_counts,1,2))
         } finally {
             if (TimerService.state.value!=null) TimerService.command(context,"stop")
@@ -79,12 +79,14 @@ class HistoryUiTest {
         runBlocking { repository.clear() }
         try {
             compose.onNodeWithText(text(R.string.history_open)+" →").performScrollTo().performClick()
+            compose.waitUntil(10000) { compose.onAllNodesWithText(text(R.string.history_empty_title)).fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText(text(R.string.history_empty_title)).assertExists()
             capture("history-empty")
             repository.enqueue(WorkoutRecord("clear-ui",Plan(),"Режим",finishedAt=System.currentTimeMillis(),
                 completed=true,activeMs=235000,completedRounds=8))
             compose.waitUntil(10000) { compose.onAllNodesWithTag("history-clear-ui").fetchSemanticsNodes().isNotEmpty() }
-            compose.onNodeWithText(text(R.string.history_clear)).performScrollTo().performClick()
+            compose.onNodeWithTag("history-list").performScrollToNode(hasText(text(R.string.history_clear)))
+            compose.onNodeWithText(text(R.string.history_clear)).performClick()
             compose.onNodeWithText(text(R.string.cancel)).performClick()
             assertEquals(1,runBlocking { repository.load().total })
             compose.onNodeWithText(text(R.string.history_clear)).performClick()
@@ -108,6 +110,7 @@ class HistoryUiTest {
             shell("settings put system font_scale 1.5")
             compose.waitUntil(10000) { compose.activity.resources.configuration.fontScale>=1.49f }
             compose.onNodeWithText(text(R.string.history_open)+" →").performScrollTo().performClick()
+            compose.onNodeWithTag("history-list").performScrollToNode(hasTestTag("history-large-ui"))
             compose.onNodeWithText(text(R.string.repeat)).performScrollTo().assertIsDisplayed()
             compose.onNodeWithText(text(R.string.history_saved_plan)).performScrollTo().assertIsDisplayed()
             capture("history-large-text")
