@@ -7,6 +7,7 @@ import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.view.MotionEvent
+import android.view.KeyEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
@@ -114,11 +115,35 @@ class AdsDemoTest {
         }
         return false
     }
+    private fun hasStoryVideo(node: AccessibilityNodeInfo?): Boolean {
+        if (node == null) return false
+        if (node.viewIdResourceName?.substringAfterLast('/') in setOf("video_mute_control", "video_progress_control"))
+            return true
+        for (i in 0 until node.childCount) if (hasStoryVideo(node.getChild(i))) return true
+        return false
+    }
+    private var lastStoryBack = 0L
+    private var storyBackCount = 0
+    private fun dismissDemoInterstitial(): Boolean {
+        val root = instrumentation.uiAutomation.rootInActiveWindow ?: return false
+        if (root.packageName?.toString() != "ru.tabatabata") return false
+        if (dismissControl(root) || dismissObservedStory()) return true
+        // Captured SDK story creatives can omit an accessible close control.
+        // Exercise the visible Android Back action, while the SDK owns that window.
+        val now = SystemClock.elapsedRealtime()
+        if (hasStoryVideo(root) && storyBackCount < 3 && now - lastStoryBack >= 5000) {
+            lastStoryBack = now
+            storyBackCount++
+            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            return true
+        }
+        return false
+    }
     private fun tree(node: AccessibilityNodeInfo?, indent: String = ""): String {
         if (node == null) return ""
         val bounds = Rect(); node.getBoundsInScreen(bounds)
         return buildString {
-            appendLine("$indent${node.className} id=${node.viewIdResourceName} text=${node.text} desc=${node.contentDescription} enabled=${node.isEnabled} visible=${node.isVisibleToUser} bounds=$bounds")
+            appendLine("$indent${node.className} pkg=${node.packageName} id=${node.viewIdResourceName} text=${node.text} desc=${node.contentDescription} enabled=${node.isEnabled} visible=${node.isVisibleToUser} bounds=$bounds")
             for (i in 0 until node.childCount) append(tree(node.getChild(i), indent + "  "))
         }
     }
@@ -280,7 +305,7 @@ class AdsDemoTest {
             val deadline = SystemClock.elapsedRealtime() + 90000
             while (!event("ad_closed", "interstitial") && SystemClock.elapsedRealtime() < deadline) {
                 SystemClock.sleep(1000)
-                if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) dismissObservedStory()
+                dismissDemoInterstitial()
             }
             await("Actual UI demo did not close", 5000) { event("ad_closed", "interstitial") }
             compose.onNodeWithText(compose.activity.getString(R.string.new_timer), substring = true).assertIsDisplayed()
@@ -342,12 +367,12 @@ class AdsDemoTest {
             await("Interstitial impression missing") { event("ad_impression", "interstitial") }
             capture("interstitial")
             SystemClock.sleep(10000)
-            if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) dismissObservedStory()
+            dismissDemoInterstitial()
             capture("after-skip")
             val deadline = SystemClock.elapsedRealtime() + 60000
             while (!event("ad_closed", "interstitial") && SystemClock.elapsedRealtime() < deadline) {
                 SystemClock.sleep(1000)
-                if (!dismissControl(instrumentation.uiAutomation.rootInActiveWindow)) dismissObservedStory()
+                dismissDemoInterstitial()
             }
             await("Demo close callback missing", 5000) { event("ad_closed", "interstitial") }
             compose.runOnUiThread {
