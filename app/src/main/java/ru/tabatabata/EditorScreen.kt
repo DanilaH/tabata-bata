@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -158,7 +160,7 @@ internal fun Editor(
     }
     BackHandler(enabled = onCancel != null) { back() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-    val shortWindow = maxHeight < 400.dp || LocalDensity.current.fontScale > 1.3f
+    val shortWindow = maxHeight < 400.dp
     val largeText = LocalDensity.current.fontScale > 1.3f
     Column(Modifier.fillMaxSize().then(if (shortWindow) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
         Column(
@@ -338,6 +340,7 @@ internal fun Editor(
                     },
                     enabled = plan != null,
                     shape = MaterialTheme.shapes.small,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                     modifier = actionModifier.heightIn(min = 52.dp),
                 ) {
                     Text(stringResource(R.string.start))
@@ -348,17 +351,31 @@ internal fun Editor(
                     onClick = { requestSave() },
                     enabled = plan != null,
                     shape = MaterialTheme.shapes.small,
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                     modifier = actionModifier.heightIn(min = 52.dp),
                 ) {
                     Text(stringResource(R.string.save))
                 }
             }
-            if (largeText) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                startAction(Modifier.fillMaxWidth())
-                saveAction(Modifier.fillMaxWidth())
-            } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                startAction(Modifier.weight(1f))
-                saveAction(Modifier.weight(1f))
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val density = LocalDensity.current
+                val measurer = rememberTextMeasurer()
+                val buttonStyle = MaterialTheme.typography.labelLarge
+                fun needed(label: String) = with(density) {
+                    measurer.measure(AnnotatedString(label), buttonStyle, maxLines = 1, softWrap = false).size.width.toDp()
+                } + 24.dp
+                val startWidth = needed(stringResource(R.string.start)).coerceAtLeast(64.dp)
+                val saveWidth = needed(stringResource(R.string.save)).coerceAtLeast(64.dp)
+                if (startWidth + saveWidth + 10.dp <= maxWidth) {
+                    val equal = maxOf(startWidth, saveWidth) * 2 + 10.dp <= maxWidth
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        startAction(Modifier.weight(if (equal) 1f else startWidth.value))
+                        saveAction(Modifier.weight(if (equal) 1f else saveWidth.value))
+                    }
+                } else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    startAction(Modifier.fillMaxWidth())
+                    saveAction(Modifier.fillMaxWidth())
+                }
             }
         }
     }

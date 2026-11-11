@@ -148,6 +148,13 @@ class UxAuditProbe {
             at(R.string.delete).reveal().assertIsDisplayed()
             capture("02-mode-menu-bottom")
             back()
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, presets.first().name)).reveal().performClick()
+            at(R.string.delete).reveal().performClick()
+            compose.waitUntil(10000) { runBlocking { store.presets.first().size } == 2 }
+            capture("02-deleted-snackbar")
+            at(R.string.undo).assertIsDisplayed().performTouchInput { click(center) }
+            compose.waitUntil(10000) { runBlocking { store.presets.first().size } == 3 }
+            capture("02-restored-snackbar")
             runBlocking { store.savePresets(emptyList()) }
             compose.waitUntil(10000) { compose.onAllNodesWithText(presets.first().name).fetchSemanticsNodes().isEmpty() }
             compose.onNodeWithText("+ "+text(R.string.new_timer)).assertIsDisplayed()

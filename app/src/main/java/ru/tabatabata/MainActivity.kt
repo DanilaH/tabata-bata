@@ -306,7 +306,7 @@ private fun App() {
             if (adPlacementAllowed && ads.foreground && !ads.fullscreen)
                 AdBanner(ads)
         },
-        snackbarHost = { SnackbarHost(snackbar) },
+        snackbarHost = { AppSnackbarHost(snackbar) },
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding().testTag("app-content").graphicsLayer { alpha = screenAlpha.value }) {
             if (snapshot?.status == Status.STOPPED) {

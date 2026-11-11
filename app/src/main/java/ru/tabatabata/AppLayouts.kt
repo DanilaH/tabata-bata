@@ -90,3 +90,11 @@ internal fun DialogActions(confirm: @Composable (Modifier) -> Unit,
         }
     }
 }
+
+/** Let the message retain its width when an accessibility-sized action needs its own line. */
+@Composable
+internal fun AppSnackbarHost(state: SnackbarHostState) {
+    SnackbarHost(state) { data ->
+        Snackbar(data, actionOnNewLine = LocalDensity.current.fontScale > 1.3f)
+    }
+}

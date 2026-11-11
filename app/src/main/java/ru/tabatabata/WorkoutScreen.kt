@@ -307,17 +307,19 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
         // Measure actual glyphs, including Android's nonlinear accessibility font scaling.
         val availableWidth = with(density) { maxWidth.toPx() }
         val availableHeight = with(density) { (maxHeight - statusHeight - 20.dp).coerceAtLeast(1.dp).toPx() }
-        var lower = 1f
-        var upper = 240f
-        repeat(10) {
-            val candidate = (lower + upper) / 2f
-            val measured = measurer.measure(AnnotatedString(pattern),
-                TextStyle(fontSize = candidate.sp, lineHeight = (candidate * 1.08f).sp,
-                    fontFeatureSettings = "tnum"), softWrap = false, maxLines = 1).size
-            if (measured.width <= availableWidth && measured.height <= availableHeight) lower = candidate
-            else upper = candidate
+        val size = remember(measurer, pattern, availableWidth, availableHeight, density.fontScale) {
+            var lower = 1f
+            var upper = 240f
+            repeat(10) {
+                val candidate = (lower + upper) / 2f
+                val measured = measurer.measure(AnnotatedString(pattern),
+                    TextStyle(fontSize = candidate.sp, lineHeight = (candidate * 1.08f).sp,
+                        fontFeatureSettings = "tnum"), softWrap = false, maxLines = 1).size
+                if (measured.width <= availableWidth && measured.height <= availableHeight) lower = candidate
+                else upper = candidate
+            }
+            lower
         }
-        val size = lower
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.height(statusHeight), contentAlignment = Alignment.Center) {
                 Text(status, style = statusStyle, modifier = Modifier.hiddenWhen(s.status == Status.RUNNING))

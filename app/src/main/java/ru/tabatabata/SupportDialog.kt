@@ -68,6 +68,6 @@ internal fun SupportDialog(onClose: () -> Unit, onExternal: () -> Unit) {
             }, modifier = m) { Text(stringResource(R.string.report_copy)) } },
             dismiss = { m -> TextButton(onClick = onClose, modifier = m) { Text(stringResource(R.string.preview_close)) } },
         )
-        SnackbarHost(snackbar)
+        AppSnackbarHost(snackbar)
     }
 }
