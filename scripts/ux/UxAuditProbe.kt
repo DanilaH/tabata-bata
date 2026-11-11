@@ -26,7 +26,9 @@ class UxAuditProbe {
     private val context get() = inst.targetContext
     private val args get() = InstrumentationRegistry.getArguments()
     private val store get() = Store(context)
-    private val output get() = File(requireNotNull(args.getString("additionalTestOutputDir"))).apply { mkdirs() }
+    private val output get() = File(context.filesDir,"ux-audit").apply {
+        check(isDirectory || mkdirs()) { "Cannot create private audit output" }
+    }
     private fun text(id: Int) = compose.activity.getString(id)
     private val longName = "Силовая тренировка — ноги, спина, плечи, три серии с длинным отдыхом и разминкой перед занятием".take(100)
     private val presets get() = listOf(
@@ -67,7 +69,7 @@ class UxAuditProbe {
             store.savePresets(presets)
             HistoryRepository(context).clear()
         }
-        compose.waitUntil(10000) { compose.onAllNodesWithText(presets.first().name).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10000) { compose.onAllNodesWithText("+ "+text(R.string.new_timer)).fetchSemanticsNodes().isNotEmpty() }
     }
     @After fun finish() { stop() }
     private fun capture(name: String) {
@@ -102,6 +104,12 @@ class UxAuditProbe {
             .put("language",c.locales[0].toLanguageTag()).toString(2))
     }
     private fun at(id: Int) = compose.onNodeWithText(text(id))
+    private fun firstSaved() {
+        compose.onNode(hasScrollAction()).performScrollToNode(hasText(presets.first().name))
+    }
+    private fun finalCapture(name: String) {
+        runCatching { capture(name) }.onFailure { android.util.Log.e("UxAudit", "Final capture failed",it) }
+    }
     private fun back() { inst.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);compose.waitForIdle() }
     private fun hideKeyboard() {
         compose.runOnUiThread { compose.activity.window.decorView.windowInsetsController?.hide(android.view.WindowInsets.Type.ime()) }
@@ -112,7 +120,8 @@ class UxAuditProbe {
     @Test fun a_homeMenuAndLongSavedNames() {
         try {
             capture("01-home-saved")
-            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions,presets.first().name)).performClick()
+            firstSaved()
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions,presets.first().name)).performScrollTo().performClick()
             capture("02-mode-menu")
             at(R.string.edit).assertIsDisplayed()
             at(R.string.copy).assertIsDisplayed()
@@ -127,10 +136,11 @@ class UxAuditProbe {
             capture("04-home-no-ready")
             compose.onNodeWithText("+ "+text(R.string.new_timer)).assertIsDisplayed().performClick()
             at(R.string.start).assertIsDisplayed()
-        } finally { capture("a-final") }
+        } finally { finalCapture("a-final") }
     }
     @Test fun b_editorValidationAppearanceAndLeaveDialog() {
         try {
+            firstSaved()
             compose.onNodeWithText(presets.first().name).performClick()
             capture("05-editor-top")
             val work=compose.onNodeWithContentDescription(text(R.string.work))
@@ -156,7 +166,7 @@ class UxAuditProbe {
             at(R.string.stay).assertIsDisplayed()
             at(R.string.reset).assertIsDisplayed()
             compose.onAllNodesWithText(text(R.string.save)).onLast().assertIsDisplayed()
-        } finally { capture("b-final") }
+        } finally { finalCapture("b-final") }
     }
     @Test fun c_historyLongNamesAndExpandedPlan() {
         try {
@@ -183,7 +193,7 @@ class UxAuditProbe {
             at(R.string.history_clear).performScrollTo().performClick()
             capture("16-history-clear")
             at(R.string.cancel).assertIsDisplayed()
-        } finally { capture("c-final") }
+        } finally { finalCapture("c-final") }
     }
     @Test fun d_settingsSoundsSupportAndKeyboard() {
         try {
@@ -210,7 +220,7 @@ class UxAuditProbe {
             }
             capture("23-support-copied")
             at(R.string.preview_close).assertIsDisplayed()
-        } finally { capture("d-final") }
+        } finally { finalCapture("d-final") }
     }
     @Test fun e_workoutAllStagesClockGridAndLock() {
         try {
@@ -241,15 +251,17 @@ class UxAuditProbe {
             stop()
             compose.runOnUiThread { TimerService.command(context,"start",Plan(0,1,0,1)) }
             compose.waitUntil(10000) { TimerService.state.value?.status==Status.COMPLETED }
+            capture("27-result-initial")
             at(R.string.home).performScrollTo().assertIsDisplayed()
             at(R.string.repeat).performScrollTo().assertIsDisplayed()
             capture("27-result")
-        } finally { capture("e-final") }
+        } finally { finalCapture("e-final") }
     }
     @Test fun f_feelRealTransitionsAndPressResponse() {
         if(args.getString("uxFeel")!="true") return
         shell("screenrecord --time-limit 60 /sdcard/ui-audit-feel.mp4 >/dev/null 2>&1 &")
         try {
+            firstSaved()
             compose.onNodeWithText(presets.first().name).performClick()
             val plus=compose.onNodeWithContentDescription("+ "+text(R.string.work))
             plus.performTouchInput { down(center) }
@@ -272,6 +284,6 @@ class UxAuditProbe {
             at(R.string.stop).performClick()
             at(R.string.cancel).performClick()
             capture("29-feel-running")
-        } finally { shell("pkill -2 screenrecord");capture("f-final") }
+        } finally { shell("pkill -2 screenrecord");finalCapture("f-final") }
     }
 }

@@ -7,7 +7,8 @@ adb shell settings put system font_scale "$UX_FONT"
 adb install -r audit-apks/debug/app-debug.apk
 adb install -r audit-apks/androidTest/debug/app-debug-androidTest.apk
 collect() {
-  adb pull /sdcard/Android/data/ru.tabatabata/files/ux-audit ui-audit-results/ || true
+  adb exec-out run-as ru.tabatabata tar -cf - -C files ux-audit > ui-audit-results/screens.tar || true
+  tar -xf ui-audit-results/screens.tar -C ui-audit-results/ || true
   adb pull /sdcard/ui-audit-feel.mp4 ui-audit-results/feel.mp4 || true
   adb logcat -d -s AndroidRuntime:E TabataEvents:D > ui-audit-results/logcat.txt || true
 }
