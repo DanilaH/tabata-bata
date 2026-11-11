@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [current, main-host, version09, without-review, baseline]
+        variant: [current, early-init, cleartext]
     env:
       ORG_GRADLE_PROJECT_bannerId: demo-banner-yandex
     steps:
@@ -31,11 +31,16 @@ jobs:
         run: |
           cp scripts/ads/diagnostics/BannerDiagnosticTest.kt /tmp/BannerDiagnosticTest.kt
           cp scripts/ads/diagnostics/variant.py /tmp/variant.py
+          cp scripts/ads/diagnostics/observe.py /tmp/observe.py
           if [ "$DIAGNOSTIC_VARIANT" = baseline ]; then git checkout --detach d401cd3496b2b3095349131b1b56c1fae6c31146; fi
           python3 /tmp/variant.py "$DIAGNOSTIC_VARIANT"
           mkdir -p diagnostic-evidence
           git rev-parse HEAD > diagnostic-evidence/source.txt
           ./gradlew :app:dependencies --configuration debugRuntimeClasspath > diagnostic-evidence/dependencies.txt
+      - name: Prepare read-only WebView observer
+        run: |
+          python3 -m venv /tmp/ad-cdp
+          /tmp/ad-cdp/bin/pip install websocket-client==1.8.0
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -47,7 +52,14 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.tabatabata.BannerDiagnosticTest
+          script: |
+            /tmp/ad-cdp/bin/python /tmp/observe.py > diagnostic-evidence/webview-network.jsonl 2>&1 &
+            observer_pid=$!
+            set +e
+            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.tabatabata.BannerDiagnosticTest
+            probe_status=$?
+            kill "$observer_pid" || true
+            exit "$probe_status"
       - uses: actions/upload-artifact@v4
         if: always()
         with:

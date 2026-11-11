@@ -63,7 +63,11 @@ class BannerDiagnosticTest {
                     focus:document.hasFocus(), mraid:typeof mraid,
                     state:typeof mraid==='object'?mraid.getState():null,
                     viewable:typeof mraid==='object'?mraid.isViewable():null,
-                    frames:window.frames.length
+                    frames:window.frames.length,
+                    resources:performance.getEntriesByType('resource').slice(-60).map(function(r){
+                        var origin;try{origin=new URL(r.name,document.baseURI).origin;}catch(e){origin='invalid';}
+                        return {origin:origin,type:r.initiatorType,duration:r.duration,status:r.responseStatus||null};
+                    })
                 });}catch(e){return String(e);}})()""") { result = it; done.countDown() }
             }
             done.await(2, TimeUnit.SECONDS)
