@@ -2,6 +2,7 @@ package ru.tabatabata
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,7 +26,11 @@ internal fun Saved(
         Preset("builtin-40-20", "40/20 × 8", Plan(work = 40, rest = 20, reps = 8), "orange"),
         Preset("builtin-60-30", "60/30 × 6", Plan(work = 60, rest = 30, reps = 6), "violet"),
     )
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
+    val listState = rememberLazyListState()
+    LaunchedEffect(presets.isEmpty()) {
+        if (presets.isEmpty()) listState.scrollToItem(0)
+    }
+    LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             if (presets.isEmpty()) {

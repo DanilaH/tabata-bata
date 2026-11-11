@@ -146,6 +146,7 @@ class UxAuditProbe {
             back()
             runBlocking { store.savePresets(emptyList()) }
             compose.waitUntil(10000) { compose.onAllNodesWithText(presets.first().name).fetchSemanticsNodes().isEmpty() }
+            compose.onNodeWithText("+ "+text(R.string.new_timer)).assertIsDisplayed()
             capture("03-home-empty")
             runBlocking { store.saveOptions(store.options.first().copy(showReadyModes=false)) }
             compose.waitForIdle()
