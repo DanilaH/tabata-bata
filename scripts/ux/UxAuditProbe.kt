@@ -75,7 +75,7 @@ class UxAuditProbe {
     private fun capture(name: String) {
         compose.waitForIdle()
         inst.waitForIdleSync()
-        SystemClock.sleep(220)
+        observeFor(400) // Advance test frames too: retained LazyColumn exit layers must finish drawing.
         val image = requireNotNull(inst.uiAutomation.takeScreenshot())
         File(output,"$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
         val nodes = compose.onAllNodes(SemanticsMatcher("Text layout") {
