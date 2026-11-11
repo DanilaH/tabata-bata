@@ -66,13 +66,13 @@ class EngagementTest {
             compose.waitUntil(10000) { compose.activity.resources.configuration.fontScale>=1.49f }
             compose.onNodeWithText(text(R.string.settings)).performClick()
             compose.onNodeWithText(text(R.string.report_problem)).performScrollTo().performClick()
-            compose.onNodeWithText(text(R.string.report_email)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.report_email)).performScrollTo().assertIsDisplayed()
             compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().assertIsDisplayed()
             capture("support-large-text")
             compose.runOnUiThread { compose.activity.requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
             compose.waitUntil(10000) { compose.activity.resources.configuration.orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE }
             compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText(text(R.string.report_email)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.report_email)).performScrollTo().assertIsDisplayed()
             capture("support-landscape-large-text")
             compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().performClick()
         } finally {
