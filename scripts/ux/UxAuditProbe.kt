@@ -102,6 +102,7 @@ class UxAuditProbe {
                         .put("font",layout.layoutInput.style.fontSize.value)
                         .put("width",layout.size.width).put("height",layout.size.height)
                         .put("paragraphWidth",layout.multiParagraph.width).put("paragraphHeight",layout.multiParagraph.height)
+                        .put("maxLineContentWidth",(0 until layout.lineCount).maxOfOrNull { layout.getLineRight(it) - layout.getLineLeft(it) })
                         .put("bounds", "$b").put("overflow",layout.hasVisualOverflow)
                         .put("widthOverflow",layout.didOverflowWidth).put("heightOverflow",layout.didOverflowHeight)
                         .put("ellipsized",ellipsis).put("editable",node.config.contains(SemanticsProperties.EditableText)))
@@ -421,7 +422,12 @@ class UxAuditProbe {
             val node = compose.onNodeWithTag("workout-clock")
             val results = mutableListOf<TextLayoutResult>()
             node.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
-            assertTrue("Long clock wraps or clips", results.isNotEmpty() && results.all { it.lineCount == 1 && !it.hasVisualOverflow })
+            // hasVisualOverflow also compares paragraph constraints with the final tight size;
+            // it can flag unused paragraph width while every glyph is inside the actual text node.
+            assertTrue("Long clock wraps or clips: " + results.map { "${it.size}, line=${it.getLineLeft(0)}..${it.getLineRight(0)}" },
+                results.isNotEmpty() && results.all { it.lineCount == 1 && !it.isLineEllipsized(0) &&
+                    it.getLineLeft(0) >= -1f && it.getLineRight(0) <= it.size.width + 1f &&
+                    it.getLineTop(0) >= -1f && it.getLineBottom(0) <= it.size.height + 1f })
             val bounds = node.fetchSemanticsNode().boundsInWindow
             val parent = compose.onNodeWithTag("app-content").fetchSemanticsNode().boundsInWindow
             assertTrue("Long clock exceeds content", bounds.left >= parent.left && bounds.right <= parent.right &&
