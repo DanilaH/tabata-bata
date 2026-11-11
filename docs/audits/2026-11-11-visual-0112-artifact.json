@@ -1,0 +1,15 @@
+{
+  "filename": "tabata-bata-0.11.2-ui.apk",
+  "bytes": 5870955,
+  "sha256": "6f640beaee6f2e83061766b23d7811845d90f5cf57f1f2821313942333669de0",
+  "certificate_sha256": "1ac792b1f821fac59532fdc3121827732c8ffea4104bfa6b456d9d4d770684de",
+  "package": "ru.tabatabata",
+  "versionName": "0.11.2",
+  "versionCode": 23,
+  "activity_adjust_resize": true,
+  "source_commit": "652e02a9abb37d94a9c1dbccab0ba686b5e3c56a",
+  "configured_release_run": 43081564158,
+  "unsigned_artifact_id": 13884987645,
+  "signature_verified": true,
+  "alignment_16kb_verified": true
+}
