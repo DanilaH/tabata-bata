@@ -118,10 +118,15 @@ class UxAuditProbe {
         compose.waitForIdle()
     }
 
+    private fun SemanticsNodeInteraction.reveal(): SemanticsNodeInteraction = apply {
+        // Fixed primary controls have no scroll ancestor. Scroll only when a user needs it.
+        if (runCatching { assertIsDisplayed() }.isFailure) performScrollTo()
+    }
+
     private fun openEditor() {
         firstSaved()
-        compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, presets.first().name)).performScrollTo().performClick()
-        at(R.string.edit).performScrollTo().performClick()
+        compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, presets.first().name)).reveal().performClick()
+        at(R.string.edit).reveal().performClick()
     }
 
     @Test fun a_homeMenuAndLongSavedNames() {
@@ -130,11 +135,11 @@ class UxAuditProbe {
             firstSaved()
             compose.onNodeWithText(presets.first().name).performClick()
             at(R.string.preview_close).assertIsDisplayed().performClick()
-            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions,presets.first().name)).performScrollTo().performClick()
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions,presets.first().name)).reveal().performClick()
             capture("02-mode-menu")
             at(R.string.edit).assertIsDisplayed()
             at(R.string.copy).assertIsDisplayed()
-            at(R.string.delete).performScrollTo().assertIsDisplayed()
+            at(R.string.delete).reveal().assertIsDisplayed()
             capture("02-mode-menu-bottom")
             back()
             runBlocking { store.savePresets(emptyList()) }
@@ -144,7 +149,7 @@ class UxAuditProbe {
             compose.waitForIdle()
             capture("04-home-no-ready")
             compose.onNodeWithText("+ "+text(R.string.new_timer)).assertIsDisplayed().performClick()
-            at(R.string.start).performScrollTo().assertIsDisplayed()
+            at(R.string.start).reveal().assertIsDisplayed()
         } finally { finalCapture("a-final") }
     }
     @Test fun b_editorValidationAppearanceAndLeaveDialog() {
@@ -153,9 +158,9 @@ class UxAuditProbe {
             openEditor()
             capture("05-editor-top")
             val work=compose.onNodeWithContentDescription(text(R.string.work))
-            work.performScrollTo().performTextReplacement("60:00")
-            compose.onNodeWithText(text(R.string.start)).performScrollTo().assertIsDisplayed()
-            compose.onNodeWithText(text(R.string.save)).performScrollTo().assertIsDisplayed()
+            work.reveal().performTextReplacement("60:00")
+            compose.onNodeWithText(text(R.string.start)).reveal().assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.save)).reveal().assertIsDisplayed()
             capture("06-editor-keyboard")
             hideKeyboard()
             work.performTextReplacement("99:99")
@@ -164,12 +169,12 @@ class UxAuditProbe {
             work.performTextReplacement("0:20")
             hideKeyboard()
             compose.onNodeWithContentDescription(compose.activity.getString(R.string.card_mark_label,text(R.string.mark_sets)))
-                .performScrollTo().assertIsDisplayed().performClick()
+                .reveal().assertIsDisplayed().performClick()
             capture("08-editor-appearance")
-            compose.onNodeWithContentDescription(text(R.string.plan_preview)).performScrollTo().performClick()
+            compose.onNodeWithContentDescription(text(R.string.plan_preview)).reveal().performClick()
             capture("09-editor-preview")
             at(R.string.preview_close).assertIsDisplayed().performClick()
-            compose.onNodeWithText("← "+text(R.string.saved)).performScrollTo().performClick()
+            compose.onNodeWithText("← "+text(R.string.saved)).reveal().performClick()
             at(R.string.unsaved).assertIsDisplayed()
             capture("10-unsaved-dialog")
             at(R.string.stay).assertIsDisplayed()
@@ -179,7 +184,7 @@ class UxAuditProbe {
     }
     @Test fun c_historyLongNamesAndExpandedPlan() {
         try {
-            compose.onNodeWithText(text(R.string.history_open)+" →").performScrollTo().performClick()
+            compose.onNodeWithText(text(R.string.history_open)+" →").reveal().performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithTag("history-list").performScrollToNode(hasText(text(R.string.history_empty_title)))
             capture("11-history-empty")
@@ -203,7 +208,7 @@ class UxAuditProbe {
             capture("15-plan-expanded")
             at(R.string.preview_close).assertIsDisplayed().performClick()
             compose.onNodeWithTag("history-list").performScrollToNode(hasText(text(R.string.history_clear)))
-            at(R.string.history_clear).performScrollTo().assertIsDisplayed()
+            at(R.string.history_clear).reveal().assertIsDisplayed()
             compose.waitForIdle();SystemClock.sleep(350)
             capture("16-clear-before-tap")
             at(R.string.history_clear).performClick()
@@ -225,19 +230,19 @@ class UxAuditProbe {
         try {
             at(R.string.settings).performClick()
             capture("17-settings-sounds")
-            at(R.string.finish_cue).performScrollTo().assertIsDisplayed()
+            at(R.string.finish_cue).reveal().assertIsDisplayed()
             capture("18-settings-finish")
-            at(R.string.vibration_preview).performScrollTo().assertIsDisplayed()
+            at(R.string.vibration_preview).reveal().assertIsDisplayed()
             capture("19-settings-vibration")
-            at(R.string.show_ready_modes).performScrollTo().assertIsDisplayed()
+            at(R.string.show_ready_modes).reveal().assertIsDisplayed()
             capture("20-settings-options")
-            at(R.string.report_problem).performScrollTo().performClick()
+            at(R.string.report_problem).reveal().performClick()
             capture("21-support")
-            compose.onNodeWithTag("support-description").performScrollTo().performTextInput("UX audit: button and keyboard check")
+            compose.onNodeWithTag("support-description").reveal().performTextInput("UX audit: button and keyboard check")
             capture("22-support-keyboard")
             compose.onNodeWithTag("support-description").performImeAction()
             compose.waitForIdle();SystemClock.sleep(600)
-            at(R.string.report_copy).performScrollTo().assertIsDisplayed().performClick()
+            at(R.string.report_copy).reveal().assertIsDisplayed().performClick()
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
             compose.runOnUiThread {
                 val clip=context.getSystemService(ClipboardManager::class.java).primaryClip
@@ -245,7 +250,7 @@ class UxAuditProbe {
                 assertTrue(clip!!.getItemAt(0).text.contains("UX audit:"))
             }
             capture("23-support-copied")
-            at(R.string.preview_close).performScrollTo().assertIsDisplayed()
+            at(R.string.preview_close).reveal().assertIsDisplayed()
         } finally { finalCapture("d-final") }
     }
     @Test fun e_workoutAllStagesClockGridAndLock() {
@@ -263,7 +268,7 @@ class UxAuditProbe {
                 val clockVisible=runCatching { compose.onNodeWithTag("workout-clock").assertIsDisplayed() }.isSuccess
                 val controlsVisible=runCatching {
                     at(R.string.resume).assertIsDisplayed()
-                    compose.onNodeWithContentDescription(text(R.string.next)).performScrollTo().assertIsDisplayed()
+                    compose.onNodeWithContentDescription(text(R.string.next)).reveal().assertIsDisplayed()
                     at(R.string.resume).assertIsDisplayed() // Primary action stays fixed while details scroll.
                 }.isSuccess
                 frames.put(JSONObject().put("stage",s.interval?.stage?.name).put("clock",clock.toString())
@@ -282,13 +287,13 @@ class UxAuditProbe {
             compose.onNodeWithContentDescription(text(R.string.unlock)).performTouchInput { longClick(durationMillis=650) }
             compose.onNodeWithContentDescription(text(R.string.stop)).performClick()
             capture("26-stop-dialog")
-            at(R.string.cancel).performScrollTo().assertIsDisplayed().performClick()
+            at(R.string.cancel).reveal().assertIsDisplayed().performClick()
             stop()
             compose.runOnUiThread { TimerService.command(context,"start",Plan(0,1,0,1)) }
             compose.waitUntil(10000) { TimerService.state.value?.status==Status.COMPLETED }
             capture("27-result-initial")
-            at(R.string.home).performScrollTo().assertIsDisplayed()
-            at(R.string.repeat).performScrollTo().assertIsDisplayed()
+            at(R.string.home).reveal().assertIsDisplayed()
+            at(R.string.repeat).reveal().assertIsDisplayed()
             capture("27-result")
             assertTrue("Unreachable workout layout: $failures",failures.isEmpty())
         } finally { finalCapture("e-final") }
@@ -310,10 +315,10 @@ class UxAuditProbe {
             plus.performTouchInput { up() }
             capture("28-feel-plus-release")
             compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:04")
-            compose.onNodeWithContentDescription(text(R.string.rest)).performScrollTo().performTextReplacement("0:04")
-            compose.onNodeWithContentDescription(text(R.string.prepare)).performScrollTo().performTextReplacement("0:04")
+            compose.onNodeWithContentDescription(text(R.string.rest)).reveal().performTextReplacement("0:04")
+            compose.onNodeWithContentDescription(text(R.string.prepare)).reveal().performTextReplacement("0:04")
             hideKeyboard()
-            at(R.string.start).performScrollTo().performClick()
+            at(R.string.start).reveal().performClick()
             compose.waitUntil(10000) { TimerService.state.value?.status==Status.RUNNING }
             observeFor(13000)
             at(R.string.pause).performClick()
@@ -331,14 +336,14 @@ class UxAuditProbe {
     @Test fun g_newTimerNamingAndKeyboard() {
         try {
             compose.onNodeWithText("+ "+text(R.string.new_timer)).performClick()
-            at(R.string.save).performScrollTo().performClick()
+            at(R.string.save).reveal().performClick()
             at(R.string.save_mode).assertIsDisplayed()
             capture("30-new-name-dialog")
             compose.onAllNodes(hasSetTextAction()).onLast().performTextInput(longName)
             capture("31-new-name-keyboard")
-            compose.onAllNodesWithText(text(R.string.save)).onLast().performScrollTo().assertIsDisplayed()
+            compose.onAllNodesWithText(text(R.string.save)).onLast().reveal().assertIsDisplayed()
             capture("31-new-name-actions-keyboard")
-            at(R.string.cancel).performScrollTo().assertIsDisplayed()
+            at(R.string.cancel).reveal().assertIsDisplayed()
         } finally { finalCapture("g-final") }
     }
     @Test fun h_notificationExplanation() {
@@ -348,8 +353,8 @@ class UxAuditProbe {
             compose.onAllNodesWithText(text(R.string.start)).onFirst().performClick()
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.notification_title)).fetchSemanticsNodes().isNotEmpty() }
             capture("32-notification-explanation")
-            at(R.string.later).performScrollTo().assertIsDisplayed()
-            at(R.string.allow).performScrollTo().assertIsDisplayed()
+            at(R.string.later).reveal().assertIsDisplayed()
+            at(R.string.allow).reveal().assertIsDisplayed()
         } finally { finalCapture("h-final") }
     }
     @Test fun j_rotationKeepsPausedClockAndSession() {
@@ -382,8 +387,8 @@ class UxAuditProbe {
             compose.activityRule.scenario.recreate()
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.recovery_title)).fetchSemanticsNodes().isNotEmpty() }
             capture("33-recovery-dialog")
-            at(R.string.discard).performScrollTo().assertIsDisplayed()
-            at(R.string.recover).performScrollTo().assertIsDisplayed().performClick()
+            at(R.string.discard).reveal().assertIsDisplayed()
+            at(R.string.recover).reveal().assertIsDisplayed().performClick()
             compose.waitUntil(10000) { TimerService.state.value?.status==Status.INTERRUPTED }
             capture("34-interrupted-workout")
             at(R.string.resume).assertIsDisplayed()
