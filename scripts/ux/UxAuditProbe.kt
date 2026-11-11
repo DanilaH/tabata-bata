@@ -160,7 +160,8 @@ class UxAuditProbe {
             openEditor()
             capture("05-editor-top")
             val work=compose.onNodeWithContentDescription(text(R.string.work))
-            work.reveal().performTextReplacement("60:00")
+            work.reveal().performClick().performTextReplacement("60:00")
+            observeFor(600)
             compose.onNodeWithText(text(R.string.start)).reveal().assertIsDisplayed()
             compose.onNodeWithText(text(R.string.save)).reveal().assertIsDisplayed()
             capture("06-editor-keyboard")
@@ -245,10 +246,14 @@ class UxAuditProbe {
             capture("22-support-keyboard")
             at(R.string.report_copy).reveal().assertIsDisplayed().performTouchInput { click(center) }
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
-            compose.runOnUiThread {
-                val clip=context.getSystemService(ClipboardManager::class.java).primaryClip
-                assertNotNull("Clipboard must contain copied report",clip)
-                assertTrue(clip!!.getItemAt(0).text.contains("UX audit:"))
+            // System clipboard preview can temporarily take input focus after a real touch.
+            compose.waitUntil(10000) {
+                var copied = false
+                compose.runOnUiThread {
+                    val clip = context.getSystemService(ClipboardManager::class.java).primaryClip
+                    copied = clip?.getItemAt(0)?.text?.contains("UX audit:") == true
+                }
+                copied
             }
             capture("23-support-copied")
             compose.onNodeWithTag("support-description").reveal().performImeAction()
