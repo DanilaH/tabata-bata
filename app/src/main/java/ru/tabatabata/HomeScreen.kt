@@ -37,12 +37,8 @@ internal fun Saved(
                     }
                 }
             } else {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.saved), Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    TextButton(onClick = onNew) { Text("+ " + stringResource(R.string.new_timer)) }
-                }
+                ScreenHeading(stringResource(R.string.saved), "+ " + stringResource(R.string.new_timer),
+                    onNew, prominent = true)
             }
         }
         item { TextButton(onClick = onHistory, modifier = Modifier.fillMaxWidth()) {
@@ -52,7 +48,7 @@ internal fun Saved(
             var menu by remember { mutableStateOf(false) }
             val dark = MaterialTheme.colorScheme.background.red < .3f
             val tint = presetTint(p.accent, dark)
-            Card(onClick = { onEdit(p) }, modifier = Modifier.animateItem().fillMaxWidth(),
+            Card(onClick = { onPreview(p) }, modifier = Modifier.animateItem().fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                 Column(Modifier.padding(start = 16.dp, end = 12.dp, top = 8.dp, bottom = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp)) {

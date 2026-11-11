@@ -39,10 +39,11 @@ class EngagementTest {
             compose.onNodeWithText(text(R.string.report_problem)).performClick()
             compose.onNodeWithTag("support-technical").assertTextContains(BuildConfig.VERSION_NAME, substring = true)
             compose.onNodeWithText("PRIVATE_TIMER_NAME").assertDoesNotExist()
-            compose.onNodeWithTag("support-description").performTextInput("Test: sound stopped")
+            compose.onNodeWithTag("support-description").performScrollTo().performTextInput("Test: sound stopped")
             compose.onNodeWithTag("support-description").performImeAction()
             capture("support-report")
-            compose.onNodeWithText(text(R.string.report_copy)).performClick()
+            compose.onNodeWithText(text(R.string.report_copy)).performScrollTo().performClick()
+            compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
             val clip=context.getSystemService(ClipboardManager::class.java).primaryClip!!.getItemAt(0).text.toString()
             assertTrue(clip.contains("Test: sound stopped"))
             assertTrue(clip.contains(BuildConfig.VERSION_NAME))
@@ -50,7 +51,7 @@ class EngagementTest {
             assertFalse(clip.contains("session_id"))
             compose.activityRule.scenario.recreate()
             compose.onNodeWithTag("support-description").assertTextContains("Test: sound stopped")
-            compose.onNodeWithText(text(R.string.preview_close)).performClick()
+            compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.review_store_link)).performScrollTo().assertIsDisplayed()
         } finally { runBlocking { store.savePresets(before) } }
     }
@@ -66,14 +67,14 @@ class EngagementTest {
             compose.onNodeWithText(text(R.string.settings)).performClick()
             compose.onNodeWithText(text(R.string.report_problem)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.report_email)).assertIsDisplayed()
-            compose.onNodeWithText(text(R.string.preview_close)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().assertIsDisplayed()
             capture("support-large-text")
             compose.runOnUiThread { compose.activity.requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
             compose.waitUntil(10000) { compose.activity.resources.configuration.orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE }
-            compose.onNodeWithText(text(R.string.preview_close)).assertIsDisplayed()
+            compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().assertIsDisplayed()
             compose.onNodeWithText(text(R.string.report_email)).assertIsDisplayed()
             capture("support-landscape-large-text")
-            compose.onNodeWithText(text(R.string.preview_close)).performClick()
+            compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().performClick()
         } finally {
             shell("settings put system font_scale $font")
             compose.runOnUiThread { compose.activity.requestedOrientation=ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED }

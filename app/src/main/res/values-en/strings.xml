@@ -203,4 +203,5 @@
     <string name="report_no_mail">Could not open an email app. Copy the message and send it to the developer yourself.</string>
     <string name="report_copied">Message copied</string>
     <string name="review_store_link">Review on RuStore</string>
+ <string name="stop_short">Stop</string>
 </resources>

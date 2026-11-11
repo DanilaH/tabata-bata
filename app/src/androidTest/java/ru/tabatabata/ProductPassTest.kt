@@ -48,7 +48,8 @@ class ProductPassTest {
             compose.onNodeWithText(text(R.string.preview_close)).performClick()
             compose.runOnUiThread { compose.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
             compose.waitUntil(10000) { compose.activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT }
-            compose.onNodeWithText(first.name).performClick()
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, first.name)).performClick()
+            compose.onNodeWithText(compose.activity.getString(R.string.edit)).performClick()
             compose.onNodeWithContentDescription(compose.activity.getString(R.string.card_accent_label, text(R.string.accent_orange)))
                 .performScrollTo().performClick()
             compose.onNodeWithContentDescription(compose.activity.getString(R.string.card_mark_label, text(R.string.mark_strength)))

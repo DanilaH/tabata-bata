@@ -4,7 +4,11 @@ import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -153,10 +157,12 @@ internal fun Editor(
         if (raw != baseline) leave = true else onCancel?.invoke()
     }
     BackHandler(enabled = onCancel != null) { back() }
-    Column(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val shortWindow = maxHeight < 400.dp
+    val largeText = LocalDensity.current.fontScale > 1.3f
+    Column(Modifier.fillMaxSize().then(if (shortWindow) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
         Column(
-            Modifier.weight(1f)
-                .verticalScroll(rememberScrollState())
+            (if (shortWindow) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState()))
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -304,12 +310,13 @@ internal fun Editor(
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.total), style = MaterialTheme.typography.labelMedium,
+                    if (!largeText) Text(stringResource(R.string.total), style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(if (plan != null) formatTime(plan.durationMs())
                         else if (valid.all { it }) stringResource(R.string.too_long)
                         else stringResource(R.string.fix_fields),
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.semantics { contentDescription = context.getString(R.string.total) })
                 }
                 val previewLabel = stringResource(R.string.plan_preview)
                 TextButton(onClick = { preview = true
@@ -318,7 +325,7 @@ internal fun Editor(
                     Text(stringResource(R.string.view_plan_short))
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            val startAction: @Composable (Modifier) -> Unit = { actionModifier ->
                 Button(
                     onClick = {
                         plan?.let {
@@ -331,77 +338,56 @@ internal fun Editor(
                     },
                     enabled = plan != null,
                     shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                    modifier = actionModifier.heightIn(min = 52.dp),
                 ) {
                     Text(stringResource(R.string.start))
                 }
+            }
+            val saveAction: @Composable (Modifier) -> Unit = { actionModifier ->
                 OutlinedButton(
                     onClick = { requestSave() },
                     enabled = plan != null,
                     shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                    modifier = actionModifier.heightIn(min = 52.dp),
                 ) {
                     Text(stringResource(R.string.save))
                 }
             }
+            if (largeText) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                startAction(Modifier.fillMaxWidth())
+                saveAction(Modifier.fillMaxWidth())
+            } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                startAction(Modifier.weight(1f))
+                saveAction(Modifier.weight(1f))
+            }
         }
     }
+    }
     if (preview && plan != null) PlanPreviewDialog(plan, name.takeIf { it.isNotBlank() }) { preview = false }
-    if (leave)
-        AlertDialog(
-            onDismissRequest = { leave = false },
-            title = { Text(stringResource(R.string.unsaved)) },
-            text = { Text(stringResource(R.string.unsaved_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        leave = false
-                        requestSave()
-                    },
-                    enabled = plan != null,
-                ) {
-                    Text(stringResource(R.string.save))
-                }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = { leave = false }) { Text(stringResource(R.string.stay)) }
-                    TextButton(
-                        onClick = {
-                            drafts.clear(key)
-                            leave = false
-                            onCancel?.invoke()
-                        }
-                    ) {
-                        Text(stringResource(R.string.reset))
-                    }
-                }
-            },
+    if (leave) AppDialog(stringResource(R.string.unsaved), onDismiss = { leave = false }) {
+        Text(stringResource(R.string.unsaved_body))
+        DialogActions(
+            confirm = { m -> TextButton(onClick = { leave = false; requestSave() }, enabled = plan != null,
+                modifier = m) { Text(stringResource(R.string.save)) } },
+            dismiss = { m -> TextButton(onClick = { leave = false }, modifier = m) { Text(stringResource(R.string.stay)) } },
+            alternative = { m -> TextButton(onClick = {
+                drafts.clear(key); leave = false; onCancel?.invoke()
+            }, modifier = m) { Text(stringResource(R.string.reset)) } },
         )
-    if (naming)
-        AlertDialog(
-            onDismissRequest = { naming = false },
-            title = { Text(stringResource(R.string.save_mode)) },
-            text = {
-                OutlinedTextField(
-                    name,
-                    { v -> if (v.length <= 100) change { it.put("name", v) } },
-                    label = { Text(stringResource(R.string.name)) },
-                    singleLine = true,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        naming = false
-                        save()
-                    }
-                ) {
-                    Text(stringResource(R.string.save))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { naming = false }) { Text(stringResource(R.string.cancel)) }
-            },
-        )
+    }
+    if (naming) {
+        val keyboard = LocalSoftwareKeyboardController.current
+        fun saveNamed() { keyboard?.hide(); naming = false; save() }
+        AppDialog(stringResource(R.string.save_mode), onDismiss = { naming = false }) {
+            OutlinedTextField(name, { v -> if (v.length <= 100) change { it.put("name", v) } },
+                label = { Text(stringResource(R.string.name)) }, singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { saveNamed() }),
+                modifier = Modifier.fillMaxWidth())
+            DialogActions(
+                confirm = { m -> TextButton(onClick = { saveNamed() }, modifier = m) { Text(stringResource(R.string.save)) } },
+                dismiss = { m -> TextButton(onClick = { naming = false }, modifier = m) { Text(stringResource(R.string.cancel)) } },
+            )
+        }
+    }
 }

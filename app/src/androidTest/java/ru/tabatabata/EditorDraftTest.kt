@@ -46,7 +46,8 @@ class EditorDraftTest {
             compose.waitUntil(10000) {
                 compose.onAllNodesWithText(p.name).fetchSemanticsNodes().isNotEmpty()
             }
-            compose.onNodeWithText(p.name).performClick()
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, p.name)).performClick()
+            compose.onNodeWithText(compose.activity.getString(R.string.edit)).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:45")
             compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:45")
             // This test verifies draft state, not hit testing while the IME moves the layout.
@@ -79,7 +80,8 @@ class EditorDraftTest {
             compose.waitUntil(10000) {
                 compose.onAllNodesWithText(p.name).fetchSemanticsNodes().isNotEmpty()
             }
-            compose.onNodeWithText(p.name).performClick()
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, p.name)).performClick()
+            compose.onNodeWithText(compose.activity.getString(R.string.edit)).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:45")
             compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:45")
             compose.onNodeWithText(text(R.string.start)).assertIsEnabled()
@@ -89,7 +91,8 @@ class EditorDraftTest {
             compose.runOnUiThread { TimerService.command(context, "stop") }
             compose.waitUntil(10000) { TimerService.state.value == null || TimerService.state.value?.status == Status.STOPPED }
             compose.waitUntil(5000) { TimerService.state.value == null }
-            compose.onNodeWithText(p.name).performClick()
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, p.name)).performClick()
+            compose.onNodeWithText(compose.activity.getString(R.string.edit)).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:45")
             compose.onNodeWithText(text(R.string.save)).assertIsEnabled()
                 .performSemanticsAction(SemanticsActions.OnClick) { it() }

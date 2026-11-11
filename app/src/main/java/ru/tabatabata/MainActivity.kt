@@ -13,6 +13,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.*
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -336,7 +337,7 @@ private fun App() {
                     },
                 )
             else if (editorOpen)
-                Editor(
+                ContentFrame { Editor(
                     editor,
                     onCancel = { editorOpen = false },
                     onSave = { p ->
@@ -351,26 +352,15 @@ private fun App() {
                         }
                     },
                     onStart = { launch(it.plan, editor?.id ?: "new", it) },
-                )
+                ) }
             else
-                Column(Modifier.fillMaxSize()) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            stringResource(if (tab == 3) R.string.history else R.string.app_name),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(onClick = { reviews.cancelPreparation(); tab = if (tab != 0) 0 else 2 }) {
-                            Text(
-                                if (tab != 0) "← " + stringResource(R.string.saved)
-                                else stringResource(R.string.settings)
-                            )
-                        }
-                    }
+                ContentFrame { Column(Modifier.fillMaxSize()) {
+                    ScreenHeading(
+                        stringResource(when (tab) { 3 -> R.string.history; 2 -> R.string.settings; else -> R.string.app_name }),
+                        if (tab != 0) "← " + stringResource(R.string.saved) else stringResource(R.string.settings),
+                        { reviews.cancelPreparation(); tab = if (tab != 0) 0 else 2 },
+                        Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+                    )
                     when (tab) {
                         0 ->
                             Saved(
@@ -454,90 +444,52 @@ private fun App() {
                                 scope.launch { store.saveOptions(o) }
                             }
                     }
-                }
+                } }
         }
     }
     previewPreset?.let { p -> PlanPreviewDialog(p.plan, p.name) { previewPreset = null } }
-    if (recovery)
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(R.string.recovery_title)) },
-            text = { Text(stringResource(R.string.recovery_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        recovery = false
-                        TimerService.command(context, "recover")
-                    }
-                ) {
-                    Text(stringResource(R.string.recover))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        context
-                            .getSharedPreferences("session", Context.MODE_PRIVATE)
-                            .edit()
-                            .remove("active")
-                            .apply()
-                        recovery = false
-                    }
-                ) {
-                    Text(stringResource(R.string.discard))
-                }
-            },
+    if (recovery) AppDialog(stringResource(R.string.recovery_title), onDismiss = {}) {
+        Text(stringResource(R.string.recovery_body))
+        DialogActions(
+            confirm = { m -> TextButton(onClick = {
+                recovery = false
+                TimerService.command(context, "recover")
+            }, modifier = m) { Text(stringResource(R.string.recover)) } },
+            dismiss = { m -> TextButton(onClick = {
+                context.getSharedPreferences("session", Context.MODE_PRIVATE).edit().remove("active").apply()
+                recovery = false
+            }, modifier = m) { Text(stringResource(R.string.discard)) } },
         )
-    if (notificationPrompt && Build.VERSION.SDK_INT >= 33)
-        AlertDialog(
-            onDismissRequest = {
-                notificationPrompt = false
-                pendingPlan?.let { TimerService.command(context, "start", it, pendingPreset) }
-                pendingPlan = null
-                pendingPreset = null
-            },
-            title = { Text(stringResource(R.string.notification_title)) },
-            text = { Text(stringResource(R.string.notification_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        notificationPrompt = false
-                        context
-                            .getSharedPreferences("ui", Context.MODE_PRIVATE)
-                            .edit()
-                            .putBoolean("notificationAsked", true)
-                            .apply()
-                        reviewLedger.externalWindow()
-                        permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                ) {
-                    Text(stringResource(R.string.allow))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        notificationPrompt = false
-                        context
-                            .getSharedPreferences("ui", Context.MODE_PRIVATE)
-                            .edit()
-                            .putBoolean("notificationAsked", true)
-                            .apply()
-                        pendingPlan?.let { TimerService.command(context, "start", it, pendingPreset) }
-                        pendingPlan = null
-                        pendingPreset = null
-                    }
-                ) {
-                    Text(stringResource(R.string.later))
-                }
-            },
-        )
+    }
+    if (notificationPrompt && Build.VERSION.SDK_INT >= 33) {
+        fun startPending() {
+            notificationPrompt = false
+            pendingPlan?.let { TimerService.command(context, "start", it, pendingPreset) }
+            pendingPlan = null
+            pendingPreset = null
+        }
+        AppDialog(stringResource(R.string.notification_title), onDismiss = { startPending() }) {
+            Text(stringResource(R.string.notification_body))
+            DialogActions(
+                confirm = { m -> TextButton(onClick = {
+                    notificationPrompt = false
+                    context.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("notificationAsked", true).apply()
+                    reviewLedger.externalWindow()
+                    permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }, modifier = m) { Text(stringResource(R.string.allow)) } },
+                dismiss = { m -> TextButton(onClick = {
+                    context.getSharedPreferences("ui", Context.MODE_PRIVATE).edit().putBoolean("notificationAsked", true).apply()
+                    startPending()
+                }, modifier = m) { Text(stringResource(R.string.later)) } },
+            )
+        }
+    }
 }
 
 @Composable
 internal fun Toggle(label: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
     Row(
-        Modifier.fillMaxWidth()
+        Modifier.fillMaxWidth().heightIn(min = 48.dp)
             .toggleable(
                 value = checked,
                 role = androidx.compose.ui.semantics.Role.Switch,
@@ -632,16 +584,31 @@ private fun Settings(
         soundProfiles.forEachIndexed { index, profile ->
             val title = stringResource(listOf(R.string.profile_electronic, R.string.profile_beep, R.string.profile_bell)[index])
             val previewLabel = stringResource(R.string.profile_preview, title)
-            Row(Modifier.fillMaxWidth().toggleable(o.soundProfile == profile,
-                role = androidx.compose.ui.semantics.Role.RadioButton,
-                onValueChange = { onChange(o.copy(soundProfile = profile))
-                    Telemetry.event("sound_profile_selected", mapOf("profile" to profile)) }),
-                verticalAlignment = Alignment.CenterVertically) {
-                RadioButton(selected = o.soundProfile == profile, onClick = null)
-                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                TextButton(onClick = { cues.play(Stage.WORK, o.copy(soundProfile = profile, voice = false)) },
-                    modifier = Modifier.semantics { contentDescription = previewLabel }) {
-                    Text(stringResource(R.string.listen_profile))
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val stacked = androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
+                val choice: @Composable (Modifier) -> Unit = { m ->
+                    Row(m.heightIn(min = 48.dp).selectable(o.soundProfile == profile,
+                        role = androidx.compose.ui.semantics.Role.RadioButton,
+                        onClick = { onChange(o.copy(soundProfile = profile))
+                            Telemetry.event("sound_profile_selected", mapOf("profile" to profile)) }),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        RadioButton(selected = o.soundProfile == profile, onClick = null)
+                        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                    }
+                }
+                val listen: @Composable () -> Unit = {
+                    TextButton(onClick = { cues.play(Stage.WORK, o.copy(soundProfile = profile, voice = false)) },
+                        modifier = Modifier.semantics { contentDescription = previewLabel }) {
+                        Text(stringResource(R.string.listen_profile))
+                    }
+                }
+                if (stacked) Column {
+                    choice(Modifier.fillMaxWidth())
+                    Box(Modifier.align(Alignment.End)) { listen() }
+                } else Row(verticalAlignment = Alignment.CenterVertically) {
+                    choice(Modifier.weight(1f))
+                    listen()
                 }
             }
         }
@@ -666,7 +633,7 @@ private fun Settings(
         Toggle(R.string.voice, o.voice) { onChange(o.copy(voice = it)) }
         if (o.voice) {
             for (rounds in listOf(false, true)) {
-                Row(Modifier.fillMaxWidth().toggleable(o.voiceRounds == rounds,
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(o.voiceRounds == rounds,
                     role = androidx.compose.ui.semantics.Role.RadioButton,
                     onValueChange = { onChange(o.copy(voiceRounds = rounds)) }),
                     verticalAlignment = Alignment.CenterVertically) {
@@ -714,12 +681,14 @@ private fun Settings(
             )
             .forEach { (value, label) ->
                 Row(
-                    Modifier.fillMaxWidth().clickable { onChange(o.copy(theme = value)) },
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).selectable(
+                        selected = o.theme == value, role = androidx.compose.ui.semantics.Role.RadioButton,
+                        onClick = { onChange(o.copy(theme = value)) }),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(
                         selected = o.theme == value,
-                        onClick = { onChange(o.copy(theme = value)) },
+                        onClick = null,
                     )
                     Text(stringResource(label), modifier = Modifier.padding(start = 8.dp))
                 }

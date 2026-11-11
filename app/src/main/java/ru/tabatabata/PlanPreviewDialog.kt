@@ -21,8 +21,8 @@ import androidx.compose.ui.window.DialogProperties
 internal fun PlanPreviewDialog(plan: Plan, name: String? = null, onClose: () -> Unit) {
     val model = remember(plan) { overview(plan) }
     var expandedBlock by rememberSaveable(plan) { mutableIntStateOf(-1) }
-    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        BoxWithConstraints(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+    Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(16.dp), contentAlignment = Alignment.Center) {
             Surface(Modifier.widthIn(max = 600.dp).fillMaxWidth().heightIn(max = maxHeight * .94f),
                 shape = MaterialTheme.shapes.large, tonalElevation = 6.dp) {
                 Column(Modifier.testTag("plan-preview")) {

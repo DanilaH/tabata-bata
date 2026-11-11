@@ -203,4 +203,5 @@
     <string name="report_no_mail">Не удалось открыть почту. Можно скопировать сообщение и отправить его разработчику самостоятельно.</string>
     <string name="report_copied">Сообщение скопировано</string>
     <string name="review_store_link">Отзыв в RuStore</string>
+ <string name="stop_short">Стоп</string>
 </resources>

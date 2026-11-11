@@ -3,6 +3,9 @@ package ru.tabatabata
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -70,50 +73,16 @@ internal fun Workout(
         } else onClose()
     }
     Surface(color = background, contentColor = foreground, modifier = Modifier.fillMaxSize()) {
-        if (!active)
-            Column(
-                Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Spacer(Modifier.height(32.dp))
-                Text(stage, style = MaterialTheme.typography.headlineLarge)
-                if (s.statsAvailable) {
-                    Text(
-                        stringResource(R.string.result_time, formatTime(s.activeMs)),
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                    Text(
-                        stringResource(
-                            R.string.result_rounds,
-                            s.completedWork.size,
-                            s.plan.reps * s.plan.sets,
-                        )
-                    )
-                } else Text(stringResource(R.string.result_unknown))
-                Button(
-                    onClick = onRepeat,
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.repeat))
-                }
-                if (onDraft != null)
-                    TextButton(onClick = onDraft) { Text(stringResource(R.string.return_draft)) }
-                OutlinedButton(
-                    onClick = onClose,
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(stringResource(R.string.home))
-                }
-            }
-        else
-            Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        if (!active) WorkoutResult(s, stage, onRepeat, onClose, onDraft)
+        else BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 4.dp)) {
+            // Choose from the window, before a wrapping title consumes any height.
+            val landscape = maxWidth > maxHeight * 1.25f
+            val largeText = LocalDensity.current.fontScale > 1.3f
+            Column(Modifier.fillMaxSize()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     if (locked)
                         Column(
-                            Modifier.width(88.dp)
+                            Modifier.width(80.dp)
                                 .heightIn(min = 48.dp)
                                 .pointerInput(locked) {
                                     detectTapGestures(
@@ -165,6 +134,7 @@ internal fun Workout(
                         TextButton(
                             onClick = { locked = true },
                             colors = ButtonDefaults.textButtonColors(contentColor = foreground),
+                            modifier = Modifier.width(80.dp).heightIn(min = 48.dp),
                         ) {
                             Icon(
                                 painter =
@@ -172,26 +142,26 @@ internal fun Workout(
                                 contentDescription = stringResource(R.string.lock_short),
                             )
                         }
-                    Text(
-                        stage,
-                        style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.weight(1f),
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    StableText(
+                        stage, Stage.entries.map { stringResource(stageString(it)) },
+                        Modifier.weight(1f),
+                        if (largeText) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
                     )
                     TextButton(
                         onClick = { exit = true },
                         enabled = !locked,
+                        modifier = Modifier.semantics { contentDescription = context.getString(R.string.stop) },
                         colors =
                             ButtonDefaults.textButtonColors(
                                 contentColor = foreground,
                                 disabledContentColor = foreground.copy(alpha = .4f),
                             ),
                     ) {
-                        Text(stringResource(R.string.stop))
+                        Text(stringResource(if (largeText) R.string.stop_short else R.string.stop))
                     }
                 }
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
-                    if (maxWidth > maxHeight * 1.25f)
+                    if (landscape)
                         Row(
                             Modifier.fillMaxSize(),
                             horizontalArrangement = Arrangement.spacedBy(20.dp),
@@ -200,10 +170,14 @@ internal fun Workout(
                             ClockFace(s, Modifier.weight(1.35f).fillMaxHeight())
                             Column(
                                 Modifier.weight(1f).fillMaxHeight(),
-                                verticalArrangement = Arrangement.Center,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
-                                WorkoutControls(s, locked, foreground)
+                                WorkoutPause(s, locked, foreground)
+                                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                                    horizontalAlignment = Alignment.CenterHorizontally) {
+                                    WorkoutDetails(s, locked, foreground)
+                                }
                             }
                         }
                     else
@@ -212,7 +186,11 @@ internal fun Workout(
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             ClockFace(s, Modifier.weight(1f).fillMaxWidth())
-                            if (options.showStages) StageQueue(s, Modifier.heightIn(max = 100.dp))
+                            WorkoutPause(s, locked, foreground)
+                            Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * .4f)
+                                .verticalScroll(rememberScrollState()),
+                                horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (options.showStages) StageQueue(s, Modifier.height(72.dp * LocalDensity.current.fontScale))
                             else
                                 run {
                                     val next = s.next
@@ -229,30 +207,82 @@ internal fun Workout(
                                         modifier = Modifier.hiddenWhen(next == null),
                                     )
                                 }
-                            WorkoutControls(s, locked, foreground)
+                            WorkoutDetails(s, locked, foreground)
+                            }
                         }
                 }
             }
+        }
     }
-    if (exit)
-        AlertDialog(
-            onDismissRequest = { exit = false },
-            title = { Text(stringResource(R.string.exit_title)) },
-            text = { Text(stringResource(R.string.exit_body)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        exit = false
-                        TimerService.command(context, "stop")
-                    }
-                ) {
-                    Text(stringResource(R.string.stop))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { exit = false }) { Text(stringResource(R.string.cancel)) }
-            },
+    if (exit) AppDialog(stringResource(R.string.exit_title), onDismiss = { exit = false }) {
+        Text(stringResource(R.string.exit_body))
+        DialogActions(
+            confirm = { m -> TextButton(onClick = {
+                exit = false; TimerService.command(context, "stop")
+            }, modifier = m) { Text(stringResource(R.string.stop)) } },
+            dismiss = { m -> TextButton(onClick = { exit = false }, modifier = m) { Text(stringResource(R.string.cancel)) } },
         )
+    }
+}
+
+@Composable
+private fun StableText(value: String, choices: List<String>, modifier: Modifier = Modifier,
+    style: TextStyle = MaterialTheme.typography.titleMedium) {
+    Box(modifier, contentAlignment = Alignment.Center) {
+        (choices + value).distinct().forEach { label ->
+            Text(label, style = style, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.hiddenWhen(label != value))
+        }
+    }
+}
+
+@Composable
+private fun WorkoutResult(s: Snapshot, title: String, onRepeat: () -> Unit, onClose: () -> Unit,
+    onDraft: (() -> Unit)?) {
+    var appeared by remember(s.sessionId) { mutableStateOf(false) }
+    LaunchedEffect(s.sessionId) { appeared = true }
+    val mark by animateFloatAsState(if (appeared) 1f else 0f, tween(180), label = "completion mark")
+    ContentFrame {
+        BoxWithConstraints(Modifier.fillMaxSize().padding(20.dp)) {
+            val compact = maxWidth > maxHeight * 1.3f
+            val summary: @Composable () -> Unit = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.size(38.dp).alpha(mark).scale(.8f + .2f * mark), contentAlignment = Alignment.Center) {
+                            StageMark(6, MaterialTheme.colorScheme.primary)
+                        }
+                        Text(title, style = MaterialTheme.typography.headlineLarge)
+                    }
+                    if (s.statsAvailable) {
+                        Text(stringResource(R.string.result_time, formatTime(s.activeMs)),
+                            style = MaterialTheme.typography.titleLarge)
+                        Text(stringResource(R.string.result_rounds, s.completedWork.size, s.plan.reps * s.plan.sets))
+                    } else Text(stringResource(R.string.result_unknown))
+                }
+            }
+            val actions: @Composable () -> Unit = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onRepeat, shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.repeat)) }
+                    OutlinedButton(onClick = onClose, shape = MaterialTheme.shapes.small,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(stringResource(R.string.home)) }
+                    if (onDraft != null) TextButton(onClick = onDraft, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.return_draft))
+                    }
+                }
+            }
+            if (compact) Row(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) { summary() }
+                Box(Modifier.weight(1f)) { actions() }
+            } else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                summary()
+                actions()
+            }
+        }
+    }
 }
 
 @Composable
@@ -260,24 +290,22 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val clock = workoutClock(s.remaining)
         val scale = LocalDensity.current.fontScale
-        val digits = workoutClock(s.interval?.duration ?: s.remaining).length.coerceAtLeast(2)
+        val planDigits = remember(s.plan) { s.plan.stages().maxOf { workoutClock(it.duration).length }.coerceAtLeast(2) }
+        val digits = maxOf(planDigits, clock.length)
         val size =
             minOf(
                     240f,
                     maxWidth.value / (digits * .62f * scale),
-                    (maxHeight.value - 24f - 44f * scale) /
-                        (1.3f * scale),
+                    (maxHeight.value - 20f - 24f * scale) /
+                        (1.12f * scale),
                 )
-                .coerceAtLeast(20f)
+                .coerceAtLeast(1f)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.height(44.dp * scale), contentAlignment = Alignment.Center) {
+            Box(Modifier.height(24.dp * scale), contentAlignment = Alignment.Center) {
             if (s.status != Status.RUNNING)
                 Text(
-                    stringResource(
-                        if (s.status == Status.INTERRUPTED) R.string.interrupted
-                        else R.string.paused
-                    ),
-                    style = MaterialTheme.typography.headlineSmall,
+                    stringResource(R.string.paused),
+                    style = MaterialTheme.typography.bodyLarge,
                 )
             }
             Text(
@@ -289,7 +317,7 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
                 maxLines = 1,
                 style = TextStyle(fontFeatureSettings = "tnum"),
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(8.dp))
             val duration = s.interval?.duration ?: 1L
             val progress = (1f - s.remaining.toFloat() / duration.coerceAtLeast(1)).coerceIn(0f, 1f)
             val progressLabel = stringResource(R.string.stage_progress)
@@ -310,7 +338,7 @@ private fun ClockFace(s: Snapshot, modifier: Modifier) {
 }
 
 @Composable
-private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
+private fun WorkoutPause(s: Snapshot, locked: Boolean, foreground: Color) {
     val context = LocalContext.current
     Button(
         onClick = {
@@ -329,6 +357,11 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
     ) {
         Text(stringResource(if (s.status == Status.RUNNING) R.string.pause else R.string.resume))
     }
+}
+
+@Composable
+private fun WorkoutDetails(s: Snapshot, locked: Boolean, foreground: Color) {
+    val context = LocalContext.current
     var restAdded by remember(s.sessionId, s.index) { mutableStateOf(false) }
     LaunchedEffect(restAdded) { if (restAdded) { delay(700); restAdded = false } }
     val canExtendRest = s.interval?.stage in listOf(Stage.REST, Stage.BETWEEN)
@@ -358,39 +391,34 @@ private fun WorkoutControls(s: Snapshot, locked: Boolean, foreground: Color) {
             Spacer(Modifier.width(24.dp))
         }
     }
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        val ahead = stringResource(R.string.rounds_ahead, s.plan.reps * s.plan.sets)
+        val position = stringResource(R.string.round_position, s.interval?.rep ?: 0, s.plan.reps)
+        val cooling = stringResource(R.string.cool)
+        StableText(when (s.interval?.stage) { Stage.PREPARE -> ahead; Stage.COOL -> cooling; else -> position },
+            listOf(ahead, position, cooling), Modifier.fillMaxWidth())
+        if (s.plan.sets > 1) Text("${stringResource(R.string.sets)} ${s.interval?.set ?: 0} / ${s.plan.sets}",
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.hiddenWhen((s.interval?.set ?: 0) == 0))
+    }
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         val previous = stringResource(R.string.previous)
         TextButton(
             onClick = { TimerService.command(context, "previous") },
             enabled = !locked,
             colors = ButtonDefaults.textButtonColors(contentColor = foreground, disabledContentColor = foreground.copy(alpha = .4f)),
-            modifier = Modifier.semantics { contentDescription = previous },
+            modifier = Modifier.weight(1f).semantics { contentDescription = previous },
         ) {
             Text("‹", fontSize = 28.sp)
             Text(stringResource(R.string.stage_short), style = MaterialTheme.typography.labelSmall)
         }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                if (s.interval?.stage == Stage.PREPARE)
-                    stringResource(R.string.rounds_ahead, s.plan.reps * s.plan.sets)
-                else if (s.interval?.stage == Stage.COOL) stringResource(R.string.cool)
-                else stringResource(R.string.round_position, s.interval?.rep ?: 0, s.plan.reps),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                style = MaterialTheme.typography.titleMedium,
-            )
-            if (s.plan.sets > 1)
-                Text(
-                    "${stringResource(R.string.sets)} ${s.interval?.set ?: 0} / ${s.plan.sets}",
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.hiddenWhen((s.interval?.set ?: 0) == 0),
-                )
-        }
+
         val next = stringResource(R.string.next)
         TextButton(
             onClick = { TimerService.command(context, "next") },
             enabled = !locked,
             colors = ButtonDefaults.textButtonColors(contentColor = foreground, disabledContentColor = foreground.copy(alpha = .4f)),
-            modifier = Modifier.semantics { contentDescription = next },
+            modifier = Modifier.weight(1f).semantics { contentDescription = next },
         ) {
             Text(stringResource(R.string.stage_short), style = MaterialTheme.typography.labelSmall)
             Text("›", fontSize = 28.sp)

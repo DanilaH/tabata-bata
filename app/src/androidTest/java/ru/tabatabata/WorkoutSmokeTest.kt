@@ -179,7 +179,8 @@ class WorkoutSmokeTest {
                 compose.onAllNodesWithText(preset.name).fetchSemanticsNodes().isNotEmpty()
             }
             capture("saved")
-            compose.onNodeWithText(preset.name).performClick()
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, preset.name)).performClick()
+            compose.onNodeWithText(compose.activity.getString(R.string.edit)).performClick()
             compose
                 .onAllNodes(hasSetTextAction())
                 .onFirst()

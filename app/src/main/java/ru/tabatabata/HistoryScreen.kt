@@ -48,21 +48,22 @@ internal fun HistoryScreen(onRepeat: (Preset) -> Unit, onPreview: (Preset) -> Un
     LaunchedEffect(repository) {
         while (isActive) { delay(60_000); repository.refresh() }
     }
-    if (clearing) AlertDialog(onDismissRequest = { if (!busy) clearing = false },
-        title = { Text(stringResource(R.string.history_clear_title)) },
-        text = { Text(stringResource(R.string.history_clear_body)) },
-        confirmButton = { TextButton(enabled = !busy, onClick = {
-            busy = true
-            scope.launch {
-                val ok = runCatching { repository.clear() }.isSuccess
-                busy = false
-                clearing = false
-                if (!ok) snackbar.showSnackbar(context.getString(R.string.history_error))
-            }
-        }) { Text(stringResource(R.string.history_clear)) } },
-        dismissButton = { TextButton(enabled = !busy, onClick = { clearing = false }) {
-            Text(stringResource(R.string.cancel))
-        } })
+    if (clearing) AppDialog(stringResource(R.string.history_clear_title), onDismiss = { if (!busy) clearing = false }) {
+        Text(stringResource(R.string.history_clear_body))
+        DialogActions(
+            confirm = { m -> TextButton(enabled = !busy, modifier = m, onClick = {
+                busy = true
+                scope.launch {
+                    val ok = runCatching { repository.clear() }.isSuccess
+                    busy = false; clearing = false
+                    if (!ok) snackbar.showSnackbar(context.getString(R.string.history_error))
+                }
+            }) { Text(stringResource(R.string.history_clear)) } },
+            dismiss = { m -> TextButton(enabled = !busy, onClick = { clearing = false }, modifier = m) {
+                Text(stringResource(R.string.cancel))
+            } },
+        )
+    }
 
     LazyColumn(Modifier.fillMaxSize().testTag("history-list"), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
