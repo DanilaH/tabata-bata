@@ -245,10 +245,9 @@ internal fun Editor(
         Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = { if (!shortWindow) footer() }) { padding ->
             Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+                if (onCancel != null) AppToolbar(stringResource(R.string.editor_title), onBack = { back() })
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (onCancel != null)
-                        TextButton(onClick = { back() }) { Text("← " + stringResource(R.string.saved)) }
                     if (preset != null)
                         OutlinedTextField(
                             name,

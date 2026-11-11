@@ -63,7 +63,8 @@ internal fun PlanPreviewDialog(plan: Plan, name: String? = null, onClose: () -> 
                                                     style = MaterialTheme.typography.bodySmall)
                                             }
                                             Text(formatTime(block.duration))
-                                            Text(if (expanded) " −" else " +", fontWeight = FontWeight.Bold)
+                                            Icon(androidx.compose.ui.res.painterResource(if (expanded) R.drawable.ic_remove else R.drawable.ic_add),
+                                                null, Modifier.padding(start = 8.dp).size(24.dp))
                                         }
                                     }
                                 }

@@ -52,7 +52,7 @@ class EditorDraftTest {
             compose.onNodeWithContentDescription(text(R.string.work)).assertTextContains("0:45")
             // This test verifies draft state, not hit testing while the IME moves the layout.
             // Touch input remains covered by WorkoutSmokeTest / EditorControlsTest.
-            compose.onNodeWithText("← " + text(R.string.saved)).performScrollTo()
+            compose.onNodeWithContentDescription("← " + text(R.string.saved)).performScrollTo()
                 .performSemanticsAction(SemanticsActions.OnClick) { it() }
             compose.onNodeWithText(text(R.string.unsaved)).assertExists()
             compose.onNodeWithText(text(R.string.reset)).performClick()

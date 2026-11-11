@@ -358,18 +358,10 @@ private fun App() {
                 ) }
             else
                 ContentFrame { Column(Modifier.fillMaxSize()) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically) {
-                        if (tab != 0) IconButton(onClick = { reviews.cancelPreparation(); tab = 0 }) {
-                            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_back),
-                                contentDescription = "← " + stringResource(R.string.saved))
-                        }
-                        Text(stringResource(when (tab) { 3 -> R.string.history; 2 -> R.string.settings; else -> R.string.saved }),
-                            modifier = Modifier.weight(1f),
-                            style = if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f)
-                                MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold, maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    AppToolbar(
+                        title = stringResource(when (tab) { 3 -> R.string.history; 2 -> R.string.settings; else -> R.string.saved }),
+                        onBack = if (tab == 0) null else ({ reviews.cancelPreparation(); tab = 0 }),
+                    ) {
                         if (tab == 0) {
                             IconButton(onClick = { reviews.cancelPreparation(); tab = 3 }) {
                                 Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_history),
@@ -516,6 +508,7 @@ internal fun Toggle(label: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
                 onValueChange = onChange,
             ),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(stringResource(label), modifier = Modifier.weight(1f))
         Switch(checked, onCheckedChange = null)
@@ -615,7 +608,8 @@ private fun Settings(
                     Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                 }
                 IconButton(onClick = { cues.play(Stage.WORK, o.copy(soundProfile = profile, voice = false)) }) {
-                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_play), contentDescription = previewLabel)
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_play), contentDescription = previewLabel,
+                        tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -643,9 +637,10 @@ private fun Settings(
                 Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(o.voiceRounds == rounds,
                     role = androidx.compose.ui.semantics.Role.RadioButton,
                     onValueChange = { onChange(o.copy(voiceRounds = rounds)) }),
-                    verticalAlignment = Alignment.CenterVertically) {
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     RadioButton(o.voiceRounds == rounds, onClick = null)
-                    Text(stringResource(if (rounds) R.string.voice_stages_rounds else R.string.voice_stages))
+                    Text(stringResource(if (rounds) R.string.voice_stages_rounds else R.string.voice_stages), Modifier.weight(1f))
                 }
             }
             val voiceState by cues.voiceState.collectAsStateWithLifecycle()
@@ -693,12 +688,13 @@ private fun Settings(
                         selected = o.theme == value, role = androidx.compose.ui.semantics.Role.RadioButton,
                         onClick = { onChange(o.copy(theme = value)) }),
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     RadioButton(
                         selected = o.theme == value,
                         onClick = null,
                     )
-                    Text(stringResource(label), modifier = Modifier.padding(start = 8.dp))
+                    Text(stringResource(label), modifier = Modifier.weight(1f))
                 }
             }
         HorizontalDivider()
@@ -723,7 +719,7 @@ private fun Settings(
         ) {
             Text(stringResource(R.string.import_timers))
         }
-        Text(stringResource(R.string.about), style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.about), style = MaterialTheme.typography.titleMedium)
         Text(stringResource(R.string.about_body))
         Text(stringResource(R.string.feedback_section), style = MaterialTheme.typography.titleMedium)
         if (BuildConfig.SUPPORT_EMAIL.isNotBlank()) OutlinedButton(

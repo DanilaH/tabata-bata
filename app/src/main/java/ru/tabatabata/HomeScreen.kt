@@ -59,8 +59,10 @@ internal fun Saved(
                             fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Box {
                             val label = stringResource(R.string.mode_actions, p.name)
-                            TextButton(onClick = { onInteraction(); menu = true }, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                                .semantics { contentDescription = label }) { Text("⋮", fontSize = 24.sp) }
+                            IconButton(onClick = { onInteraction(); menu = true }, modifier = Modifier.size(48.dp)
+                                .semantics { contentDescription = label }) {
+                                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_more), null)
+                            }
                             DropdownMenu(menu, { menu = false }) {
                                 listOf(
                                     R.string.start to { onStart(p) },

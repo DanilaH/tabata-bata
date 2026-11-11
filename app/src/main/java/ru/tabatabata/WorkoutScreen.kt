@@ -400,7 +400,7 @@ private fun WorkoutDetails(s: Snapshot, locked: Boolean, foreground: Color, comp
             ),
         ) {
             Box(Modifier.width(24.dp), contentAlignment = Alignment.Center) {
-                if (restAdded) Text("✓", modifier = Modifier.semantics {
+                if (restAdded) Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_check), null, modifier = Modifier.size(24.dp).semantics {
                     liveRegion = LiveRegionMode.Polite
                     contentDescription = context.getString(R.string.rest_added)
                 })
@@ -427,7 +427,8 @@ private fun WorkoutDetails(s: Snapshot, locked: Boolean, foreground: Color, comp
             colors = ButtonDefaults.textButtonColors(contentColor = foreground, disabledContentColor = foreground.copy(alpha = .4f)),
             modifier = Modifier.weight(1f).semantics { contentDescription = previous },
         ) {
-            Text("‹", fontSize = 28.sp)
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_previous), null, Modifier.size(24.dp))
+            Spacer(Modifier.width(4.dp))
             Text(stringResource(R.string.stage_short), style = MaterialTheme.typography.labelSmall)
         }
 
@@ -439,7 +440,8 @@ private fun WorkoutDetails(s: Snapshot, locked: Boolean, foreground: Color, comp
             modifier = Modifier.weight(1f).semantics { contentDescription = next },
         ) {
             Text(stringResource(R.string.stage_short), style = MaterialTheme.typography.labelSmall)
-            Text("›", fontSize = 28.sp)
+            Spacer(Modifier.width(4.dp))
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_next), null, Modifier.size(24.dp))
         }
     }
     Text(

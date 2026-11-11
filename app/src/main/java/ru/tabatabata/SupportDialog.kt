@@ -60,7 +60,7 @@ internal fun SupportDialog(onClose: () -> Unit, onExternal: () -> Unit) {
                 runCatching { onExternal(); context.startActivity(intent) }.onFailure {
                     scope.launch { snackbar.showSnackbar(context.getString(R.string.report_no_mail)) }
                 }
-            }, modifier = m) { Text(stringResource(R.string.report_email)) } },
+            }, modifier = m, shape = MaterialTheme.shapes.small) { Text(stringResource(R.string.report_email)) } },
             alternative = { m -> TextButton(onClick = {
                 context.getSystemService(ClipboardManager::class.java).setPrimaryClip(
                     ClipData.newPlainText(context.getString(R.string.report_subject), supportReport(description, device)))

@@ -35,7 +35,7 @@ internal fun PresetAppearance(accent: String, mark: Int, onChange: (String, Int)
                     containerColor = presetTint(value, dark), contentColor = if (dark) Color(0xFF111522) else Color.White),
                 modifier = Modifier.size(48.dp).semantics {
                     contentDescription = description; selected = value == accent
-                }) { if (value == accent) Text("✓") }
+                }) { if (value == accent) Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_check), null, Modifier.size(24.dp)) }
         }
     }
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

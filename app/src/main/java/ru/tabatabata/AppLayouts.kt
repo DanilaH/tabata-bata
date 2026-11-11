@@ -7,6 +7,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.AnnotatedString
@@ -19,6 +23,23 @@ import androidx.compose.ui.window.DialogProperties
 internal fun ContentFrame(content: @Composable BoxScope.() -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Box(Modifier.widthIn(max = 720.dp).fillMaxWidth().fillMaxHeight(), content = content)
+    }
+}
+
+/** The same navigation geometry on home, settings, history and the editor. */
+@Composable
+internal fun AppToolbar(title: String, onBack: (() -> Unit)? = null,
+    actions: @Composable RowScope.() -> Unit = {}) {
+    Row(Modifier.fillMaxWidth().padding(start = if (onBack == null) 20.dp else 12.dp,
+        end = 12.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (onBack != null) IconButton(onClick = onBack) {
+            Icon(painterResource(R.drawable.ic_back), contentDescription = "← " + stringResource(R.string.saved))
+        }
+        Text(title, Modifier.weight(1f),
+            style = if (LocalDensity.current.fontScale > 1.3f) MaterialTheme.typography.titleSmall
+                else MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        actions()
     }
 }
 
@@ -82,8 +103,8 @@ internal fun DialogActions(confirm: @Composable (Modifier) -> Unit,
             confirm(Modifier.fillMaxWidth().heightIn(min = 48.dp))
             alternative?.invoke(Modifier.fillMaxWidth().heightIn(min = 48.dp))
             dismiss(Modifier.fillMaxWidth().heightIn(min = 48.dp))
-        } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically) {
+        } else FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End,
+            verticalArrangement = Arrangement.spacedBy(4.dp)) {
             dismiss(Modifier.heightIn(min = 48.dp))
             alternative?.invoke(Modifier.heightIn(min = 48.dp))
             confirm(Modifier.heightIn(min = 48.dp))

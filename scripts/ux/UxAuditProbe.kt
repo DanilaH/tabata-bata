@@ -203,7 +203,7 @@ class UxAuditProbe {
             compose.onNodeWithContentDescription(text(R.string.plan_preview)).reveal().performClick()
             capture("09-editor-preview")
             at(R.string.preview_close).assertIsDisplayed().performClick()
-            compose.onNodeWithText("← "+text(R.string.saved)).reveal().performClick()
+            compose.onNodeWithContentDescription("← "+text(R.string.saved)).reveal().performClick()
             at(R.string.unsaved).assertIsDisplayed()
             capture("10-unsaved-dialog")
             at(R.string.stay).reveal().assertIsDisplayed()
@@ -396,6 +396,40 @@ class UxAuditProbe {
         if (args.getString("uxFeel") != "true") return
         capture("38-banner-initial")
         for (index in 1..4) { observeFor(2000); capture("38-banner-$index") }
+        runBlocking { store.savePresets(listOf(
+            presets[0],
+            Preset("daily-strength", "Силовая тренировка", Plan(work=45, rest=15, reps=12), "violet", 1),
+            Preset("daily-warmup", "Разминка", Plan(work=30, rest=10, reps=6), "orange", 0))) }
+        observeFor(700)
+        capture("40-home-everyday")
+    }
+
+    @Test fun m_hourDigitsAndLargePlan() {
+        try {
+            compose.onNode(hasScrollAction()).performScrollToNode(hasContentDescription(
+                compose.activity.getString(R.string.mode_actions, presets[2].name)))
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, presets[2].name)).performClick()
+            at(R.string.plan_preview).performClick()
+            capture("39-twenty-hour-plan")
+            at(R.string.preview_close).performClick()
+            val plan = Plan(prepare = 3600, work = 10, rest = 0, reps = 200, sets = 20, between = 0, cool = 3600)
+            compose.runOnUiThread { TimerService.command(context, "start", plan) }
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
+            at(R.string.pause).performClick()
+            compose.waitUntil(5000) { TimerService.state.value?.status == Status.PAUSED }
+            capture("39-hour-clock")
+            val node = compose.onNodeWithTag("workout-clock")
+            val results = mutableListOf<TextLayoutResult>()
+            node.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(results)
+            assertTrue("Long clock wraps or clips", results.isNotEmpty() && results.all { it.lineCount == 1 && !it.hasVisualOverflow })
+            val bounds = node.fetchSemanticsNode().boundsInWindow
+            val parent = compose.onNodeWithTag("app-content").fetchSemanticsNode().boundsInWindow
+            assertTrue("Long clock exceeds content", bounds.left >= parent.left && bounds.right <= parent.right &&
+                bounds.top >= parent.top && bounds.bottom <= parent.bottom)
+            compose.onNodeWithContentDescription(text(R.string.next)).reveal().performClick()
+            compose.waitUntil(5000) { TimerService.state.value?.index == 1 }
+            capture("39-large-round-count")
+        } finally { finalCapture("m-final") }
     }
 
     private fun observeFor(durationMs: Long) {

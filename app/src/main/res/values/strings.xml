@@ -206,4 +206,5 @@
  <string name="stop_short">Стоп</string>
     <string name="workout_round_short">Раунд %1$d/%2$d</string>
     <string name="workout_set_short">Серия %1$d/%2$d</string>
+    <string name="editor_title">Редактор</string>
 </resources>
