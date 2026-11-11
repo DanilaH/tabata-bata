@@ -177,9 +177,9 @@ class UxAuditProbe {
             compose.onNodeWithText("← "+text(R.string.saved)).reveal().performClick()
             at(R.string.unsaved).assertIsDisplayed()
             capture("10-unsaved-dialog")
-            at(R.string.stay).assertIsDisplayed()
-            at(R.string.reset).assertIsDisplayed()
-            compose.onAllNodesWithText(text(R.string.save)).onLast().assertIsDisplayed()
+            at(R.string.stay).reveal().assertIsDisplayed()
+            at(R.string.reset).reveal().assertIsDisplayed()
+            compose.onAllNodesWithText(text(R.string.save)).onLast().reveal().assertIsDisplayed()
         } finally { finalCapture("b-final") }
     }
     @Test fun c_historyLongNamesAndExpandedPlan() {
@@ -239,6 +239,7 @@ class UxAuditProbe {
             at(R.string.report_problem).reveal().performClick()
             capture("21-support")
             compose.onNodeWithTag("support-description").reveal().performClick().performTextInput("UX audit: button and keyboard check")
+            observeFor(600)
             capture("22-support-keyboard")
             at(R.string.report_copy).reveal().assertIsDisplayed().performTouchInput { click(center) }
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
@@ -338,6 +339,7 @@ class UxAuditProbe {
             at(R.string.save_mode).assertIsDisplayed()
             capture("30-new-name-dialog")
             compose.onAllNodes(hasSetTextAction()).onLast().performClick().performTextInput(longName)
+            observeFor(600)
             capture("31-new-name-keyboard")
             compose.onAllNodesWithText(text(R.string.save)).onLast().reveal().assertIsDisplayed()
             capture("31-new-name-actions-keyboard")

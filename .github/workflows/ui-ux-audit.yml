@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 25
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 7
       matrix:
         include:
           - {profile: ru-normal, api: 35, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'true'}
