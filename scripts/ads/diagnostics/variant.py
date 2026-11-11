@@ -4,13 +4,19 @@ import sys
 
 variant = sys.argv[1]
 build = Path("app/build.gradle.kts")
+if variant == "keyed-tag":
+    ads = Path("app/src/main/java/ru/tabatabata/Ads.kt")
+    source = ads.read_text().replace('tag = lease', 'setTag(R.id.app_banner_lease, lease)')
+    source = source.replace('(it.tag as? BannerLease)', '(it.getTag(R.id.app_banner_lease) as? BannerLease)')
+    ads.write_text(source)
+    Path("app/src/main/res/values/banner_ids.xml").write_text('<resources><item name="app_banner_lease" type="id"/></resources>\n')
 if variant == "attached-load":
     ads = Path("app/src/main/java/ru/tabatabata/Ads.kt")
-    source = ads.read_text().replace('import android.app.Activity', 'import android.app.Activity\nimport androidx.core.view.doOnAttach\nimport androidx.core.view.doOnLayout')
+    source = ads.read_text().replace('import android.app.Activity', 'import android.app.Activity\nimport androidx.core.view.doOnAttach')
     source = source.replace('''                            Telemetry.event("ad_request", mapOf("format" to "banner", "scope" to "initial_load"))
                             loadAd(AdRequest.Builder(BuildConfig.BANNER_ID).build())''', '''                            doOnAttach {
-                                doOnLayout {
-                                    if (lease.alive && isAttachedToWindow && width > 0 && height > 0) {
+                                post {
+                                    if (lease.alive && isAttachedToWindow) {
                                         Telemetry.event("ad_request", mapOf("format" to "banner", "scope" to "initial_load"))
                                         loadAd(AdRequest.Builder(BuildConfig.BANNER_ID).build())
                                     }

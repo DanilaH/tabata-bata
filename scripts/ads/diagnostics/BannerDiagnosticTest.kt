@@ -47,7 +47,7 @@ class BannerDiagnosticTest {
                 val visible = v.getGlobalVisibleRect(rect)
                 states.appendLine("${v.javaClass.name} size=${v.width}x${v.height} shown=${v.isShown} " +
                     "visible=$visible rect=$rect alpha=${v.alpha} window=${v.windowVisibility} " +
-                    "focus=${v.hasWindowFocus()} hardware=${v.isHardwareAccelerated}")
+                    "focus=${v.hasWindowFocus()} hardware=${v.isHardwareAccelerated} tag=${v.tag?.javaClass?.name}")
                 if (v is WebView) webViews.add(v)
             }
             states.appendLine("webview=${WebView.getCurrentWebViewPackage()?.versionName}")
