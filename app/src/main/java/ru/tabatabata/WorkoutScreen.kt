@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.foundation.*
@@ -21,6 +22,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.*
@@ -172,6 +175,7 @@ internal fun Workout(
                     stopAction()
                 }
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    val compactControls = largeText || maxHeight < 500.dp
                     val detailsHeight = maxHeight * .4f
                     if (landscape)
                         Row(
@@ -186,9 +190,11 @@ internal fun Workout(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 WorkoutPause(s, locked, foreground)
-                                Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                                Spacer(Modifier.height(8.dp))
+                                Column(Modifier.weight(1f).fillMaxWidth().clipToBounds().verticalScroll(rememberScrollState()),
                                     horizontalAlignment = Alignment.CenterHorizontally) {
-                                    WorkoutDetails(s, locked, foreground)
+                                    WorkoutDetails(s, locked, foreground, compact = true)
+                                    WorkoutUpcoming(s, options.showStages, compact = true)
                                 }
                             }
                         }
@@ -199,27 +205,15 @@ internal fun Workout(
                         ) {
                             ClockFace(s, Modifier.weight(1f).fillMaxWidth())
                             WorkoutPause(s, locked, foreground)
-                            Column(Modifier.fillMaxWidth().heightIn(max = detailsHeight)
-                                .verticalScroll(rememberScrollState()),
+                            Spacer(Modifier.height(8.dp))
+                            if (compactControls) {
+                                WorkoutDetails(s, locked, foreground, compact = true)
+                                WorkoutUpcoming(s, options.showStages, compact = true)
+                            } else Column(Modifier.fillMaxWidth().heightIn(max = detailsHeight)
+                                .clipToBounds().verticalScroll(rememberScrollState()),
                                 horizontalAlignment = Alignment.CenterHorizontally) {
-                            if (options.showStages) StageQueue(s, Modifier.height(72.dp * LocalDensity.current.fontScale))
-                            else
-                                run {
-                                    val next = s.next
-                                    Text(
-                                        stringResource(
-                                            R.string.next_stage,
-                                            stringResource(stageString(next?.stage ?: Stage.WORK)),
-                                            formatTime(next?.duration ?: 0),
-                                        ),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                        modifier = Modifier.hiddenWhen(next == null),
-                                    )
-                                }
-                            WorkoutDetails(s, locked, foreground)
+                                WorkoutUpcoming(s, options.showStages, compact = false)
+                                WorkoutDetails(s, locked, foreground)
                             }
                         }
                 }
@@ -301,24 +295,32 @@ private fun WorkoutResult(s: Snapshot, title: String, onRepeat: () -> Unit, onCl
 private fun ClockFace(s: Snapshot, modifier: Modifier) {
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val clock = workoutClock(s.remaining)
-        val scale = LocalDensity.current.fontScale
-        val planDigits = remember(s.plan) { s.plan.stages().maxOf { workoutClock(it.duration).length }.coerceAtLeast(2) }
-        val digits = maxOf(planDigits, clock.length)
-        val size =
-            minOf(
-                    240f,
-                    maxWidth.value / (digits * .62f * scale),
-                    (maxHeight.value - 20f - 24f * scale) /
-                        (1.12f * scale),
-                )
-                .coerceAtLeast(1f)
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val status = stringResource(R.string.paused)
+        val statusStyle = MaterialTheme.typography.bodyMedium
+        val statusHeight = with(density) { measurer.measure(AnnotatedString(status), statusStyle).size.height.toDp() }
+        val pattern = remember(s.plan, clock.length) {
+            val longest = (s.plan.stages().map { workoutClock(it.duration) } + clock).maxBy { it.length }
+            longest.map { if (it.isDigit()) '8' else it }.joinToString("")
+        }
+        // Measure actual glyphs, including Android's nonlinear accessibility font scaling.
+        val availableWidth = with(density) { maxWidth.toPx() }
+        val availableHeight = with(density) { (maxHeight - statusHeight - 20.dp).coerceAtLeast(1.dp).toPx() }
+        var lower = 1f
+        var upper = 240f
+        repeat(10) {
+            val candidate = (lower + upper) / 2f
+            val measured = measurer.measure(AnnotatedString(pattern),
+                TextStyle(fontSize = candidate.sp, lineHeight = (candidate * 1.08f).sp,
+                    fontFeatureSettings = "tnum"), softWrap = false, maxLines = 1).size
+            if (measured.width <= availableWidth && measured.height <= availableHeight) lower = candidate
+            else upper = candidate
+        }
+        val size = lower
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(Modifier.height(24.dp * scale), contentAlignment = Alignment.Center) {
-            if (s.status != Status.RUNNING)
-                Text(
-                    stringResource(R.string.paused),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+            Box(Modifier.height(statusHeight), contentAlignment = Alignment.Center) {
+                Text(status, style = statusStyle, modifier = Modifier.hiddenWhen(s.status == Status.RUNNING))
             }
             Text(
                 clock,
@@ -373,7 +375,8 @@ private fun WorkoutPause(s: Snapshot, locked: Boolean, foreground: Color) {
 }
 
 @Composable
-private fun WorkoutDetails(s: Snapshot, locked: Boolean, foreground: Color) {
+private fun WorkoutDetails(s: Snapshot, locked: Boolean, foreground: Color, compact: Boolean = false) {
+    if (compact) { CompactWorkoutDetails(s, locked, foreground); return }
     val context = LocalContext.current
     var restAdded by remember(s.sessionId, s.index) { mutableStateOf(false) }
     LaunchedEffect(restAdded) { if (restAdded) { delay(700); restAdded = false } }
@@ -442,6 +445,66 @@ private fun WorkoutDetails(s: Snapshot, locked: Boolean, foreground: Color) {
         style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.padding(bottom = 4.dp),
     )
+}
+
+@Composable
+private fun CompactWorkoutDetails(s: Snapshot, locked: Boolean, foreground: Color) {
+    val context = LocalContext.current
+    val stage = s.interval?.stage
+    val canExtend = stage in listOf(Stage.REST, Stage.BETWEEN)
+    val round = when (stage) {
+        Stage.PREPARE -> stringResource(R.string.rounds_ahead, s.plan.reps * s.plan.sets)
+        Stage.COOL -> stringResource(R.string.cool)
+        else -> stringResource(R.string.round_position, s.interval?.rep ?: 0, s.plan.reps)
+    }
+    val set = if (s.plan.sets > 1 && stage !in listOf(Stage.PREPARE, Stage.COOL))
+        " · ${stringResource(R.string.sets)} ${s.interval?.set ?: 0}/${s.plan.sets}" else ""
+    // Keep the counter and navigation in fixed slots across all stages, without a scroll viewport.
+    val samples = listOf(stringResource(R.string.rounds_ahead, s.plan.reps * s.plan.sets),
+        stringResource(R.string.cool), stringResource(R.string.round_position, s.plan.reps, s.plan.reps) +
+            if (s.plan.sets > 1) " · ${stringResource(R.string.sets)} ${s.plan.sets}/${s.plan.sets}" else "")
+    StableText(round + set, samples, Modifier.fillMaxWidth(), MaterialTheme.typography.bodyMedium)
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { TimerService.command(context, "previous") }, enabled = !locked,
+            modifier = Modifier.semantics { contentDescription = context.getString(R.string.previous) }) {
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_previous), null, tint = foreground.copy(alpha = if (locked) .4f else 1f))
+        }
+        TextButton(onClick = { TimerService.command(context, "extendRest") },
+            enabled = canExtend && !locked && s.status != Status.INTERRUPTED,
+            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp),
+            colors = ButtonDefaults.textButtonColors(contentColor = foreground),
+            modifier = Modifier.weight(1f).heightIn(min = 48.dp).hiddenWhen(!canExtend)) {
+            Text(stringResource(R.string.add_rest))
+        }
+        IconButton(onClick = { TimerService.command(context, "next") }, enabled = !locked,
+            modifier = Modifier.semantics { contentDescription = context.getString(R.string.next) }) {
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_next), null, tint = foreground.copy(alpha = if (locked) .4f else 1f))
+        }
+    }
+    Text("${stringResource(R.string.remaining)} ${formatTime(s.totalRemaining)}",
+        style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 4.dp))
+}
+
+@Composable
+private fun WorkoutUpcoming(s: Snapshot, queue: Boolean, compact: Boolean) {
+    if (queue && compact) {
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            val upcoming = s.plan.stages().drop(s.index + 1).take(3)
+            repeat(3) { index ->
+                val item = upcoming.getOrNull(index)
+                Column(Modifier.hiddenWhen(item == null)) {
+                    Text(stringResource(stageString(item?.stage ?: Stage.WORK)), style = MaterialTheme.typography.bodySmall)
+                    Text(formatTime(item?.duration ?: 0), style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        }
+    } else if (queue) StageQueue(s, Modifier.height(72.dp))
+    else Text(stringResource(R.string.next_stage, stringResource(stageString(s.next?.stage ?: Stage.WORK)),
+        formatTime(s.next?.duration ?: 0)), style = MaterialTheme.typography.bodyMedium,
+        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        modifier = Modifier.fillMaxWidth().hiddenWhen(s.next == null),
+        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
 }
 
 @Composable

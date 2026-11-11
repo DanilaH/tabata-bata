@@ -167,6 +167,8 @@ class UxAuditProbe {
             val work=compose.onNodeWithContentDescription(text(R.string.work))
             work.reveal().performClick().performTextReplacement("60:00")
             observeFor(600)
+            capture("06-editor-input-keyboard")
+            work.assertIsDisplayed()
             compose.onNodeWithText(text(R.string.start)).reveal().assertIsDisplayed()
             compose.onNodeWithText(text(R.string.save)).reveal().assertIsDisplayed()
             capture("06-editor-keyboard")
@@ -192,7 +194,7 @@ class UxAuditProbe {
     }
     @Test fun c_historyLongNamesAndExpandedPlan() {
         try {
-            compose.onNodeWithText(text(R.string.history_open)+" →").reveal().performClick()
+            compose.onNodeWithContentDescription(text(R.string.history_open)).reveal().performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithTag("history-list").performScrollToNode(hasText(text(R.string.history_empty_title)))
             capture("11-history-empty")
@@ -244,6 +246,16 @@ class UxAuditProbe {
             capture("19-settings-vibration")
             at(R.string.show_ready_modes).reveal().assertIsDisplayed()
             capture("20-settings-options")
+            at(R.string.voice).reveal().performClick()
+            at(R.string.voice_stages_rounds).reveal()
+            capture("20-settings-voice")
+            at(R.string.voice).reveal().performClick()
+            at(R.string.theme_dark).reveal()
+            capture("20-settings-appearance")
+            at(R.string.export).reveal()
+            capture("20-settings-data")
+            at(R.string.review_store_link).reveal()
+            capture("20-settings-about")
             at(R.string.report_problem).reveal().performClick()
             capture("21-support")
             compose.onNodeWithTag("support-description").reveal().performClick().performTextInput("UX audit: button and keyboard check")
@@ -281,16 +293,33 @@ class UxAuditProbe {
             compose.waitUntil(5000) { TimerService.state.value?.status==Status.PAUSED }
             val frames=JSONArray()
             val failures=mutableListOf<String>()
+            var firstClock: androidx.compose.ui.geometry.Rect? = null
             repeat(9) { index ->
                 val s=requireNotNull(TimerService.state.value)
                 capture("24-stage-$index-${s.interval?.stage}")
                 val clock=compose.onNodeWithTag("workout-clock").fetchSemanticsNode().boundsInWindow
+                if (firstClock == null) firstClock = clock
+                assertEquals("Clock top shifts at stage $index", firstClock!!.top, clock.top, 1f)
+                assertEquals("Clock size shifts at stage $index", firstClock!!.height, clock.height, 1f)
+                if (args.getString("uxOrientation") != "landscape") {
+                    val density = compose.activity.resources.displayMetrics.density
+                    assertTrue("Clock too small: $clock", clock.height >= 48f * density)
+                    val content = compose.onNodeWithTag("app-content").fetchSemanticsNode().boundsInWindow
+                    assertTrue("Clock loses visual priority: $clock", clock.width >= minOf(content.width * .5f, 160f * density))
+                }
                 val clockVisible=runCatching { compose.onNodeWithTag("workout-clock").assertIsDisplayed() }.isSuccess
                 val controlsVisible=runCatching {
                     at(R.string.resume).assertIsDisplayed()
                     compose.onNodeWithContentDescription(text(R.string.next)).reveal().assertIsDisplayed()
                     at(R.string.resume).assertIsDisplayed() // Primary action stays fixed while details scroll.
                 }.isSuccess
+                if (s.interval?.stage in listOf(Stage.REST, Stage.BETWEEN) && args.getString("uxOrientation") != "landscape") {
+                    at(R.string.add_rest).reveal()
+                    val rest = at(R.string.add_rest).fetchSemanticsNode().boundsInWindow
+                    val primary = at(R.string.resume).fetchSemanticsNode().boundsInWindow
+                    assertTrue("Rest control cropped under resume: $rest / $primary", rest.top >= primary.bottom)
+                }
+                if (index in listOf(0,4,8)) capture("24-controls-$index")
                 frames.put(JSONObject().put("stage",s.interval?.stage?.name).put("clock",clock.toString())
                     .put("clockVisible",clockVisible).put("controlsVisible",controlsVisible))
                 File(output,"clock-positions.json").writeText(frames.toString(2))
@@ -318,6 +347,37 @@ class UxAuditProbe {
             assertTrue("Unreachable workout layout: $failures",failures.isEmpty())
         } finally { finalCapture("e-final") }
     }
+    @Test fun k_queueAndLargeSupportContent() {
+        try {
+            runBlocking { store.saveOptions(store.options.first().copy(showStages = true)) }
+            compose.runOnUiThread { TimerService.command(context, "start", presets[1].plan) }
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.RUNNING }
+            at(R.string.pause).performClick()
+            compose.waitUntil(5000) { TimerService.state.value?.status == Status.PAUSED }
+            capture("36-queue-prepare")
+            repeat(4) {
+                compose.onNodeWithContentDescription(text(R.string.next)).reveal().performClick()
+                compose.waitUntil(5000) { TimerService.state.value?.index == it + 1 }
+            }
+            capture("36-queue-between")
+            at(R.string.add_rest).reveal().performClick()
+            capture("36-queue-extended")
+            stop()
+            at(R.string.settings).performClick()
+            at(R.string.report_problem).reveal().performClick()
+            compose.onNodeWithTag("support-description").performClick().performTextInput("Long description. ".repeat(100))
+            capture("37-support-long-input")
+            at(R.string.report_copy).reveal()
+            capture("37-support-long-actions")
+        } finally { finalCapture("k-final") }
+    }
+
+    @Test fun l_bannerLoadingSequence() {
+        if (args.getString("uxFeel") != "true") return
+        capture("38-banner-initial")
+        for (index in 1..4) { observeFor(2000); capture("38-banner-$index") }
+    }
+
     private fun observeFor(durationMs: Long) {
         val started = SystemClock.uptimeMillis()
         // Keep Compose's test frame clock advancing while wall-clock service ticks.
@@ -418,6 +478,14 @@ class UxAuditProbe {
             at(R.string.recover).reveal().assertIsDisplayed().performClick()
             compose.waitUntil(10000) { TimerService.state.value?.status==Status.INTERRUPTED }
             capture("34-interrupted-workout")
+            val restoredImage = requireNotNull(inst.uiAutomation.takeScreenshot())
+            val topColor = restoredImage.getPixel(restoredImage.width / 2, 5)
+            val bodyColor = restoredImage.getPixel(5, restoredImage.height / 3)
+            fun channelDifference(a: Int, b: Int): Int = kotlin.math.abs(a - b)
+            val mismatch = channelDifference(android.graphics.Color.red(topColor), android.graphics.Color.red(bodyColor)) +
+                channelDifference(android.graphics.Color.green(topColor), android.graphics.Color.green(bodyColor)) +
+                channelDifference(android.graphics.Color.blue(topColor), android.graphics.Color.blue(bodyColor))
+            assertTrue("Restored workout has a mismatched system bar: $mismatch", mismatch < 80)
             at(R.string.resume).assertIsDisplayed()
         } finally { finalCapture("i-final") }
     }

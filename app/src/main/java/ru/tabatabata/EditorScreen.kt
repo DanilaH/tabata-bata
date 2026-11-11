@@ -158,7 +158,7 @@ internal fun Editor(
     }
     BackHandler(enabled = onCancel != null) { back() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-    val shortWindow = maxHeight < 400.dp
+    val shortWindow = maxHeight < 400.dp || LocalDensity.current.fontScale > 1.3f
     val largeText = LocalDensity.current.fontScale > 1.3f
     Column(Modifier.fillMaxSize().then(if (shortWindow) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
         Column(

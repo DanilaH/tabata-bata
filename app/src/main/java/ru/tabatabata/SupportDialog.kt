@@ -45,7 +45,7 @@ internal fun SupportDialog(onClose: () -> Unit, onExternal: () -> Unit) {
         val keyboard = LocalSoftwareKeyboardController.current
         Text(stringResource(R.string.report_hint), style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(description, onValueChange = { description = it.take(2000) },
-            label = { Text(stringResource(R.string.report_description)) }, minLines = 3,
+            label = { Text(stringResource(R.string.report_description)) }, minLines = 3, maxLines = 6,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { keyboard?.hide() }),
             modifier = Modifier.fillMaxWidth().testTag("support-description"))

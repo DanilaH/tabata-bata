@@ -85,17 +85,6 @@ private fun TabataTheme(content: @Composable () -> Unit) {
             "dark" -> true
             else -> isSystemInDarkTheme()
         }
-    SideEffect {
-        val style =
-            if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-            else
-                SystemBarStyle.light(
-                    android.graphics.Color.TRANSPARENT,
-                    android.graphics.Color.TRANSPARENT,
-                )
-        activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-        if (Build.VERSION.SDK_INT >= 29) activity.window.isNavigationBarContrastEnforced = false
-    }
     MaterialTheme(
         colorScheme = if (dark) DarkPalette else LightPalette,
         shapes =
@@ -268,7 +257,7 @@ private fun App() {
         onDispose { activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
     }
     val darkSurface = MaterialTheme.colorScheme.background.red < .3f
-    DisposableEffect(running, darkSurface) {
+    SideEffect {
         val style =
             if (running || darkSurface) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
             else
@@ -278,7 +267,6 @@ private fun App() {
                 )
         activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
         if (Build.VERSION.SDK_INT >= 29) activity.window.isNavigationBarContrastEnforced = false
-        onDispose {}
     }
     val screen = when {
         running -> "workout"
@@ -356,7 +344,7 @@ private fun App() {
             else
                 ContentFrame { Column(Modifier.fillMaxSize()) {
                     ScreenHeading(
-                        stringResource(when (tab) { 3 -> R.string.history; 2 -> R.string.settings; else -> R.string.app_name }),
+                        stringResource(when (tab) { 3 -> R.string.history; 2 -> R.string.settings; else -> R.string.saved }),
                         if (tab != 0) "← " + stringResource(R.string.saved) else stringResource(R.string.settings),
                         { reviews.cancelPreparation(); tab = if (tab != 0) 0 else 2 },
                         Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
@@ -584,31 +572,18 @@ private fun Settings(
         soundProfiles.forEachIndexed { index, profile ->
             val title = stringResource(listOf(R.string.profile_electronic, R.string.profile_beep, R.string.profile_bell)[index])
             val previewLabel = stringResource(R.string.profile_preview, title)
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val stacked = maxWidth < 360.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
-                val choice: @Composable (Modifier) -> Unit = { m ->
-                    Row(m.heightIn(min = 48.dp).selectable(o.soundProfile == profile,
-                        role = androidx.compose.ui.semantics.Role.RadioButton,
-                        onClick = { onChange(o.copy(soundProfile = profile))
-                            Telemetry.event("sound_profile_selected", mapOf("profile" to profile)) }),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        RadioButton(selected = o.soundProfile == profile, onClick = null)
-                        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                    }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f).heightIn(min = 48.dp).selectable(o.soundProfile == profile,
+                    role = androidx.compose.ui.semantics.Role.RadioButton,
+                    onClick = { onChange(o.copy(soundProfile = profile))
+                        Telemetry.event("sound_profile_selected", mapOf("profile" to profile)) }),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    RadioButton(selected = o.soundProfile == profile, onClick = null)
+                    Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                 }
-                val listen: @Composable () -> Unit = {
-                    TextButton(onClick = { cues.play(Stage.WORK, o.copy(soundProfile = profile, voice = false)) },
-                        modifier = Modifier.semantics { contentDescription = previewLabel }) {
-                        Text(stringResource(R.string.listen_profile))
-                    }
-                }
-                if (stacked) Column {
-                    choice(Modifier.fillMaxWidth())
-                    Box(Modifier.align(Alignment.End)) { listen() }
-                } else Row(verticalAlignment = Alignment.CenterVertically) {
-                    choice(Modifier.weight(1f))
-                    listen()
+                IconButton(onClick = { cues.play(Stage.WORK, o.copy(soundProfile = profile, voice = false)) }) {
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_play), contentDescription = previewLabel)
                 }
             }
         }

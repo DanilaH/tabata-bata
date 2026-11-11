@@ -132,7 +132,8 @@ private fun HistoryCard(record: WorkoutRecord, onRepeat: () -> Unit, onPreview: 
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StageMark(presetMark(record.mark), tint)
                 Text(record.name.ifBlank { stringResource(R.string.default_name) }, Modifier.weight(1f),
-                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold,
+                    maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
             Text(stringResource(if (record.completed) R.string.history_completed else R.string.history_stopped),
                 style = MaterialTheme.typography.labelLarge, color = if (record.completed) tint else MaterialTheme.colorScheme.onSurfaceVariant)

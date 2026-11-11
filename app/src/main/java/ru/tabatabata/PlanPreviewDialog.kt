@@ -31,7 +31,8 @@ internal fun PlanPreviewDialog(plan: Plan, name: String? = null, onClose: () -> 
                         item {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(stringResource(R.string.plan_preview), style = MaterialTheme.typography.titleLarge)
-                                if (!name.isNullOrBlank()) Text(name, style = MaterialTheme.typography.bodyMedium)
+                                if (!name.isNullOrBlank()) Text(name, style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                                 Text(formatTime(model.duration), style = MaterialTheme.typography.displaySmall,
                                     fontWeight = FontWeight.Bold, modifier = Modifier.testTag("preview-total"))
                                 for ((stage, duration) in model.byStage) {

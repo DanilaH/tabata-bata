@@ -33,22 +33,22 @@ internal fun Saved(
     LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
-            if (presets.isEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.new_mode_hint), style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Button(onClick = onNew, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
-                        Text("+ " + stringResource(R.string.new_timer))
-                    }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onNew, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
+                    Text("+ " + stringResource(R.string.new_timer))
                 }
-            } else {
-                ScreenHeading(stringResource(R.string.saved), "+ " + stringResource(R.string.new_timer),
-                    onNew, prominent = true)
+                IconButton(onClick = onHistory, modifier = Modifier.size(52.dp)) {
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_history),
+                        contentDescription = stringResource(R.string.history_open))
+                }
             }
         }
-        item { TextButton(onClick = onHistory, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.history_open) + " →")
-        } }
+        if (presets.isEmpty()) item {
+            Text(stringResource(R.string.new_mode_hint), style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         itemsIndexed(presets, key = { _, p -> p.id }) { index, p ->
             var menu by remember { mutableStateOf(false) }
             val dark = MaterialTheme.colorScheme.background.red < .3f
@@ -61,7 +61,7 @@ internal fun Saved(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StageMark(presetMark(p.mark), tint)
                         Text(p.name, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Box {
                             val label = stringResource(R.string.mode_actions, p.name)
                             TextButton(onClick = { onInteraction(); menu = true }, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
