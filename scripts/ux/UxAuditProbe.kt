@@ -257,6 +257,12 @@ class UxAuditProbe {
                 assertTrue(clip!!.getItemAt(0).text.contains("UX audit:"))
             }
             capture("23-support-copied")
+            compose.onNodeWithTag("support-description").reveal().performImeAction()
+            observeFor(400)
+            compose.waitUntil(5000) { inst.uiAutomation.windows.none {
+                it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            } }
+            capture("23-support-done")
             at(R.string.preview_close).reveal().assertIsDisplayed().performTouchInput { click(center) }
         } finally { finalCapture("d-final") }
     }
