@@ -13,6 +13,15 @@ class EditorControlsTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private fun label(id: Int) = compose.activity.getString(id)
 
+    private fun settleKeyboard() {
+        compose.runOnUiThread {
+            androidx.core.view.WindowInsetsControllerCompat(compose.activity.window, compose.activity.window.decorView)
+                .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+        }
+        val start = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(5000) { android.os.SystemClock.uptimeMillis() - start >= 650 }
+    }
+
     @Test fun holdingAcceleratesAndStopsOnRelease() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val drafts = EditorDrafts(context)
@@ -57,7 +66,7 @@ class EditorControlsTest {
             compose.mainClock.autoAdvance = true
             field.performTextReplacement("0:01")
             compose.onNodeWithContentDescription("− " + label(R.string.work)).assertIsNotEnabled()
-        } finally { compose.mainClock.autoAdvance = true; drafts.clear("new") }
+        } finally { compose.mainClock.autoAdvance = true; settleKeyboard(); drafts.clear("new") }
     }
 
     @Test fun readyVisibilityPersistsAndDuplicateCanBeEdited() {
@@ -67,6 +76,7 @@ class EditorControlsTest {
         val presets = runBlocking { store.presets.first() }
         val mode = Preset(name = "Menu edit test", plan = Plan())
         try {
+            settleKeyboard()
             compose.onNodeWithText(label(R.string.settings)).performClick()
             compose.onNodeWithText(label(R.string.show_ready_modes)).performScrollTo().performClick()
             compose.waitUntil(10000) { runBlocking { store.options.first().showReadyModes } != original.showReadyModes }
@@ -84,6 +94,7 @@ class EditorControlsTest {
             compose.onNodeWithContentDescription(compose.activity.getString(R.string.mode_actions, copy.name)).performClick()
             compose.onNodeWithText(label(R.string.edit)).performClick()
             compose.onNodeWithContentDescription(label(R.string.work)).performTextReplacement("0:35")
+            settleKeyboard()
             compose.onNodeWithText(label(R.string.save)).performClick()
             compose.waitUntil(10000) { runBlocking { store.presets.first().last().plan.work } == 35 }
             assertEquals(20, runBlocking { store.presets.first().first().plan.work })

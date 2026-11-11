@@ -23,6 +23,15 @@ class ProductPassTest {
         File(dir,"$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
     }
 
+    private fun settleKeyboard() {
+        compose.runOnUiThread {
+            androidx.core.view.WindowInsetsControllerCompat(compose.activity.window, compose.activity.window.decorView)
+                .hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+        }
+        val start = android.os.SystemClock.uptimeMillis()
+        compose.waitUntil(5000) { android.os.SystemClock.uptimeMillis() - start >= 650 }
+    }
+
     @Test fun previewRotationAndAppearanceEditingKeepTheSavedPlan() {
         val store = Store(context)
         val before = runBlocking { store.presets.first() }
@@ -80,10 +89,12 @@ class ProductPassTest {
         val before = runBlocking { store.presets.first() }
         EditorDrafts(context).clear("new")
         try {
+            settleKeyboard()
             compose.onNodeWithText(text(R.string.settings)).performClick()
             compose.onNodeWithText(text(R.string.profile_bell)).performScrollTo().performClick()
             if (!options.halfway) compose.onNodeWithText(text(R.string.halfway)).performScrollTo().performClick()
             if (!options.voice) compose.onNodeWithText(text(R.string.voice)).performScrollTo().performClick()
+            compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.voice_stages_rounds)).fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText(text(R.string.voice_stages_rounds)).performScrollTo().performClick()
             compose.waitUntil(10000) { runBlocking { store.options.first() }.let { it.soundProfile=="bell" && it.halfway && it.voiceRounds } }
             compose.activityRule.scenario.recreate()
@@ -94,6 +105,7 @@ class ProductPassTest {
             compose.onNodeWithText("← " + text(R.string.saved)).performClick()
             compose.onNodeWithText("+ " + text(R.string.new_timer)).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:45")
+            settleKeyboard()
             capture("editor")
             compose.onNodeWithContentDescription(text(R.string.plan_preview)).performClick()
             compose.onNodeWithTag("preview-stage-WORK").assertTextEquals("6:00")

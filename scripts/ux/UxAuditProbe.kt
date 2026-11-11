@@ -47,6 +47,9 @@ class UxAuditProbe {
         }
     }
     @Before fun prepare() {
+        val serviceInfo = inst.uiAutomation.serviceInfo
+        serviceInfo.flags = serviceInfo.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        inst.uiAutomation.serviceInfo = serviceInfo
         assertEquals("demo-banner-adfox-html",BuildConfig.BANNER_ID)
         assertTrue(BuildConfig.INTERSTITIAL_ID.isBlank() && BuildConfig.APPMETRICA_KEY.isBlank())
         stop()
@@ -70,6 +73,7 @@ class UxAuditProbe {
             HistoryRepository(context).clear()
         }
         compose.waitUntil(10000) { compose.onAllNodesWithText("+ "+text(R.string.new_timer)).fetchSemanticsNodes().isNotEmpty() }
+        hideKeyboard()
     }
     @After fun finish() { stop() }
     private fun capture(name: String) {
@@ -114,7 +118,7 @@ class UxAuditProbe {
     private fun back() { inst.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);compose.waitForIdle() }
     private fun hideKeyboard() {
         compose.runOnUiThread { compose.activity.window.decorView.windowInsetsController?.hide(android.view.WindowInsets.Type.ime()) }
-        SystemClock.sleep(400)
+        observeFor(650)
         compose.waitForIdle()
     }
 
@@ -244,6 +248,9 @@ class UxAuditProbe {
             capture("21-support")
             compose.onNodeWithTag("support-description").reveal().performClick().performTextInput("UX audit: button and keyboard check")
             observeFor(600)
+            compose.waitUntil(5000) { inst.uiAutomation.windows.any {
+                it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            } }
             capture("22-support-keyboard")
             at(R.string.report_copy).reveal().assertIsDisplayed().performTouchInput { click(center) }
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
@@ -259,6 +266,9 @@ class UxAuditProbe {
             capture("23-support-copied")
             compose.onNodeWithTag("support-description").reveal().performImeAction()
             observeFor(400)
+            compose.waitUntil(5000) { inst.uiAutomation.windows.none {
+                it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            } }
             capture("23-support-done")
             at(R.string.preview_close).reveal().assertIsDisplayed().performTouchInput { click(center) }
         } finally { finalCapture("d-final") }
@@ -351,6 +361,9 @@ class UxAuditProbe {
             capture("30-new-name-dialog")
             compose.onAllNodes(hasSetTextAction()).onLast().performClick().performTextInput(longName)
             observeFor(600)
+            compose.waitUntil(5000) { inst.uiAutomation.windows.any {
+                it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            } }
             capture("31-new-name-keyboard")
             compose.onAllNodesWithText(text(R.string.save)).onLast().reveal().assertIsDisplayed()
             capture("31-new-name-actions-keyboard")
