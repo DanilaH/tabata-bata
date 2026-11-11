@@ -1,0 +1,54 @@
+name: Native SDK control and wrong-format comparison
+on:
+  push:
+    branches: [ad-diagnostics-20261111]
+    paths: ['.github/workflows/sdk-boundary-diagnostics.yml', 'scripts/ads/diagnostics/SdkBoundaryDiagnosticTest.kt']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-control:
+    name: Native SDK (animations ${{ matrix.animations }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        animations: ['on', 'off']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Prepare direct SDK probe on current application source
+        run: |
+          cp scripts/ads/diagnostics/SdkBoundaryDiagnosticTest.kt /tmp/SdkBoundaryDiagnosticTest.kt
+          git checkout --detach 8a74a4fe18c33d71505210468a4be94275d02f47
+          cp /tmp/SdkBoundaryDiagnosticTest.kt app/src/androidTest/java/ru/tabatabata/
+          mkdir -p sdk-boundary-evidence
+          git rev-parse HEAD > sdk-boundary-evidence/source.txt
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: ${{ matrix.animations == 'off' }}
+          script: ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.tabatabata.SdkBoundaryDiagnosticTest
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sdk-boundary-${{ matrix.animations }}
+          path: |
+            sdk-boundary-evidence/
+            app/build/reports/androidTests/
+            app/build/outputs/androidTest-results/
+            app/build/outputs/connected_android_test_additional_output/
