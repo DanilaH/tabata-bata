@@ -18,14 +18,10 @@ jobs:
       ORG_GRADLE_PROJECT_privacyUrl: https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md
     steps:
       - uses: actions/checkout@v4
-      - name: Check required configuration without printing values
-        shell: bash
+      - name: Validate distinct production ad blocks without printing values
         run: |
-          set -euo pipefail
-          for name in appMetricaKey bannerId interstitialId; do
-            var="ORG_GRADLE_PROJECT_${name}"
-            if [ -z "${!var}" ]; then echo "Missing configuration: $name"; exit 1; fi
-          done
+          python3 scripts/test-production-config.py
+          python3 scripts/validate-production-config.py
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
