@@ -62,7 +62,7 @@ class WorkoutSmokeTest {
                 compose.activityRule.scenario.recreate()
                 compose.waitForIdle()
                 capture("home-$theme")
-                compose.onNodeWithText(text(R.string.settings)).performClick()
+                compose.onNodeWithContentDescription(text(R.string.settings)).performClick()
                 capture("settings-signals-$theme")
                 compose
                     .onNodeWithText(
@@ -76,9 +76,9 @@ class WorkoutSmokeTest {
                     theme,
                     kotlinx.coroutines.runBlocking { store.options.first().theme },
                 )
-                compose.onNodeWithText(text(R.string.settings)).assertExists()
+                compose.onNodeWithContentDescription(text(R.string.settings)).assertExists()
                 // Settings retains its navigation state across recreation.
-                compose.onNodeWithText("← " + text(R.string.saved)).performClick()
+                compose.onNode(hasText("← " + text(R.string.saved)) or hasContentDescription("← " + text(R.string.saved))).performClick()
                 compose.waitForIdle()
             }
         } finally {
@@ -165,7 +165,7 @@ class WorkoutSmokeTest {
         compose.waitUntil(5000) { TimerService.state.value == null }
         compose.onNodeWithText(text(R.string.stopped)).assertDoesNotExist()
         capture("menu-after-stop")
-        compose.onNodeWithText(text(R.string.settings)).assertExists()
+        compose.onNodeWithContentDescription(text(R.string.settings)).assertExists()
     }
 
     @Test
@@ -186,8 +186,20 @@ class WorkoutSmokeTest {
                 .onFirst()
                 .performTextReplacement("Rotation edited")
             compose.activityRule.scenario.recreate()
+            compose.runOnUiThread {
+                androidx.core.view.WindowCompat.getInsetsController(compose.activity.window,
+                    compose.activity.window.decorView).hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+            }
+            val settleUntil = android.os.SystemClock.uptimeMillis() + 650
+            while (android.os.SystemClock.uptimeMillis() < settleUntil) {
+                compose.mainClock.advanceTimeByFrame(); android.os.SystemClock.sleep(16)
+            }
             compose.waitForIdle()
-            compose.onNodeWithText(text(R.string.save)).performClick()
+            val save = compose.onNodeWithText(text(R.string.save))
+            val scrollable = generateSequence(save.fetchSemanticsNode().parent) { it.parent }
+                .any { it.config.contains(androidx.compose.ui.semantics.SemanticsActions.ScrollBy) }
+            if (scrollable) save.performScrollTo()
+            save.assertIsDisplayed().performClick()
             compose.waitUntil(10000) {
                 kotlinx.coroutines.runBlocking {
                     store.presets.first().singleOrNull()?.name == "Rotation edited"

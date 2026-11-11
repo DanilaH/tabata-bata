@@ -455,15 +455,15 @@ private fun CompactWorkoutDetails(s: Snapshot, locked: Boolean, foreground: Colo
     val round = when (stage) {
         Stage.PREPARE -> stringResource(R.string.rounds_ahead, s.plan.reps * s.plan.sets)
         Stage.COOL -> stringResource(R.string.cool)
-        else -> stringResource(R.string.round_position, s.interval?.rep ?: 0, s.plan.reps)
+        else -> stringResource(R.string.workout_round_short, s.interval?.rep ?: 0, s.plan.reps)
     }
     val set = if (s.plan.sets > 1 && stage !in listOf(Stage.PREPARE, Stage.COOL))
-        " · ${stringResource(R.string.sets)} ${s.interval?.set ?: 0}/${s.plan.sets}" else ""
+        " · " + stringResource(R.string.workout_set_short, s.interval?.set ?: 0, s.plan.sets) else ""
     // Keep the counter and navigation in fixed slots across all stages, without a scroll viewport.
     val samples = listOf(stringResource(R.string.rounds_ahead, s.plan.reps * s.plan.sets),
-        stringResource(R.string.cool), stringResource(R.string.round_position, s.plan.reps, s.plan.reps) +
-            if (s.plan.sets > 1) " · ${stringResource(R.string.sets)} ${s.plan.sets}/${s.plan.sets}" else "")
-    StableText(round + set, samples, Modifier.fillMaxWidth(), MaterialTheme.typography.bodyMedium)
+        stringResource(R.string.cool), stringResource(R.string.workout_round_short, s.plan.reps, s.plan.reps) +
+            if (s.plan.sets > 1) " · " + stringResource(R.string.workout_set_short, s.plan.sets, s.plan.sets) else "")
+    StableText(round + set, samples, Modifier.fillMaxWidth(), MaterialTheme.typography.bodySmall)
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = { TimerService.command(context, "previous") }, enabled = !locked,
             modifier = Modifier.semantics { contentDescription = context.getString(R.string.previous) }) {
@@ -501,7 +501,7 @@ private fun WorkoutUpcoming(s: Snapshot, queue: Boolean, compact: Boolean) {
         }
     } else if (queue) StageQueue(s, Modifier.height(72.dp))
     else Text(stringResource(R.string.next_stage, stringResource(stageString(s.next?.stage ?: Stage.WORK)),
-        formatTime(s.next?.duration ?: 0)), style = MaterialTheme.typography.bodyMedium,
+        formatTime(s.next?.duration ?: 0)), style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
         maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
         modifier = Modifier.fillMaxWidth().hiddenWhen(s.next == null),
         textAlign = androidx.compose.ui.text.style.TextAlign.Center)

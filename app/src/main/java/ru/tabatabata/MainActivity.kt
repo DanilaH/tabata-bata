@@ -24,6 +24,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.*
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -108,13 +109,30 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         volumeControlStream = android.media.AudioManager.STREAM_MUSIC
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-        )
-        if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+        updateSystemBars(true, android.graphics.Color.parseColor("#F6F7FC"))
         setContent { TabataTheme { App() } }
     }
+    private var barsDark: Boolean? = null
+    private var barsBackground: Int? = null
+    internal fun updateSystemBars(dark: Boolean, background: Int, force: Boolean = false) {
+        if (force || barsDark != dark) {
+            barsDark = dark
+            val style = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+            enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+        }
+        if (barsBackground != background) {
+            barsBackground = background
+            window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(background))
+        }
+    }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // Android can restore decor flags after onCreate; reapply after recreation/dialog dismissal.
+        if (hasFocus) updateSystemBars(barsDark ?: false, barsBackground ?: android.graphics.Color.TRANSPARENT, force = true)
+    }
+
 }
 
 @Composable
@@ -257,16 +275,11 @@ private fun App() {
         onDispose { activity.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
     }
     val darkSurface = MaterialTheme.colorScheme.background.red < .3f
+    val systemBackground = if (running) workoutBackground(snapshot?.interval?.stage, darkSurface)
+        else MaterialTheme.colorScheme.background
     SideEffect {
-        val style =
-            if (running || darkSurface) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-            else
-                SystemBarStyle.light(
-                    android.graphics.Color.TRANSPARENT,
-                    android.graphics.Color.TRANSPARENT,
-                )
-        activity.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-        if (Build.VERSION.SDK_INT >= 29) activity.window.isNavigationBarContrastEnforced = false
+        activity.updateSystemBars(running || darkSurface,
+            systemBackground.toArgb())
     }
     val screen = when {
         running -> "workout"
@@ -343,12 +356,29 @@ private fun App() {
                 ) }
             else
                 ContentFrame { Column(Modifier.fillMaxSize()) {
-                    ScreenHeading(
-                        stringResource(when (tab) { 3 -> R.string.history; 2 -> R.string.settings; else -> R.string.saved }),
-                        if (tab != 0) "← " + stringResource(R.string.saved) else stringResource(R.string.settings),
-                        { reviews.cancelPreparation(); tab = if (tab != 0) 0 else 2 },
-                        Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
-                    )
+                    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        if (tab != 0) IconButton(onClick = { reviews.cancelPreparation(); tab = 0 }) {
+                            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_back),
+                                contentDescription = "← " + stringResource(R.string.saved))
+                        }
+                        Text(stringResource(when (tab) { 3 -> R.string.history; 2 -> R.string.settings; else -> R.string.saved }),
+                            modifier = Modifier.weight(1f),
+                            style = if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f)
+                                MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold, maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                        if (tab == 0) {
+                            IconButton(onClick = { reviews.cancelPreparation(); tab = 3 }) {
+                                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_history),
+                                    contentDescription = stringResource(R.string.history_open))
+                            }
+                            IconButton(onClick = { reviews.cancelPreparation(); tab = 2 }) {
+                                Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_settings),
+                                    contentDescription = stringResource(R.string.settings))
+                            }
+                        }
+                    }
                     when (tab) {
                         0 ->
                             Saved(
@@ -406,7 +436,7 @@ private fun App() {
                                     }
                                 },
                                 onInteraction = { reviews.cancelPreparation() },
-                                onHistory = { reviews.cancelPreparation(); tab = 3; Telemetry.event("history_opened") },
+
                                 onMove = { from, to ->
                                     reviews.cancelPreparation()
                                     scope.launch {
@@ -638,6 +668,7 @@ private fun Settings(
         Text(stringResource(R.string.vibration_section), style = MaterialTheme.typography.titleMedium)
         Toggle(R.string.vibrate, o.vibrate) { onChange(o.copy(vibrate = it)) }
         OutlinedButton(onClick = { cues.play(Stage.WORK, o.copy(volume = 0f, vibrate = true, voice = false)) },
+            shape = MaterialTheme.shapes.small,
             modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.vibration_preview)) }
         Toggle(R.string.countdown, o.countdown) { onChange(o.copy(countdown = it)) }
         Text(stringResource(R.string.countdown_hint), style = MaterialTheme.typography.bodySmall)
@@ -738,7 +769,7 @@ private fun SoundPreviewRow(label: String, onPlay: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
         IconButton(onClick = onPlay, modifier = Modifier.semantics { contentDescription = label }) {
-            Text("▶", color = MaterialTheme.colorScheme.primary)
+            Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_play), null, tint = MaterialTheme.colorScheme.primary)
         }
     }
 }

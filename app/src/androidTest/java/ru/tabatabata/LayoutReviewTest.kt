@@ -45,7 +45,7 @@ class LayoutReviewTest {
             compose.onNodeWithText(label(R.string.last_rest)).performScrollTo().assertIsDisplayed()
             capture("editor-options-en-large")
             compose.onNodeWithText("← " + label(R.string.saved)).performScrollTo().performClick()
-            compose.onNodeWithText(label(R.string.settings)).performClick()
+            compose.onNodeWithContentDescription(label(R.string.settings)).performClick()
             val finish = compose.onNodeWithText(label(R.string.finish_cue))
             finish.performScrollTo().assertIsDisplayed()
             val layouts= mutableListOf<TextLayoutResult>()

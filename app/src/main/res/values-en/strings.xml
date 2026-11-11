@@ -204,4 +204,6 @@
     <string name="report_copied">Message copied</string>
     <string name="review_store_link">Review on RuStore</string>
  <string name="stop_short">Stop</string>
+    <string name="workout_round_short">Round %1$d/%2$d</string>
+    <string name="workout_set_short">Set %1$d/%2$d</string>
 </resources>

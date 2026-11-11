@@ -18,7 +18,7 @@ internal fun Saved(
     presets: List<Preset>, lastPresetId: String?, showReadyModes: Boolean,
     onNew: () -> Unit, onStart: (Preset) -> Unit, onEdit: (Preset) -> Unit,
     onPreview: (Preset) -> Unit, onCopy: (Preset) -> Unit, onDelete: (Preset) -> Unit,
-    onMove: (Int, Int) -> Unit, onHistory: () -> Unit, onInteraction: () -> Unit,
+    onMove: (Int, Int) -> Unit, onInteraction: () -> Unit,
 ) {
     val readyModes = listOf(
         Preset("builtin-classic", stringResource(R.string.classic_tabata), Plan(), "green", 2),
@@ -33,16 +33,10 @@ internal fun Saved(
     LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onNew, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                    modifier = Modifier.weight(1f).heightIn(min = 52.dp)) {
-                    Text("+ " + stringResource(R.string.new_timer))
-                }
-                IconButton(onClick = onHistory, modifier = Modifier.size(52.dp)) {
-                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ic_history),
-                        contentDescription = stringResource(R.string.history_open))
-                }
+            Button(onClick = onNew, shape = MaterialTheme.shapes.small,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                Text("+ " + stringResource(R.string.new_timer))
             }
         }
         if (presets.isEmpty()) item {
@@ -60,7 +54,8 @@ internal fun Saved(
                     Row(verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         StageMark(presetMark(p.mark), tint)
-                        Text(p.name, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge,
+                        Text(p.name, Modifier.weight(1f), style = if (androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f)
+                                MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Box {
                             val label = stringResource(R.string.mode_actions, p.name)

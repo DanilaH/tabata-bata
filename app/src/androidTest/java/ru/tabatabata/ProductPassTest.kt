@@ -90,7 +90,7 @@ class ProductPassTest {
         EditorDrafts(context).clear("new")
         try {
             settleKeyboard()
-            compose.onNodeWithText(text(R.string.settings)).performClick()
+            compose.onNodeWithContentDescription(text(R.string.settings)).performClick()
             compose.onNodeWithText(text(R.string.profile_bell)).performScrollTo().performClick()
             if (!options.halfway) compose.onNodeWithText(text(R.string.halfway)).performScrollTo().performClick()
             if (!options.voice) compose.onNodeWithText(text(R.string.voice)).performScrollTo().performClick()
@@ -102,7 +102,7 @@ class ProductPassTest {
             compose.onNodeWithText(text(R.string.profile_bell)).performScrollTo().assertExists()
             compose.onNodeWithText(text(R.string.sound_profile)).performScrollTo()
             capture("signals")
-            compose.onNodeWithText("← " + text(R.string.saved)).performClick()
+            compose.onNode(hasText("← " + text(R.string.saved)) or hasContentDescription("← " + text(R.string.saved))).performClick()
             compose.onNodeWithText("+ " + text(R.string.new_timer)).performClick()
             compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:45")
             settleKeyboard()

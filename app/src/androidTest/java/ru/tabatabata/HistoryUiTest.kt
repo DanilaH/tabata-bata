@@ -39,7 +39,7 @@ class HistoryUiTest {
                 now-235000,now,true,235000,8))
             repository.enqueue(WorkoutRecord("ui-stopped",plan,"Силовая · четыре раунда","orange",1,
                 now-120000,now-1,false,78000,1))
-            compose.onNodeWithContentDescription(text(R.string.history_open)).performScrollTo().performClick()
+            compose.onNodeWithContentDescription(text(R.string.history_open)).performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithTag("history-ui-done").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithTag("history-week-time").assertTextEquals("5:13")
             compose.onNodeWithTag("history-week-counts").assertTextEquals(compose.activity.getString(R.string.history_week_counts,1,1))
@@ -65,7 +65,7 @@ class HistoryUiTest {
             assertEquals("Силовая · четыре раунда",TimerService.sessionPreset.value!!.name)
             TimerService.command(context,"stop")
             compose.waitUntil(10000) { TimerService.state.value==null }
-            compose.onNodeWithContentDescription(text(R.string.history_open)).performScrollTo().performClick()
+            compose.onNodeWithContentDescription(text(R.string.history_open)).performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithText(compose.activity.getString(R.string.history_week_counts,1,2)).fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithTag("history-week-counts").assertTextEquals(compose.activity.getString(R.string.history_week_counts,1,2))
         } finally {
@@ -81,7 +81,7 @@ class HistoryUiTest {
         val repository = HistoryRepository(context)
         runBlocking { repository.clear() }
         try {
-            compose.onNodeWithContentDescription(text(R.string.history_open)).performScrollTo().performClick()
+            compose.onNodeWithContentDescription(text(R.string.history_open)).performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithText(text(R.string.history_empty_title)).fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithText(text(R.string.history_empty_title)).assertExists()
             capture("history-empty")
@@ -112,7 +112,7 @@ class HistoryUiTest {
                 finishedAt=System.currentTimeMillis(),completed=false,activeMs=123000,completedRounds=3))
             shell("settings put system font_scale 1.5")
             compose.waitUntil(10000) { compose.activity.resources.configuration.fontScale>=1.49f }
-            compose.onNodeWithContentDescription(text(R.string.history_open)).performScrollTo().performClick()
+            compose.onNodeWithContentDescription(text(R.string.history_open)).performClick()
             compose.waitUntil(10000) { compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty() }
             compose.onNodeWithTag("history-list").performScrollToNode(hasTestTag("history-large-ui"))
             compose.onNodeWithText(text(R.string.repeat)).performScrollTo().assertIsDisplayed()

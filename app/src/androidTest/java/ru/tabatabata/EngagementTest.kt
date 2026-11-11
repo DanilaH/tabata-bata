@@ -39,7 +39,7 @@ class EngagementTest {
             // Exercise a phone-like software keyboard. Android restricts background clipboard reads.
             shell("settings put secure show_ime_with_hard_keyboard 1")
             runBlocking { store.updatePreset(Preset("private-support-test","PRIVATE_TIMER_NAME",Plan())) }
-            compose.onNodeWithText(text(R.string.settings)).performClick()
+            compose.onNodeWithContentDescription(text(R.string.settings)).performClick()
             compose.onNodeWithText(text(R.string.report_problem)).performScrollTo().assertIsDisplayed()
             capture("settings-feedback")
             compose.onNodeWithText(text(R.string.report_problem)).performClick()
@@ -80,7 +80,7 @@ class EngagementTest {
         try {
             shell("settings put system font_scale 1.5")
             compose.waitUntil(10000) { compose.activity.resources.configuration.fontScale>=1.49f }
-            compose.onNodeWithText(text(R.string.settings)).performClick()
+            compose.onNodeWithContentDescription(text(R.string.settings)).performClick()
             compose.onNodeWithText(text(R.string.report_problem)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.report_email)).performScrollTo().assertIsDisplayed()
             compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().assertIsDisplayed()

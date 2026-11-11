@@ -238,7 +238,7 @@ class UxAuditProbe {
     }
     @Test fun d_settingsSoundsSupportAndKeyboard() {
         try {
-            at(R.string.settings).performClick()
+            compose.onNodeWithContentDescription(text(R.string.settings)).performClick()
             capture("17-settings-sounds")
             at(R.string.finish_cue).reveal().assertIsDisplayed()
             capture("18-settings-finish")
@@ -363,7 +363,7 @@ class UxAuditProbe {
             at(R.string.add_rest).reveal().performClick()
             capture("36-queue-extended")
             stop()
-            at(R.string.settings).performClick()
+            compose.onNodeWithContentDescription(text(R.string.settings)).performClick()
             at(R.string.report_problem).reveal().performClick()
             compose.onNodeWithTag("support-description").performClick().performTextInput("Long description. ".repeat(100))
             capture("37-support-long-input")

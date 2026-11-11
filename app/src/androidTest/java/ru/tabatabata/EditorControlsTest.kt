@@ -77,12 +77,12 @@ class EditorControlsTest {
         val mode = Preset(name = "Menu edit test", plan = Plan())
         try {
             settleKeyboard()
-            compose.onNodeWithText(label(R.string.settings)).performClick()
+            compose.onNodeWithContentDescription(label(R.string.settings)).performClick()
             compose.onNodeWithText(label(R.string.show_ready_modes)).performScrollTo().performClick()
             compose.waitUntil(10000) { runBlocking { store.options.first().showReadyModes } != original.showReadyModes }
             compose.activityRule.scenario.recreate()
             assertEquals(!original.showReadyModes, runBlocking { Store(context).options.first().showReadyModes })
-            compose.onNodeWithText("← " + label(R.string.saved)).performClick()
+            compose.onNode(hasText("← " + label(R.string.saved)) or hasContentDescription("← " + label(R.string.saved))).performClick()
             if (original.showReadyModes) compose.onNodeWithText(label(R.string.ready_mode)).assertDoesNotExist()
             runBlocking { store.savePresets(listOf(mode)) }
             compose.waitUntil(10000) { compose.onAllNodesWithText(mode.name).fetchSemanticsNodes().isNotEmpty() }
