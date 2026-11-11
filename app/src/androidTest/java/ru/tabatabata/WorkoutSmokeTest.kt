@@ -76,7 +76,7 @@ class WorkoutSmokeTest {
                     theme,
                     kotlinx.coroutines.runBlocking { store.options.first().theme },
                 )
-                compose.onNodeWithContentDescription(text(R.string.settings)).assertExists()
+                compose.onNodeWithText(text(R.string.settings)).assertExists()
                 // Settings retains its navigation state across recreation.
                 compose.onNode(hasText("← " + text(R.string.saved)) or hasContentDescription("← " + text(R.string.saved))).performClick()
                 compose.waitForIdle()
