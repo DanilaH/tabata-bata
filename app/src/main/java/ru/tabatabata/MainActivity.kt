@@ -120,7 +120,8 @@ class MainActivity : ComponentActivity() {
             val style = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
                 else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
             enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-            if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = false
+            // Keep platform protection for three-button navigation over stage colours.
+            if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = true
         }
         if (barsBackground != background) {
             barsBackground = background

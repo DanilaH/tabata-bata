@@ -106,7 +106,10 @@ class UxAuditProbe {
         val c=compose.activity.resources.configuration
         File(output,"$name-layout.json").writeText(JSONObject().put("texts",all).put("fontScale",c.fontScale)
             .put("widthDp",c.screenWidthDp).put("heightDp",c.screenHeightDp)
-            .put("language",c.locales[0].toLanguageTag()).toString(2))
+            .put("language",c.locales[0].toLanguageTag())
+            .put("lightStatusIcons", !androidx.core.view.WindowCompat.getInsetsController(compose.activity.window, compose.activity.window.decorView).isAppearanceLightStatusBars)
+            .put("lightNavigationIcons", !androidx.core.view.WindowCompat.getInsetsController(compose.activity.window, compose.activity.window.decorView).isAppearanceLightNavigationBars)
+            .put("navigationContrastEnforced", compose.activity.window.isNavigationBarContrastEnforced).toString(2))
     }
     private fun at(id: Int) = compose.onNodeWithText(text(id))
     private fun firstSaved() {
