@@ -172,7 +172,7 @@ class UxAuditProbe {
             openEditor()
             capture("05-editor-top")
             val work=compose.onNodeWithContentDescription(text(R.string.work))
-            work.reveal().performClick().performTextReplacement("60:00")
+            work.reveal().performTouchInput { click(center) }.performTextReplacement("60:00")
             observeFor(600)
             capture("06-editor-input-keyboard")
             work.assertIsDisplayed()
@@ -269,7 +269,7 @@ class UxAuditProbe {
             capture("20-settings-about")
             at(R.string.report_problem).reveal().performClick()
             capture("21-support")
-            compose.onNodeWithTag("support-description").reveal().performClick().performTextInput("UX audit: button and keyboard check")
+            compose.onNodeWithTag("support-description").reveal().performTouchInput { click(center) }.performTextInput("UX audit: button and keyboard check")
             observeFor(600)
             compose.waitUntil(5000) { inst.uiAutomation.windows.any {
                 it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
@@ -376,7 +376,7 @@ class UxAuditProbe {
             stop()
             compose.onNodeWithContentDescription(text(R.string.settings)).performClick()
             at(R.string.report_problem).reveal().performClick()
-            compose.onNodeWithTag("support-description").performClick().performTextInput("Long description. ".repeat(100))
+            compose.onNodeWithTag("support-description").reveal().performTouchInput { click(center) }.performTextInput("Long description. ".repeat(100))
             capture("37-support-long-input")
             at(R.string.report_copy).reveal()
             capture("37-support-long-actions")
@@ -430,7 +430,7 @@ class UxAuditProbe {
             at(R.string.save).reveal().performClick()
             at(R.string.save_mode).assertIsDisplayed()
             capture("30-new-name-dialog")
-            compose.onAllNodes(hasSetTextAction()).onLast().performClick().performTextInput(longName)
+            compose.onAllNodes(hasSetTextAction()).onLast().reveal().performTouchInput { click(center) }.performTextInput(longName)
             observeFor(600)
             compose.waitUntil(5000) { inst.uiAutomation.windows.any {
                 it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD

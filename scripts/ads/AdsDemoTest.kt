@@ -265,13 +265,13 @@ class AdsDemoTest {
             }
             SystemClock.sleep(1500)
             assertSafeBanner("home-narrow")
-            compose.onNodeWithText(compose.activity.getString(R.string.classic_tabata)).performClick()
+            compose.onNodeWithText(compose.activity.getString(R.string.classic_tabata)).performScrollTo().assertIsDisplayed().performClick()
             compose.onNodeWithTag("plan-preview").assertExists()
             assertNoBanner()
             capture("plan-no-banner")
             compose.onNodeWithText(compose.activity.getString(R.string.preview_close)).performClick()
             assertSafeBanner("home-after-plan")
-            compose.onNodeWithText(compose.activity.getString(R.string.settings)).performClick()
+            compose.onNodeWithContentDescription(compose.activity.getString(R.string.settings)).performClick()
             assertNoBanner()
             instrumentation.runOnMainSync { compose.activity.onBackPressedDispatcher.onBackPressed() }
             compose.onNodeWithText(compose.activity.getString(R.string.new_timer), substring = true).performClick()
