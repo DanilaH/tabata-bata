@@ -312,11 +312,11 @@ internal fun Editor(
                 Column(Modifier.weight(1f)) {
                     if (!largeText) Text(stringResource(R.string.total), style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(if (plan != null) formatTime(plan.durationMs())
+                    val totalValue = if (plan != null) formatTime(plan.durationMs())
                         else if (valid.all { it }) stringResource(R.string.too_long)
-                        else stringResource(R.string.fix_fields),
-                        style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.semantics { contentDescription = context.getString(R.string.total) })
+                        else stringResource(R.string.fix_fields)
+                    Text(totalValue, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.semantics { contentDescription = context.getString(R.string.total) + ": " + totalValue })
                 }
                 val previewLabel = stringResource(R.string.plan_preview)
                 TextButton(onClick = { preview = true
