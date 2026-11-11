@@ -80,6 +80,11 @@ class UxAuditProbe {
         compose.waitForIdle()
         inst.waitForIdleSync()
         observeFor(400) // Advance test frames too: retained LazyColumn exit layers must finish drawing.
+        // Advancing the test clock can schedule a relocation/layout after the first idle.
+        // Flush it, then allow SurfaceFlinger to present that frame before taking pixels.
+        compose.waitForIdle()
+        inst.waitForIdleSync()
+        SystemClock.sleep(150)
         val image = requireNotNull(inst.uiAutomation.takeScreenshot())
         File(output,"$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
         val nodes = compose.onAllNodes(SemanticsMatcher("Text layout") {
@@ -177,12 +182,12 @@ class UxAuditProbe {
             val work=compose.onNodeWithContentDescription(text(R.string.work))
             work.reveal().performTouchInput { click(center) }.performTextReplacement("60:00")
             observeFor(600)
-            capture("06-editor-input-keyboard")
             work.assertIsDisplayed()
             val inputBounds = work.getUnclippedBoundsInRoot()
             val rootBounds = compose.onRoot().getUnclippedBoundsInRoot()
             assertTrue("Focused input extends outside the resized window: $inputBounds / $rootBounds",
                 inputBounds.top >= rootBounds.top && inputBounds.bottom <= rootBounds.bottom)
+            capture("06-editor-input-keyboard")
             compose.onNodeWithText(text(R.string.start)).reveal().assertIsDisplayed()
             compose.onNodeWithText(text(R.string.save)).reveal().assertIsDisplayed()
             capture("06-editor-keyboard")
