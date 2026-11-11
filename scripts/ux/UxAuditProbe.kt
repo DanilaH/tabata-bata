@@ -251,6 +251,9 @@ class UxAuditProbe {
                 assertTrue(clip!!.getItemAt(0).text.contains("UX audit:"))
             }
             capture("23-support-copied")
+            compose.onNodeWithTag("support-description").reveal().performImeAction()
+            observeFor(400)
+            capture("23-support-done")
             at(R.string.preview_close).reveal().assertIsDisplayed().performTouchInput { click(center) }
         } finally { finalCapture("d-final") }
     }

@@ -376,9 +376,9 @@ internal fun Editor(
         )
     }
     if (naming) {
-        val keyboard = LocalSoftwareKeyboardController.current
-        fun saveNamed() { keyboard?.hide(); naming = false; save() }
         AppDialog(stringResource(R.string.save_mode), onDismiss = { naming = false }) {
+            val keyboard = LocalSoftwareKeyboardController.current
+            fun saveNamed() { keyboard?.hide(); naming = false; save() }
             OutlinedTextField(name, { v -> if (v.length <= 100) change { it.put("name", v) } },
                 label = { Text(stringResource(R.string.name)) }, singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),

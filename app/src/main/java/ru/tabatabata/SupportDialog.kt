@@ -35,7 +35,6 @@ internal fun supportMailIntent(recipient: String, body: String, subject: String)
 @Composable
 internal fun SupportDialog(onClose: () -> Unit, onExternal: () -> Unit) {
     val context = LocalContext.current
-    val keyboard = LocalSoftwareKeyboardController.current
     val locale = LocalConfiguration.current.locales[0].toLanguageTag()
     val device = remember(locale) { SupportDevice(BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE,
         Build.VERSION.RELEASE, Build.VERSION.SDK_INT, Build.MANUFACTURER, Build.MODEL, locale) }
@@ -43,6 +42,7 @@ internal fun SupportDialog(onClose: () -> Unit, onExternal: () -> Unit) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     AppDialog(stringResource(R.string.report_problem), onClose, Modifier.testTag("support-dialog")) {
+        val keyboard = LocalSoftwareKeyboardController.current
         Text(stringResource(R.string.report_hint), style = MaterialTheme.typography.bodyMedium)
         OutlinedTextField(description, onValueChange = { description = it.take(2000) },
             label = { Text(stringResource(R.string.report_description)) }, minLines = 3,
