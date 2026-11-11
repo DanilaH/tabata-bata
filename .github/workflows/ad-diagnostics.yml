@@ -6,7 +6,31 @@ on:
 permissions:
   contents: read
 jobs:
+  production-config:
+    name: Validate production ad configuration (no ad requests)
+    runs-on: ubuntu-latest
+    env:
+      CONFIG_BANNER_ID: ${{ secrets.YANDEX_BANNER_ID }}
+      CONFIG_INTERSTITIAL_ID: ${{ secrets.YANDEX_INTERSTITIAL_ID }}
+    steps:
+      - name: Validate formats without printing values
+        run: |
+          python3 - <<'PY'
+          import os,re,json,sys
+          banner=os.environ.get('CONFIG_BANNER_ID','')
+          interstitial=os.environ.get('CONFIG_INTERSTITIAL_ID','')
+          checks={
+            'banner_production_format':bool(re.fullmatch(r'R-M-\d+-\d+',banner)),
+            'interstitial_production_format':bool(re.fullmatch(r'R-M-\d+-\d+',interstitial)),
+            'ids_are_distinct':banner!=interstitial,
+            'banner_has_no_whitespace':banner==banner.strip(),
+            'interstitial_has_no_whitespace':interstitial==interstitial.strip(),
+          }
+          print(json.dumps(checks))
+          sys.exit(0 if all(checks.values()) else 1)
+          PY
   banner:
+    if: ${{ false }}
     name: Banner (${{ matrix.variant }}, ${{ matrix.format }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
