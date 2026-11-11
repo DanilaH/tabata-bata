@@ -92,6 +92,7 @@ class UxAuditProbe {
                     all.put(JSONObject().put("text",layout.layoutInput.text.text)
                         .put("font",layout.layoutInput.style.fontSize.value)
                         .put("width",layout.size.width).put("height",layout.size.height)
+                        .put("paragraphWidth",layout.multiParagraph.width).put("paragraphHeight",layout.multiParagraph.height)
                         .put("bounds", "$b").put("overflow",layout.hasVisualOverflow)
                         .put("widthOverflow",layout.didOverflowWidth).put("heightOverflow",layout.didOverflowHeight)
                         .put("ellipsized",ellipsis).put("editable",node.config.contains(SemanticsProperties.EditableText)))
@@ -155,7 +156,7 @@ class UxAuditProbe {
             work.performTextReplacement("0:20")
             hideKeyboard()
             compose.onNodeWithContentDescription(compose.activity.getString(R.string.card_mark_label,text(R.string.mark_sets)))
-                .performScrollTo().assertIsDisplayed()
+                .performScrollTo().assertIsDisplayed().performClick()
             capture("08-editor-appearance")
             compose.onNodeWithContentDescription(text(R.string.plan_preview)).performClick()
             capture("09-editor-preview")
@@ -176,7 +177,7 @@ class UxAuditProbe {
             val repo=HistoryRepository(context)
             repo.enqueue(WorkoutRecord("ux-record",presets[1].plan,longName,"violet",1,
                 finishedAt=System.currentTimeMillis(),completed=true,activeMs=presets[1].plan.durationMs(),completedRounds=4))
-            compose.waitUntil(10000) { compose.onAllNodesWithTag("history-ux-record").fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(10000) { compose.onAllNodesWithText(compose.activity.getString(R.string.history_week_counts,1,0)).fetchSemanticsNodes().isNotEmpty() }
             capture("12-history-week")
             compose.onNodeWithTag("history-list").performScrollToNode(hasText(text(R.string.history_saved_plan)))
             at(R.string.history_saved_plan).assertIsDisplayed()
@@ -190,9 +191,23 @@ class UxAuditProbe {
             compose.onNodeWithText(setTitle).performClick()
             capture("15-plan-expanded")
             at(R.string.preview_close).assertIsDisplayed().performClick()
-            at(R.string.history_clear).performScrollTo().performClick()
+            compose.onNodeWithTag("history-list").performScrollToNode(hasText(text(R.string.history_clear)))
+            at(R.string.history_clear).performScrollTo().assertIsDisplayed()
+            compose.waitForIdle();SystemClock.sleep(350)
+            capture("16-clear-before-tap")
+            at(R.string.history_clear).performClick()
+            var physicalOpened=true
+            try {
+                compose.waitUntil(4000) { compose.onAllNodesWithText(text(R.string.history_clear_title)).fetchSemanticsNodes().isNotEmpty() }
+            } catch (error: Throwable) {
+                physicalOpened=false
+                capture("16-clear-touch-did-not-open")
+                at(R.string.history_clear).performSemanticsAction(SemanticsActions.OnClick) { it() }
+                compose.waitUntil(4000) { compose.onAllNodesWithText(text(R.string.history_clear_title)).fetchSemanticsNodes().isNotEmpty() }
+            }
             capture("16-history-clear")
             at(R.string.cancel).assertIsDisplayed()
+            assertTrue("Physical clear-history tap did not open dialog; semantic diagnostic used",physicalOpened)
         } finally { finalCapture("c-final") }
     }
     @Test fun d_settingsSoundsSupportAndKeyboard() {
@@ -229,15 +244,23 @@ class UxAuditProbe {
             at(R.string.pause).performClick()
             compose.waitUntil(5000) { TimerService.state.value?.status==Status.PAUSED }
             val frames=JSONArray()
+            val failures=mutableListOf<String>()
             repeat(9) { index ->
                 val s=requireNotNull(TimerService.state.value)
                 capture("24-stage-$index-${s.interval?.stage}")
                 val clock=compose.onNodeWithTag("workout-clock").fetchSemanticsNode().boundsInWindow
-                frames.put(JSONObject().put("stage",s.interval?.stage?.name).put("clock",clock.toString()))
-                at(R.string.resume).assertIsDisplayed()
-                compose.onNodeWithContentDescription(text(R.string.next)).assertIsDisplayed()
+                val clockVisible=runCatching { compose.onNodeWithTag("workout-clock").assertIsDisplayed() }.isSuccess
+                val controlsVisible=runCatching {
+                    at(R.string.resume).assertIsDisplayed()
+                    compose.onNodeWithContentDescription(text(R.string.next)).assertIsDisplayed()
+                }.isSuccess
+                frames.put(JSONObject().put("stage",s.interval?.stage?.name).put("clock",clock.toString())
+                    .put("clockVisible",clockVisible).put("controlsVisible",controlsVisible))
+                File(output,"clock-positions.json").writeText(frames.toString(2))
+                if(!clockVisible || !controlsVisible) failures.add("${s.interval?.stage}: clock=$clockVisible controls=$controlsVisible")
                 if(index<8) {
-                    compose.onNodeWithContentDescription(text(R.string.next)).performClick()
+                    if(controlsVisible) compose.onNodeWithContentDescription(text(R.string.next)).performClick()
+                    else compose.runOnUiThread { TimerService.command(context,"next") } // Diagnostic rendering only; recorded as unreachable.
                     compose.waitUntil(5000) { TimerService.state.value?.index==index+1 }
                 }
             }
@@ -255,11 +278,11 @@ class UxAuditProbe {
             at(R.string.home).performScrollTo().assertIsDisplayed()
             at(R.string.repeat).performScrollTo().assertIsDisplayed()
             capture("27-result")
+            assertTrue("Unreachable workout layout: $failures",failures.isEmpty())
         } finally { finalCapture("e-final") }
     }
     @Test fun f_feelRealTransitionsAndPressResponse() {
         if(args.getString("uxFeel")!="true") return
-        shell("screenrecord --time-limit 60 /sdcard/ui-audit-feel.mp4 >/dev/null 2>&1 &")
         try {
             firstSaved()
             compose.onNodeWithText(presets.first().name).performClick()
@@ -284,6 +307,45 @@ class UxAuditProbe {
             at(R.string.stop).performClick()
             at(R.string.cancel).performClick()
             capture("29-feel-running")
-        } finally { shell("pkill -2 screenrecord");finalCapture("f-final") }
+        } finally { finalCapture("f-final") }
+    }
+
+    @Test fun g_newTimerNamingAndKeyboard() {
+        try {
+            compose.onNodeWithText("+ "+text(R.string.new_timer)).performClick()
+            at(R.string.save).performClick()
+            at(R.string.save_mode).assertIsDisplayed()
+            capture("30-new-name-dialog")
+            compose.onAllNodes(hasSetTextAction()).onLast().performTextInput(longName)
+            capture("31-new-name-keyboard")
+            compose.onAllNodesWithText(text(R.string.save)).onLast().assertIsDisplayed()
+            at(R.string.cancel).assertIsDisplayed()
+        } finally { finalCapture("g-final") }
+    }
+    @Test fun h_notificationExplanation() {
+        try {
+            context.getSharedPreferences("ui",0).edit().putBoolean("notificationAsked",false).commit()
+            firstSaved()
+            compose.onAllNodesWithText(text(R.string.start)).onFirst().performClick()
+            compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.notification_title)).fetchSemanticsNodes().isNotEmpty() }
+            capture("32-notification-explanation")
+            at(R.string.later).assertIsDisplayed()
+            at(R.string.allow).assertIsDisplayed()
+        } finally { finalCapture("h-final") }
+    }
+    @Test fun i_recoveryAndInterruptedLayout() {
+        try {
+            context.getSharedPreferences("session",0).edit().putString("active",JSONObject()
+                .put("plan",presets[1].plan.json()).put("index",1).put("remaining",30000)
+                .put("sessionId","ux-recovery").put("activeMs",0).put("statsAvailable",true).toString()).commit()
+            compose.activityRule.scenario.recreate()
+            compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.recovery_title)).fetchSemanticsNodes().isNotEmpty() }
+            capture("33-recovery-dialog")
+            at(R.string.discard).assertIsDisplayed()
+            at(R.string.recover).assertIsDisplayed().performClick()
+            compose.waitUntil(10000) { TimerService.state.value?.status==Status.INTERRUPTED }
+            capture("34-interrupted-workout")
+            at(R.string.resume).assertIsDisplayed()
+        } finally { finalCapture("i-final") }
     }
 }
