@@ -44,7 +44,14 @@ class EngagementTest {
             capture("support-report")
             compose.onNodeWithText(text(R.string.report_copy)).performScrollTo().performClick()
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
-            val clip=context.getSystemService(ClipboardManager::class.java).primaryClip!!.getItemAt(0).text.toString()
+            var clip = ""
+            compose.waitUntil(10000) {
+                compose.runOnUiThread {
+                    clip = context.getSystemService(ClipboardManager::class.java).primaryClip
+                        ?.getItemAt(0)?.text?.toString().orEmpty()
+                }
+                clip.contains("Test: sound stopped")
+            }
             assertTrue(clip.contains("Test: sound stopped"))
             assertTrue(clip.contains(BuildConfig.VERSION_NAME))
             assertFalse(clip.contains("PRIVATE_TIMER_NAME"))
