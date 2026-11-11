@@ -172,11 +172,14 @@ class UxAuditProbe {
     @Test fun c_historyLongNamesAndExpandedPlan() {
         try {
             compose.onNodeWithText(text(R.string.history_open)+" →").performScrollTo().performClick()
-            compose.waitUntil(10000) { compose.onAllNodesWithText(text(R.string.history_empty_title)).fetchSemanticsNodes().isNotEmpty() }
+            compose.waitUntil(10000) { compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithTag("history-list").performScrollToNode(hasText(text(R.string.history_empty_title)))
             capture("11-history-empty")
             val repo=HistoryRepository(context)
             repo.enqueue(WorkoutRecord("ux-record",presets[1].plan,longName,"violet",1,
                 finishedAt=System.currentTimeMillis(),completed=true,activeMs=presets[1].plan.durationMs(),completedRounds=4))
+            runBlocking { repo.load() }
+            compose.onNodeWithTag("history-list").performScrollToIndex(0)
             compose.waitUntil(10000) { compose.onAllNodesWithText(compose.activity.getString(R.string.history_week_counts,1,0)).fetchSemanticsNodes().isNotEmpty() }
             capture("12-history-week")
             compose.onNodeWithTag("history-list").performScrollToNode(hasText(text(R.string.history_saved_plan)))
