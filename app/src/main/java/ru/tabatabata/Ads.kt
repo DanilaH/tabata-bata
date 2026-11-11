@@ -193,7 +193,9 @@ fun AdBanner(ads: Ads) {
     ) {
         val width = maxWidth.value.toInt()
         if (width <= 0) return@BoxWithConstraints
-        val size = remember(context, width) { BannerAdSize.sticky(context, width) }
+        // Initialization can refine sticky sizing. Never reuse the preliminary
+        // size object for the first SDK view created after initialization.
+        val size = remember(context, width, ads.ready) { BannerAdSize.sticky(context, width) }
         // Reserve the SDK-calculated height before init/load and after a failed load.
         // A late creative must not move controls underneath the user's finger.
         Box(Modifier.fillMaxWidth().height(size.height.dp)) {

@@ -10,6 +10,10 @@ class TabataApplication : Application() {
         super.onCreate()
         HistoryRepository(this).flushInBackground()
         Telemetry.activate(this)
+        // Register the SDK before the first Activity lifecycle. Builds without
+        // configured ad units keep SDK initialization disabled.
+        if (BuildConfig.BANNER_ID.isNotBlank() || BuildConfig.INTERSTITIAL_ID.isNotBlank())
+            com.yandex.mobile.ads.common.YandexAds.initialize(this) {}
     }
 }
 
