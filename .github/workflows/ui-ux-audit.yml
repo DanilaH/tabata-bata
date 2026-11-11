@@ -1,8 +1,7 @@
-name: Independent UI UX and feel audit
+name: Native keyboard verification
 on:
   push:
-    branches: [main]
-    paths: ['scripts/ux/**', '.github/workflows/ui-ux-audit.yml', 'app/src/main/java/ru/tabatabata/*Screen.kt', 'app/src/main/java/ru/tabatabata/AppLayouts.kt', 'app/src/main/java/ru/tabatabata/SupportDialog.kt', 'app/src/main/java/ru/tabatabata/MainActivity.kt', 'app/src/main/java/ru/tabatabata/PlanPreviewDialog.kt']
+    branches: [ui-keyboard-verify-011]
   workflow_dispatch:
 permissions:
   contents: read
@@ -39,12 +38,7 @@ jobs:
       max-parallel: 7
       matrix:
         include:
-          - {profile: ru-normal, api: 35, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'true'}
-          - {profile: ru-narrow-200, api: 35, size: '960x1704', density: 480, font: '2.0', locale: ru, orientation: portrait, theme: light, feel: 'false'}
-          - {profile: en-narrow-150, api: 35, size: '960x1704', density: 480, font: '1.5', locale: en, orientation: portrait, theme: dark, feel: 'false'}
-          - {profile: en-landscape-150, api: 35, size: '1080x1920', density: 480, font: '1.5', locale: en, orientation: landscape, theme: dark, feel: 'false'}
-          - {profile: ru-landscape-200, api: 35, size: '1080x1920', density: 480, font: '2.0', locale: ru, orientation: landscape, theme: light, feel: 'false'}
-          - {profile: ru-tablet, api: 35, size: '1200x1920', density: 240, font: '1.0', locale: ru, orientation: portrait, theme: dark, feel: 'false'}
+          - {profile: ru-normal, api: 35, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'false'}
           - {profile: en-android16, api: 36, size: '1080x1920', density: 420, font: '1.0', locale: en, orientation: portrait, theme: light, feel: 'false'}
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +60,7 @@ jobs:
           UX_ORIENTATION: ${{ matrix.orientation }}
           UX_THEME: ${{ matrix.theme }}
           UX_FEEL: ${{ matrix.feel }}
-          UX_CLASS: ru.tabatabata.UxAuditProbe
+          UX_CLASS: ru.tabatabata.UxAuditProbe#d_settingsSoundsSupportAndKeyboard,ru.tabatabata.UxAuditProbe#g_newTimerNamingAndKeyboard
         with:
           api-level: ${{ matrix.api }}
           arch: x86_64

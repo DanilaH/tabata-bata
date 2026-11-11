@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p ui-audit-results
+adb shell settings put secure show_ime_with_hard_keyboard 1
 adb shell wm size "$UX_SIZE"
 adb shell wm density "$UX_DENSITY"
 adb shell settings put system font_scale "$UX_FONT"

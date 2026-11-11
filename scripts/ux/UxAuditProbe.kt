@@ -47,6 +47,9 @@ class UxAuditProbe {
         }
     }
     @Before fun prepare() {
+        val serviceInfo = inst.uiAutomation.serviceInfo
+        serviceInfo.flags = serviceInfo.flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
+        inst.uiAutomation.serviceInfo = serviceInfo
         assertEquals("demo-banner-adfox-html",BuildConfig.BANNER_ID)
         assertTrue(BuildConfig.INTERSTITIAL_ID.isBlank() && BuildConfig.APPMETRICA_KEY.isBlank())
         stop()
@@ -242,6 +245,9 @@ class UxAuditProbe {
             capture("21-support")
             compose.onNodeWithTag("support-description").reveal().performClick().performTextInput("UX audit: button and keyboard check")
             observeFor(600)
+            compose.waitUntil(5000) { inst.uiAutomation.windows.any {
+                it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            } }
             capture("22-support-keyboard")
             at(R.string.report_copy).reveal().assertIsDisplayed().performTouchInput { click(center) }
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
@@ -342,6 +348,9 @@ class UxAuditProbe {
             capture("30-new-name-dialog")
             compose.onAllNodes(hasSetTextAction()).onLast().performClick().performTextInput(longName)
             observeFor(600)
+            compose.waitUntil(5000) { inst.uiAutomation.windows.any {
+                it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            } }
             capture("31-new-name-keyboard")
             compose.onAllNodesWithText(text(R.string.save)).onLast().reveal().assertIsDisplayed()
             capture("31-new-name-actions-keyboard")
