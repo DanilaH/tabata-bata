@@ -127,7 +127,7 @@ class AdsDemoTest {
     private fun dismissDemoInterstitial(): Boolean {
         val root = instrumentation.uiAutomation.rootInActiveWindow ?: return false
         if (root.packageName?.toString() != "ru.tabatabata") return false
-        if (dismissControl(root) || dismissObservedStory()) return true
+        if (dismissControl(root) || dismissObservedStory() || dismissObservedSdkHeader(root)) return true
         // Captured SDK story creatives can omit an accessible close control.
         // Exercise the visible Android Back action, while the SDK owns that window.
         val now = SystemClock.elapsedRealtime()
@@ -138,6 +138,49 @@ class AdsDemoTest {
             return true
         }
         return false
+    }
+    private fun dismissObservedSdkHeader(root: AccessibilityNodeInfo): Boolean {
+        val screen = Rect(); root.getBoundsInScreen(screen)
+        fun images(node: AccessibilityNodeInfo): List<AccessibilityNodeInfo> {
+            val result = mutableListOf<AccessibilityNodeInfo>()
+            if (node.className?.toString() == "android.widget.ImageView" &&
+                node.packageName?.toString() == "ru.tabatabata" && node.isVisibleToUser && node.isEnabled)
+                result.add(node)
+            for (i in 0 until node.childCount) node.getChild(i)?.let { result.addAll(images(it)) }
+            return result
+        }
+        fun visit(node: AccessibilityNodeInfo): Boolean {
+            val bounds = Rect(); node.getBoundsInScreen(bounds)
+            // Grounded in the recorded Adfox image screenshot and native tree:
+            // a full-width top toolbar has exactly two unlabelled image controls,
+            // menu on the far left and the visible X on the far right.
+            if (node.className?.toString() == "android.view.ViewGroup" && node.isVisibleToUser &&
+                bounds.width() >= screen.width() * .95 && bounds.top <= screen.top + 2 &&
+                bounds.height() in 20..(screen.height() / 10)) {
+                val controls = images(node)
+                if (controls.size == 2) {
+                    val left = Rect(); controls[0].getBoundsInScreen(left)
+                    val right = Rect(); controls[1].getBoundsInScreen(right)
+                    if (left.left <= screen.left + screen.width() * .05 &&
+                        left.right < screen.left + screen.width() * .2 &&
+                        right.left > screen.left + screen.width() * .8 && right.right <= screen.right) {
+                        val now = SystemClock.uptimeMillis()
+                        for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+                            val event = MotionEvent.obtain(now, SystemClock.uptimeMillis(), action,
+                                right.exactCenterX(), right.exactCenterY(), 0)
+                            event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
+                            instrumentation.uiAutomation.injectInputEvent(event, true)
+                            event.recycle()
+                        }
+                        android.util.Log.d("TabataAdProbe", "Observed SDK header close")
+                        return true
+                    }
+                }
+            }
+            for (i in 0 until node.childCount) node.getChild(i)?.let { if (visit(it)) return true }
+            return false
+        }
+        return visit(root)
     }
     private fun tree(node: AccessibilityNodeInfo?, indent: String = ""): String {
         if (node == null) return ""
