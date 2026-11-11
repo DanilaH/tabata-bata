@@ -284,6 +284,12 @@ class UxAuditProbe {
             assertTrue("Unreachable workout layout: $failures",failures.isEmpty())
         } finally { finalCapture("e-final") }
     }
+    private fun observeFor(durationMs: Long) {
+        val started = SystemClock.uptimeMillis()
+        // Keep Compose's test frame clock advancing while wall-clock service ticks.
+        compose.waitUntil(durationMs + 5000) { SystemClock.uptimeMillis() - started >= durationMs }
+    }
+
     @Test fun f_feelRealTransitionsAndPressResponse() {
         if(args.getString("uxFeel")!="true") return
         try {
@@ -291,7 +297,7 @@ class UxAuditProbe {
             compose.onNodeWithText(presets.first().name).performClick()
             val plus=compose.onNodeWithContentDescription("+ "+text(R.string.work))
             plus.performTouchInput { down(center) }
-            SystemClock.sleep(1500)
+            observeFor(1500)
             plus.performTouchInput { up() }
             capture("28-feel-plus-release")
             compose.onNodeWithContentDescription(text(R.string.work)).performTextReplacement("0:04")
@@ -300,13 +306,13 @@ class UxAuditProbe {
             hideKeyboard()
             at(R.string.start).performClick()
             compose.waitUntil(10000) { TimerService.state.value?.status==Status.RUNNING }
-            SystemClock.sleep(13000)
+            observeFor(13000)
             at(R.string.pause).performClick()
             compose.onNodeWithContentDescription(text(R.string.lock_short)).performClick()
-            SystemClock.sleep(700)
+            observeFor(700)
             compose.onNodeWithContentDescription(text(R.string.unlock)).performTouchInput { longClick(durationMillis=650) }
             at(R.string.resume).performClick()
-            SystemClock.sleep(1500)
+            observeFor(1500)
             at(R.string.stop).performClick()
             at(R.string.cancel).performClick()
             capture("29-feel-running")

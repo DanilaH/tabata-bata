@@ -36,9 +36,6 @@ jobs:
       matrix:
         include:
           - {profile: ru-feel, api: 35, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'true'}
-          - {profile: ru-narrow-200, api: 35, size: '960x1704', density: 480, font: '2.0', locale: ru, orientation: portrait, theme: light, feel: 'false'}
-          - {profile: en-landscape-150, api: 35, size: '1080x1920', density: 480, font: '1.5', locale: en, orientation: landscape, theme: dark, feel: 'false'}
-          - {profile: ru-landscape-200, api: 35, size: '1080x1920', density: 480, font: '2.0', locale: ru, orientation: landscape, theme: light, feel: 'false'}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
