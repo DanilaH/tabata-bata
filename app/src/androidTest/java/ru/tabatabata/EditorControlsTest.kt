@@ -34,7 +34,7 @@ class EditorControlsTest {
             compose.mainClock.advanceTimeBy(1000)
             val late = value()
             assertTrue(early > 21)
-            assertTrue("Holding must accelerate", late-middle > middle-early)
+            assertTrue("Holding must accelerate: early=$early middle=$middle late=$late", late-middle > middle-early)
             plus.performTouchInput { up() }
             compose.mainClock.advanceTimeBy(100)
             val released = value()

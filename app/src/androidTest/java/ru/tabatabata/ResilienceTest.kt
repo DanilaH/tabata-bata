@@ -238,7 +238,7 @@ class ResilienceTest {
                 compose.onAllNodesWithText(text(R.string.start)).fetchSemanticsNodes().isNotEmpty()
             }
             compose.onRoot().printToLog("LargeFontLandscape")
-            compose.onNodeWithText(text(R.string.start)).assertIsDisplayed().performClick()
+            compose.onNodeWithText(text(R.string.start)).performScrollTo().assertIsDisplayed().performClick()
 
             await { TimerService.state.value?.status == Status.RUNNING }
             compose.onNodeWithText(text(R.string.pause)).assertIsDisplayed().performClick()

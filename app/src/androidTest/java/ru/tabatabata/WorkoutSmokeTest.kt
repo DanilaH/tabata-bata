@@ -76,7 +76,7 @@ class WorkoutSmokeTest {
                     theme,
                     kotlinx.coroutines.runBlocking { store.options.first().theme },
                 )
-                compose.onNodeWithText(text(R.string.app_name)).assertExists()
+                compose.onNodeWithText(text(R.string.settings)).assertExists()
                 // Settings retains its navigation state across recreation.
                 compose.onNodeWithText("← " + text(R.string.saved)).performClick()
                 compose.waitForIdle()
@@ -165,7 +165,7 @@ class WorkoutSmokeTest {
         compose.waitUntil(5000) { TimerService.state.value == null }
         compose.onNodeWithText(text(R.string.stopped)).assertDoesNotExist()
         capture("menu-after-stop")
-        compose.onNodeWithText(text(R.string.app_name)).assertExists()
+        compose.onNodeWithText(text(R.string.settings)).assertExists()
     }
 
     @Test
