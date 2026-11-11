@@ -4,6 +4,10 @@ import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.unit.Dp
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.ImeAction
@@ -160,225 +164,229 @@ internal fun Editor(
     }
     BackHandler(enabled = onCancel != null) { back() }
     BoxWithConstraints(Modifier.fillMaxSize()) {
-    val shortWindow = maxHeight < 400.dp
-    val largeText = LocalDensity.current.fontScale > 1.3f
-    Column(Modifier.fillMaxSize().then(if (shortWindow) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
-        Column(
-            (if (shortWindow) Modifier else Modifier.weight(1f).verticalScroll(rememberScrollState()))
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            if (onCancel != null)
-                TextButton(onClick = { back() }) { Text("← " + stringResource(R.string.saved)) }
-            if (preset != null)
-                OutlinedTextField(
-                    name,
-                    { v -> if (v.length <= 100) change { it.put("name", v) } },
-                    label = { Text(stringResource(R.string.name)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            Text(
-                stringResource(R.string.time_input_hint),
-                style = MaterialTheme.typography.bodySmall,
-            )
-            val labels =
-                listOf(
-                    R.string.prepare,
-                    R.string.work,
-                    R.string.rest,
-                    R.string.reps,
-                    R.string.sets,
-                    R.string.between,
-                    R.string.cool,
-                )
-            Text(stringResource(R.string.editor_main), style = MaterialTheme.typography.titleSmall)
-            for (i in listOf(1, 2, 3, 0, 4, 5, 6)) {
-                if (i == 0)
-                    Text(stringResource(R.string.editor_extra), style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(top = 12.dp))
-                run {
-                    val title = stringResource(labels[i])
-                    val tint = workoutBackground(when(i) { 1 -> Stage.WORK; 2,5 -> Stage.REST; else -> Stage.PREPARE }, false)
-                    Surface(color = MaterialTheme.colorScheme.surface) {
-                    BoxWithConstraints(Modifier.padding(vertical = 4.dp)) {
-                        val stacked = maxWidth < 400.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
-                        val fieldWidth = if (stacked) maxWidth.value - 104f - 16f else 124f
-                        val valueSize = minOf(26f, (fieldWidth - 32f) /
-                            (values[i].length.coerceAtLeast(4) * .65f * androidx.compose.ui.platform.LocalDensity.current.fontScale))
-                            .coerceAtLeast(14f)
-                        Column {
-                        if (stacked) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            StageMark(i, if (MaterialTheme.colorScheme.background.red < .3f)
-                                androidx.compose.ui.graphics.lerp(tint, androidx.compose.ui.graphics.Color.White, .55f) else tint)
-                            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        }
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (!stacked) Text(title, modifier = Modifier.weight(1f))
-
-                            RepeatButton(
-                                symbol = "−", label = "− $title", tint = tint,
-                                onStep = {
-                                    val v =
-                                        ((numbers[i] ?: limits[i].first) - 1).coerceIn(limits[i])
-                                    change {
-                                        it.getJSONArray("values")
-                                            .put(
-                                                i,
-                                                if (i in listOf(3, 4)) v.toString()
-                                                else durationInput(v),
-                                            )
-                                    }
-                                },
-                                enabled = numbers[i] != limits[i].first,
-                            )
-                            OutlinedTextField(
-                                values[i],
-                                { v ->
-                                    if (
-                                        v.length <= 6 &&
-                                            v.all {
-                                                it.isDigit() || (i !in listOf(3, 4) && it == ':')
-                                            }
-                                    )
-                                        change { it.getJSONArray("values").put(i, v) }
-                                },
-                                textStyle = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace,
-                                    fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = valueSize.sp),
-                                singleLine = true,
-                                isError = !valid[i],
-                                keyboardOptions =
-                                    KeyboardOptions(
-                                        keyboardType =
-                                            if (i in listOf(3, 4)) KeyboardType.Number
-                                            else KeyboardType.Text
-                                    ),
-                                modifier =
-                                    (if (stacked) Modifier.weight(1f) else Modifier.width(140.dp)).padding(horizontal = 8.dp).semantics { contentDescription = title },
-                            )
-                            RepeatButton(
-                                symbol = "+", label = "+ $title", tint = tint,
-                                onStep = {
-                                    val v =
-                                        ((numbers[i] ?: limits[i].first) + 1).coerceIn(limits[i])
-                                    change {
-                                        it.getJSONArray("values")
-                                            .put(
-                                                i,
-                                                if (i in listOf(3, 4)) v.toString()
-                                                else durationInput(v),
-                                            )
-                                    }
-                                },
-                                enabled = numbers[i] != limits[i].last,
-                            )
-                        }
-                        if (!valid[i])
-                            Text(
-                                if (i in listOf(3, 4))
-                                    stringResource(
-                                        R.string.count_range,
-                                        limits[i].first,
-                                        limits[i].last,
-                                    )
-                                else
-                                    stringResource(
-                                        R.string.time_range,
-                                        durationInput(limits[i].first),
-                                        durationInput(limits[i].last),
-                                    ),
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                    }
-                    }
-                    }
-                }
-            }
-            Toggle(R.string.last_rest, last) { v -> change { it.put("last", v) } }
+        val editorViewportHeight = maxHeight
+        val shortWindow = maxHeight < 400.dp
+        val largeText = LocalDensity.current.fontScale > 1.3f
+        val footer: @Composable () -> Unit = {
             HorizontalDivider()
-            PresetAppearance(
-                obj.optString("accent", preset?.accent ?: "blue"), obj.optInt("mark", preset?.mark ?: 0),
-            ) { accent, mark -> change { it.put("accent", accent).put("mark", mark) } }
-
-        }
-        HorizontalDivider()
-        Column(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    if (!largeText) Text(stringResource(R.string.total), style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    val totalValue = if (plan != null) formatTime(plan.durationMs())
-                        else if (valid.all { it }) stringResource(R.string.too_long)
-                        else stringResource(R.string.fix_fields)
-                    Text(totalValue, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.semantics { contentDescription = context.getString(R.string.total) + ": " + totalValue })
-                }
-                val previewLabel = stringResource(R.string.plan_preview)
-                TextButton(onClick = { preview = true
-                    Telemetry.event("plan_preview", mapOf("source" to "editor")) },
-                    enabled = plan != null, modifier = Modifier.semantics { contentDescription = previewLabel }) {
-                    Text(stringResource(R.string.view_plan_short))
-                }
-            }
-            val startAction: @Composable (Modifier) -> Unit = { actionModifier ->
-                Button(
-                    onClick = {
-                        plan?.let {
-                            drafts.write(key, raw)
-                            onStart(Preset(preset?.id ?: "new",
-                                name.trim().ifEmpty { context.getString(R.string.default_name) }, it,
-                                obj.optString("accent", "blue").takeIf { a -> a in presetAccents } ?: "blue",
-                                obj.optInt("mark", 0).coerceIn(0, 3)))
-                        }
-                    },
-                    enabled = plan != null,
-                    shape = MaterialTheme.shapes.small,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                    modifier = actionModifier.heightIn(min = 52.dp),
-                ) {
-                    Text(stringResource(R.string.start))
-                }
-            }
-            val saveAction: @Composable (Modifier) -> Unit = { actionModifier ->
-                OutlinedButton(
-                    onClick = { requestSave() },
-                    enabled = plan != null,
-                    shape = MaterialTheme.shapes.small,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                    modifier = actionModifier.heightIn(min = 52.dp),
-                ) {
-                    Text(stringResource(R.string.save))
-                }
-            }
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val density = LocalDensity.current
-                val measurer = rememberTextMeasurer()
-                val buttonStyle = MaterialTheme.typography.labelLarge
-                fun needed(label: String) = with(density) {
-                    measurer.measure(AnnotatedString(label), buttonStyle, maxLines = 1, softWrap = false).size.width.toDp()
-                } + 24.dp
-                val startWidth = needed(stringResource(R.string.start)).coerceAtLeast(64.dp)
-                val saveWidth = needed(stringResource(R.string.save)).coerceAtLeast(64.dp)
-                if (startWidth + saveWidth + 10.dp <= maxWidth) {
-                    val equal = maxOf(startWidth, saveWidth) * 2 + 10.dp <= maxWidth
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        startAction(Modifier.weight(if (equal) 1f else startWidth.value))
-                        saveAction(Modifier.weight(if (equal) 1f else saveWidth.value))
+            Column(
+                Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        if (!largeText) Text(stringResource(R.string.total), style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val totalValue = if (plan != null) formatTime(plan.durationMs())
+                            else if (valid.all { it }) stringResource(R.string.too_long)
+                            else stringResource(R.string.fix_fields)
+                        Text(totalValue, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.semantics { contentDescription = context.getString(R.string.total) + ": " + totalValue })
                     }
-                } else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    startAction(Modifier.fillMaxWidth())
-                    saveAction(Modifier.fillMaxWidth())
+                    val previewLabel = stringResource(R.string.plan_preview)
+                    TextButton(onClick = { preview = true
+                        Telemetry.event("plan_preview", mapOf("source" to "editor")) },
+                        enabled = plan != null, modifier = Modifier.semantics { contentDescription = previewLabel }) {
+                        Text(stringResource(R.string.view_plan_short))
+                    }
+                }
+                val startAction: @Composable (Modifier) -> Unit = { actionModifier ->
+                    Button(
+                        onClick = {
+                            plan?.let {
+                                drafts.write(key, raw)
+                                onStart(Preset(preset?.id ?: "new",
+                                    name.trim().ifEmpty { context.getString(R.string.default_name) }, it,
+                                    obj.optString("accent", "blue").takeIf { a -> a in presetAccents } ?: "blue",
+                                    obj.optInt("mark", 0).coerceIn(0, 3)))
+                            }
+                        },
+                        enabled = plan != null,
+                        shape = MaterialTheme.shapes.small,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = actionModifier.heightIn(min = 52.dp),
+                    ) {
+                        Text(stringResource(R.string.start))
+                    }
+                }
+                val saveAction: @Composable (Modifier) -> Unit = { actionModifier ->
+                    OutlinedButton(
+                        onClick = { requestSave() },
+                        enabled = plan != null,
+                        shape = MaterialTheme.shapes.small,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                        modifier = actionModifier.heightIn(min = 52.dp),
+                    ) {
+                        Text(stringResource(R.string.save))
+                    }
+                }
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val density = LocalDensity.current
+                    val measurer = rememberTextMeasurer()
+                    val buttonStyle = MaterialTheme.typography.labelLarge
+                    fun needed(label: String) = with(density) {
+                        measurer.measure(AnnotatedString(label), buttonStyle, maxLines = 1, softWrap = false).size.width.toDp()
+                    } + 24.dp
+                    val startWidth = needed(stringResource(R.string.start)).coerceAtLeast(64.dp)
+                    val saveWidth = needed(stringResource(R.string.save)).coerceAtLeast(64.dp)
+                    if (startWidth + saveWidth + 10.dp <= maxWidth) {
+                        val equal = maxOf(startWidth, saveWidth) * 2 + 10.dp <= maxWidth
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            startAction(Modifier.weight(if (equal) 1f else startWidth.value))
+                            saveAction(Modifier.weight(if (equal) 1f else saveWidth.value))
+                        }
+                    } else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        startAction(Modifier.fillMaxWidth())
+                        saveAction(Modifier.fillMaxWidth())
+                    }
                 }
             }
         }
-    }
+        Scaffold(contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            bottomBar = { if (!shortWindow) footer() }) { padding ->
+            Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (onCancel != null)
+                        TextButton(onClick = { back() }) { Text("← " + stringResource(R.string.saved)) }
+                    if (preset != null)
+                        OutlinedTextField(
+                            name,
+                            { v -> if (v.length <= 100) change { it.put("name", v) } },
+                            label = { Text(stringResource(R.string.name)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().then(editorInputVisibility(editorViewportHeight)),
+                        )
+                    Text(
+                        stringResource(R.string.time_input_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    val labels =
+                        listOf(
+                            R.string.prepare,
+                            R.string.work,
+                            R.string.rest,
+                            R.string.reps,
+                            R.string.sets,
+                            R.string.between,
+                            R.string.cool,
+                        )
+                    for (i in listOf(1, 2, 3, 0, 4, 5, 6)) {
+                        if (i == 0)
+                            Text(stringResource(R.string.editor_extra), style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(top = 12.dp))
+                        run {
+                            val title = stringResource(labels[i])
+                            val tint = workoutBackground(when(i) { 1 -> Stage.WORK; 2,5 -> Stage.REST; else -> Stage.PREPARE }, false)
+                            Surface(color = MaterialTheme.colorScheme.surface) {
+                            BoxWithConstraints(Modifier.padding(vertical = 4.dp)) {
+                                val stacked = maxWidth < 400.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.2f
+                                val fieldWidth = if (stacked) maxWidth.value - 104f - 16f else 124f
+                                val valueSize = minOf(26f, (fieldWidth - 32f) /
+                                    (values[i].length.coerceAtLeast(4) * .65f * androidx.compose.ui.platform.LocalDensity.current.fontScale))
+                                    .coerceAtLeast(14f)
+                                Column {
+                                if (stacked) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    StageMark(i, if (MaterialTheme.colorScheme.background.red < .3f)
+                                        androidx.compose.ui.graphics.lerp(tint, androidx.compose.ui.graphics.Color.White, .55f) else tint)
+                                    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                }
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    if (!stacked) Text(title, modifier = Modifier.weight(1f))
+
+                                    RepeatButton(
+                                        symbol = "−", label = "− $title", tint = tint,
+                                        onStep = {
+                                            val v =
+                                                ((numbers[i] ?: limits[i].first) - 1).coerceIn(limits[i])
+                                            change {
+                                                it.getJSONArray("values")
+                                                    .put(
+                                                        i,
+                                                        if (i in listOf(3, 4)) v.toString()
+                                                        else durationInput(v),
+                                                    )
+                                            }
+                                        },
+                                        enabled = numbers[i] != limits[i].first,
+                                    )
+                                    OutlinedTextField(
+                                        values[i],
+                                        { v ->
+                                            if (
+                                                v.length <= 6 &&
+                                                    v.all {
+                                                        it.isDigit() || (i !in listOf(3, 4) && it == ':')
+                                                    }
+                                            )
+                                                change { it.getJSONArray("values").put(i, v) }
+                                        },
+                                        textStyle = MaterialTheme.typography.titleLarge.copy(fontFamily = FontFamily.Monospace,
+                                            fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, fontSize = valueSize.sp),
+                                        singleLine = true,
+                                        isError = !valid[i],
+                                        keyboardOptions =
+                                            KeyboardOptions(
+                                                keyboardType =
+                                                    if (i in listOf(3, 4)) KeyboardType.Number
+                                                    else KeyboardType.Text
+                                            ),
+                                        modifier =
+                                            (if (stacked) Modifier.weight(1f) else Modifier.width(140.dp)).padding(horizontal = 8.dp)
+                                                .then(editorInputVisibility(editorViewportHeight)).semantics { contentDescription = title },
+                                    )
+                                    RepeatButton(
+                                        symbol = "+", label = "+ $title", tint = tint,
+                                        onStep = {
+                                            val v =
+                                                ((numbers[i] ?: limits[i].first) + 1).coerceIn(limits[i])
+                                            change {
+                                                it.getJSONArray("values")
+                                                    .put(
+                                                        i,
+                                                        if (i in listOf(3, 4)) v.toString()
+                                                        else durationInput(v),
+                                                    )
+                                            }
+                                        },
+                                        enabled = numbers[i] != limits[i].last,
+                                    )
+                                }
+                                if (!valid[i])
+                                    Text(
+                                        if (i in listOf(3, 4))
+                                            stringResource(
+                                                R.string.count_range,
+                                                limits[i].first,
+                                                limits[i].last,
+                                            )
+                                        else
+                                            stringResource(
+                                                R.string.time_range,
+                                                durationInput(limits[i].first),
+                                                durationInput(limits[i].last),
+                                            ),
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.bodySmall,
+                                    )
+                            }
+                            }
+                            }
+                        }
+                    }
+                    Toggle(R.string.last_rest, last) { v -> change { it.put("last", v) } }
+                    HorizontalDivider()
+                    PresetAppearance(
+                        obj.optString("accent", preset?.accent ?: "blue"), obj.optInt("mark", preset?.mark ?: 0),
+                    ) { accent, mark -> change { it.put("accent", accent).put("mark", mark) } }
+
+                }
+                if (shortWindow) footer()
+            }
+        }
     }
     if (preview && plan != null) PlanPreviewDialog(plan, name.takeIf { it.isNotBlank() }) { preview = false }
     if (leave) AppDialog(stringResource(R.string.unsaved), onDismiss = { leave = false }) {
@@ -407,4 +415,18 @@ internal fun Editor(
             )
         }
     }
+}
+
+/** Keep the focused input visible after IME resize without moving it to another scroll parent. */
+@Composable
+private fun editorInputVisibility(viewportHeight: Dp): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    var focused by remember { mutableStateOf(false) }
+    LaunchedEffect(focused, viewportHeight) {
+        if (focused) {
+            withFrameNanos { }
+            requester.bringIntoView()
+        }
+    }
+    return Modifier.bringIntoViewRequester(requester).onFocusChanged { focused = it.isFocused }
 }

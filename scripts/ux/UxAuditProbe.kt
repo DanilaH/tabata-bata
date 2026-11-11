@@ -176,6 +176,10 @@ class UxAuditProbe {
             observeFor(600)
             capture("06-editor-input-keyboard")
             work.assertIsDisplayed()
+            val inputBounds = work.getUnclippedBoundsInRoot()
+            val rootBounds = compose.onRoot().getUnclippedBoundsInRoot()
+            assertTrue("Focused input extends outside the resized window: $inputBounds / $rootBounds",
+                inputBounds.top >= rootBounds.top && inputBounds.bottom <= rootBounds.bottom)
             compose.onNodeWithText(text(R.string.start)).reveal().assertIsDisplayed()
             compose.onNodeWithText(text(R.string.save)).reveal().assertIsDisplayed()
             capture("06-editor-keyboard")

@@ -94,7 +94,7 @@
 <string name="lock_short">Lock</string>
 <string name="unlock_short">Hold to unlock</string>
 
-<string name="time_input_hint">Time: min:sec or seconds</string>
+<string name="time_input_hint">Min:sec or seconds</string>
 <string name="count_range">Enter %1$d to %2$d</string>
 <string name="time_range">Enter a time from %1$s to %2$s</string>
 <string name="too_long">Workout must not exceed 24 hours</string>
