@@ -119,8 +119,10 @@ class UxAuditProbe {
     }
 
     private fun SemanticsNodeInteraction.reveal(): SemanticsNodeInteraction = apply {
-        // Fixed primary controls have no scroll ancestor. Scroll only when a user needs it.
-        if (runCatching { assertIsDisplayed() }.isFailure) performScrollTo()
+        // Scroll even a partially visible action fully into view; fixed controls have no scroll ancestor.
+        val parent = fetchSemanticsNode().parent
+        val scrollable = generateSequence(parent) { it.parent }.any { it.config.contains(SemanticsActions.ScrollBy) }
+        if (scrollable) performScrollTo() else assertIsDisplayed()
     }
 
     private fun openEditor() {

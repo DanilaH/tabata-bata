@@ -23,18 +23,24 @@ class EditorControlsTest {
             field.performTextReplacement("0:20")
             compose.onNodeWithContentDescription("+ " + label(R.string.work)).performClick()
             field.assertTextContains("0:21")
-            compose.mainClock.autoAdvance = false
             val plus = compose.onNodeWithContentDescription("+ " + label(R.string.work))
+            // Finish keyboard/window transitions before freezing Compose's frame clock.
+            // A moving scroll ancestor correctly cancels an in-flight press.
+            val settling = android.os.SystemClock.uptimeMillis()
+            compose.waitUntil(5000) { android.os.SystemClock.uptimeMillis() - settling >= 750 }
+            val initialBounds = plus.fetchSemanticsNode().boundsInRoot
+            compose.mainClock.autoAdvance = false
             plus.performTouchInput { down(center) }
             compose.mainClock.advanceTimeBy(1000)
             fun value(): Int = parseDuration(field.fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.EditableText].text)!!
             val early = value()
+            val earlyBounds = plus.fetchSemanticsNode().boundsInRoot
             compose.mainClock.advanceTimeBy(1000)
             val middle = value()
             compose.mainClock.advanceTimeBy(1000)
             val late = value()
             assertTrue(early > 21)
-            assertTrue("Holding must accelerate: early=$early middle=$middle late=$late", late-middle > middle-early)
+            assertTrue("Holding must accelerate: early=$early middle=$middle late=$late initial=$initialBounds earlyBounds=$earlyBounds final=${plus.fetchSemanticsNode().boundsInRoot}", late-middle > middle-early)
             plus.performTouchInput { up() }
             compose.mainClock.advanceTimeBy(100)
             val released = value()
