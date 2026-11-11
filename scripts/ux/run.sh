@@ -35,3 +35,7 @@ match=re.search(r'^OK \([0-9]+ tests?\)\r?$',text,re.M)
 if match is None: sys.exit('Instrumented audit contains failures; see evidence')
 print(match.group(0))
 PY
+# Distinguish actual SystemUI appearance from instrumentation-owned window focus.
+if [ "$UX_FEEL" = true ]; then
+  python3 scripts/ux/native-navigation.py
+fi
