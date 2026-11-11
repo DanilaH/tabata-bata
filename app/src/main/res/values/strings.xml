@@ -98,7 +98,7 @@
 <string name="count_range">Допустимо от %1$d до %2$d</string>
 <string name="time_range">Введи время от %1$s до %2$s</string>
 <string name="too_long">Занятие должно быть короче 24 часов</string>
-<string name="fix_fields">Исправь отмеченные поля</string>
+<string name="fix_fields">Проверь поля</string>
 <string name="unsaved">Сохранить изменения?</string>
 <string name="unsaved_body">Исходный режим пока не изменён.</string>
 <string name="stay">Остаться</string>

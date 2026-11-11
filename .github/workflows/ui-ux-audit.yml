@@ -2,7 +2,7 @@ name: Independent UI UX and feel audit
 on:
   push:
     branches: [main]
-    paths: ['scripts/ux/**', '.github/workflows/ui-ux-audit.yml', 'app/src/main/java/ru/tabatabata/*Screen.kt', 'app/src/main/java/ru/tabatabata/AppLayouts.kt', 'app/src/main/java/ru/tabatabata/SupportDialog.kt', 'app/src/main/java/ru/tabatabata/MainActivity.kt', 'app/src/main/java/ru/tabatabata/PlanPreviewDialog.kt']
+    paths: ['scripts/ux/**', 'app/src/main/res/**', '.github/workflows/ui-ux-audit.yml', 'app/src/main/java/ru/tabatabata/*Screen.kt', 'app/src/main/java/ru/tabatabata/AppLayouts.kt', 'app/src/main/java/ru/tabatabata/SupportDialog.kt', 'app/src/main/java/ru/tabatabata/MainActivity.kt', 'app/src/main/java/ru/tabatabata/PlanPreviewDialog.kt']
   workflow_dispatch:
 permissions:
   contents: read
