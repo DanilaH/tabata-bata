@@ -238,11 +238,9 @@ class UxAuditProbe {
             capture("20-settings-options")
             at(R.string.report_problem).reveal().performClick()
             capture("21-support")
-            compose.onNodeWithTag("support-description").reveal().performTextInput("UX audit: button and keyboard check")
+            compose.onNodeWithTag("support-description").reveal().performClick().performTextInput("UX audit: button and keyboard check")
             capture("22-support-keyboard")
-            compose.onNodeWithTag("support-description").performImeAction()
-            compose.waitForIdle();SystemClock.sleep(600)
-            at(R.string.report_copy).reveal().assertIsDisplayed().performClick()
+            at(R.string.report_copy).reveal().assertIsDisplayed().performTouchInput { click(center) }
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
             compose.runOnUiThread {
                 val clip=context.getSystemService(ClipboardManager::class.java).primaryClip
@@ -250,7 +248,7 @@ class UxAuditProbe {
                 assertTrue(clip!!.getItemAt(0).text.contains("UX audit:"))
             }
             capture("23-support-copied")
-            at(R.string.preview_close).reveal().assertIsDisplayed()
+            at(R.string.preview_close).reveal().assertIsDisplayed().performTouchInput { click(center) }
         } finally { finalCapture("d-final") }
     }
     @Test fun e_workoutAllStagesClockGridAndLock() {
@@ -339,11 +337,14 @@ class UxAuditProbe {
             at(R.string.save).reveal().performClick()
             at(R.string.save_mode).assertIsDisplayed()
             capture("30-new-name-dialog")
-            compose.onAllNodes(hasSetTextAction()).onLast().performTextInput(longName)
+            compose.onAllNodes(hasSetTextAction()).onLast().performClick().performTextInput(longName)
             capture("31-new-name-keyboard")
             compose.onAllNodesWithText(text(R.string.save)).onLast().reveal().assertIsDisplayed()
             capture("31-new-name-actions-keyboard")
             at(R.string.cancel).reveal().assertIsDisplayed()
+            compose.onAllNodesWithText(text(R.string.save)).onLast().reveal().performTouchInput { click(center) }
+            compose.waitUntil(5000) { runBlocking { store.presets.first().size } == 4 }
+            assertEquals(longName, runBlocking { store.presets.first().last().name })
         } finally { finalCapture("g-final") }
     }
     @Test fun h_notificationExplanation() {

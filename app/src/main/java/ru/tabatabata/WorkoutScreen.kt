@@ -79,11 +79,11 @@ internal fun Workout(
             val landscape = maxWidth > maxHeight * 1.25f
             val largeText = LocalDensity.current.fontScale > 1.3f
             Column(Modifier.fillMaxSize()) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                val lockAction: @Composable () -> Unit = {
                     if (locked)
                         Column(
-                            Modifier.width(80.dp)
-                                .heightIn(min = 48.dp)
+                            Modifier.width(if (largeText) 160.dp else 80.dp)
+                                .heightIn(min = if (largeText) 56.dp else 48.dp)
                                 .pointerInput(locked) {
                                     detectTapGestures(
                                         onLongPress = { locked = false },
@@ -134,7 +134,7 @@ internal fun Workout(
                         TextButton(
                             onClick = { locked = true },
                             colors = ButtonDefaults.textButtonColors(contentColor = foreground),
-                            modifier = Modifier.width(80.dp).heightIn(min = 48.dp),
+                            modifier = Modifier.width(if (largeText) 160.dp else 80.dp).heightIn(min = if (largeText) 56.dp else 48.dp),
                         ) {
                             Icon(
                                 painter =
@@ -142,11 +142,8 @@ internal fun Workout(
                                 contentDescription = stringResource(R.string.lock_short),
                             )
                         }
-                    StableText(
-                        stage, Stage.entries.map { stringResource(stageString(it)) },
-                        Modifier.weight(1f),
-                        if (largeText) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge,
-                    )
+                }
+                val stopAction: @Composable () -> Unit = {
                     TextButton(
                         onClick = { exit = true },
                         enabled = !locked,
@@ -160,6 +157,20 @@ internal fun Workout(
                         Text(stringResource(if (largeText) R.string.stop_short else R.string.stop))
                     }
                 }
+                val stageTitles = Stage.entries.map { stringResource(stageString(it)) }
+                if (largeText && !landscape) {
+                    StableText(stage, stageTitles, Modifier.fillMaxWidth(), MaterialTheme.typography.titleMedium)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        lockAction()
+                        Spacer(Modifier.weight(1f))
+                        stopAction()
+                    }
+                } else Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    lockAction()
+                    StableText(stage, stageTitles, Modifier.weight(1f),
+                        if (largeText) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge)
+                    stopAction()
+                }
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                     val detailsHeight = maxHeight * .4f
                     if (landscape)
@@ -168,7 +179,7 @@ internal fun Workout(
                             horizontalArrangement = Arrangement.spacedBy(20.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            ClockFace(s, Modifier.weight(1.35f).fillMaxHeight())
+                            ClockFace(s, Modifier.weight(1f).fillMaxHeight())
                             Column(
                                 Modifier.weight(1f).fillMaxHeight(),
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -347,6 +358,7 @@ private fun WorkoutPause(s: Snapshot, locked: Boolean, foreground: Color) {
         },
         enabled = !locked,
         shape = MaterialTheme.shapes.small,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
         colors =
             ButtonDefaults.buttonColors(
                 containerColor = foreground,
