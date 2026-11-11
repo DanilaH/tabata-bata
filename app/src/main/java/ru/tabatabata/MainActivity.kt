@@ -109,23 +109,25 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         volumeControlStream = android.media.AudioManager.STREAM_MUSIC
-        updateSystemBars(true, android.graphics.Color.parseColor("#F6F7FC"))
+        enableEdgeToEdge()
+        updateSystemBars(false, android.graphics.Color.parseColor("#F6F7FC"))
         setContent { TabataTheme { App() } }
     }
     private var barsDark: Boolean? = null
     private var barsBackground: Int? = null
     internal fun updateSystemBars(dark: Boolean, background: Int, force: Boolean = false) {
-        if (force || barsDark != dark) {
-            barsDark = dark
-            val style = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-                else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
-            enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
-            // Keep platform protection for three-button navigation over stage colours.
-            if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = true
-        }
         if (barsBackground != background) {
             barsBackground = background
             window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(background))
+        }
+        if (force || barsDark != dark) {
+            barsDark = dark
+            // Edge-to-edge is installed once. Reinstalling it adds protection views on API 35+
+            // and reconfigures the window while dialogs/IME are changing focus.
+            androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
         }
     }
     override fun onWindowFocusChanged(hasFocus: Boolean) {

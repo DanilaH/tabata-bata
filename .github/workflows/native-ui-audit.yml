@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['scripts/ux/native-navigation.py', '.github/workflows/native-ui-audit.yml']
+    paths: ['scripts/ux/native-navigation.py', '.github/workflows/native-ui-audit.yml', 'app/src/main/java/ru/tabatabata/MainActivity.kt', 'app/src/main/res/values/styles.xml', 'app/src/main/res/values-night/styles.xml']
 permissions:
   contents: read
 concurrency:
