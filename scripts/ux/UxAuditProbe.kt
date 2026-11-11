@@ -222,7 +222,7 @@ class UxAuditProbe {
                 compose.waitUntil(4000) { compose.onAllNodesWithText(text(R.string.history_clear_title)).fetchSemanticsNodes().isNotEmpty() }
             }
             capture("16-history-clear")
-            at(R.string.cancel).assertIsDisplayed()
+            at(R.string.cancel).reveal().assertIsDisplayed()
             assertTrue("Physical clear-history tap did not open dialog; semantic diagnostic used",physicalOpened)
         } finally { finalCapture("c-final") }
     }

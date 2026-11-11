@@ -585,7 +585,7 @@ private fun Settings(
             val title = stringResource(listOf(R.string.profile_electronic, R.string.profile_beep, R.string.profile_bell)[index])
             val previewLabel = stringResource(R.string.profile_preview, title)
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val stacked = androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
+                val stacked = maxWidth < 360.dp || androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
                 val choice: @Composable (Modifier) -> Unit = { m ->
                     Row(m.heightIn(min = 48.dp).selectable(o.soundProfile == profile,
                         role = androidx.compose.ui.semantics.Role.RadioButton,
