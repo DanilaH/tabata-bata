@@ -202,7 +202,8 @@ fun AdBanner(ads: Ads) {
                     factory = {
                         BannerAdView(context).apply {
                             val lease = BannerLease()
-                            tag = lease
+                            // Leave the SDK view's ordinary tag available to the SDK.
+                            setTag(R.id.tabata_banner_lease, lease)
                             setAdSize(size)
                             setBannerAdEventListener(
                                 object : BannerAdEventListener {
@@ -233,7 +234,8 @@ fun AdBanner(ads: Ads) {
                     },
                     modifier = Modifier.fillMaxSize(),
                     onRelease = {
-                        (it.tag as? BannerLease)?.alive = false
+                        (it.getTag(R.id.tabata_banner_lease) as? BannerLease)?.alive = false
+                        it.setTag(R.id.tabata_banner_lease, null)
                         it.setBannerAdEventListener(null)
                         it.destroy()
                     },

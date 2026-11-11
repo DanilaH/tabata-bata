@@ -53,9 +53,18 @@ jobs:
             app/build/release-evidence/
             app/build/reports/lint-results-release.html
   demo-ads:
+    name: demo-ads (${{ matrix.banner }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - banner: yandex
+            bannerId: demo-banner-yandex
+          - banner: html
+            bannerId: demo-banner-adfox-html
     env:
-      ORG_GRADLE_PROJECT_bannerId: demo-banner-yandex
+      ORG_GRADLE_PROJECT_bannerId: ${{ matrix.bannerId }}
       ORG_GRADLE_PROJECT_interstitialId: demo-interstitial-yandex
       ORG_GRADLE_PROJECT_supportEmail: hityov.danila@yandex.ru
       ORG_GRADLE_PROJECT_privacyUrl: https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md
@@ -84,7 +93,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: demo-ads-evidence
+          name: demo-ads-evidence-${{ matrix.banner }}
           path: |
             app/build/reports/androidTests/
             app/build/reports/demo-release-offline/
@@ -93,5 +102,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: tabata-demo-ads-debug
+          name: tabata-demo-ads-debug-${{ matrix.banner }}
           path: app/build/outputs/apk/debug/app-debug.apk

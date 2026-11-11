@@ -31,6 +31,11 @@ class AdsDemoTest {
         instrumentation.uiAutomation.executeShellCommand(command)
     ).bufferedReader().use { it.readText() }
     private fun logs() = shell("logcat -d -s TabataEvents:D '*:S'")
+    private fun assertDemoBanner() = assertTrue("Demo banners only",
+        BuildConfig.BANNER_ID in setOf("demo-banner-yandex", "demo-banner-adfox-html"))
+    private fun bannerEvents(name: String) = logs().lineSequence().count {
+        it.contains(name + " ") && it.contains("\"format\":\"banner\"")
+    }
     private fun event(name: String, format: String): Boolean = logs().lineSequence().any {
         it.contains(name + " ") && it.contains("\"format\":\"$format\"")
     }
@@ -164,7 +169,7 @@ class AdsDemoTest {
         compose.runOnUiThread { assertNull(banner(compose.activity.window.decorView)) }
     }
     @Test fun realScreensRespectSafeAreasAndRemoveAdsDuringWorkout() {
-        assertEquals("demo-banner-yandex", BuildConfig.BANNER_ID)
+        assertDemoBanner()
         assertTrue(BuildConfig.APPMETRICA_KEY.isBlank())
         val originalNav = shell("cmd overlay list").lineSequence().firstOrNull {
             it.startsWith("[x]") && it.contains("com.android.internal.systemui.navbar.")
@@ -257,6 +262,9 @@ class AdsDemoTest {
     }
 
     @Test fun completedWorkoutToMenuShowsPrefetchedDemoThroughActualUi() {
+        val info = instrumentation.uiAutomation.serviceInfo
+        info.flags = info.flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
+        instrumentation.uiAutomation.serviceInfo = info
         val prefs = compose.activity.getSharedPreferences("ad-policy", Activity.MODE_PRIVATE)
         try {
             prefs.edit().clear().putInt("completed", 1).commit()
@@ -283,13 +291,14 @@ class AdsDemoTest {
             assertEquals("No prefetch after successful show inside daily cap", count,
                 logs().lineSequence().count { it.contains("ad_request ") && it.contains("interstitial") })
         } finally {
+            capture("actual-result-menu-final")
             compose.runOnUiThread { TimerService.clearResult() }
             prefs.edit().clear().commit()
         }
     }
 
     @Test fun actualDemoBannerAndInterstitialRespectFrequency() {
-        assertEquals("demo-banner-yandex", BuildConfig.BANNER_ID)
+        assertDemoBanner()
         assertEquals("demo-interstitial-yandex", BuildConfig.INTERSTITIAL_ID)
         assertTrue("No production analytics in probe", BuildConfig.APPMETRICA_KEY.isBlank())
         val serviceInfo = instrumentation.uiAutomation.serviceInfo
@@ -313,6 +322,16 @@ class AdsDemoTest {
             await("Demo banner did not load") { event("ad_loaded", "banner") }
             await("Demo banner impression missing") { event("ad_impression", "banner") }
             capture("banner")
+            if (BuildConfig.BANNER_ID == "demo-banner-yandex") {
+                val initialRequests = bannerEvents("ad_request")
+                val initialImpressions = bannerEvents("ad_impression")
+                val initialLoads = bannerEvents("ad_loaded")
+                await("SDK auto-refresh impression missing") { bannerEvents("ad_impression") > initialImpressions }
+                assertTrue("Refresh must deliver another loaded callback", bannerEvents("ad_loaded") > initialLoads)
+                assertEquals("SDK refresh must not issue an app-initiated reload", initialRequests,
+                    bannerEvents("ad_request"))
+                capture("banner-auto-refresh")
+            }
             await("Demo interstitial did not load") { event("ad_loaded", "interstitial") }
             compose.runOnUiThread {
                 ads.completed("second-demo")
