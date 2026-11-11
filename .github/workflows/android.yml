@@ -2,6 +2,7 @@ name: Android checks and APK
 on:
   push:
     branches: [main]
+    paths: ['app/**', '*.gradle.kts', 'gradle.properties', 'gradle/**', 'gradlew', 'gradlew.bat', '.github/workflows/android.yml', 'scripts/android-*.py', 'scripts/fixtures/**']
   pull_request:
   workflow_dispatch:
 permissions:
