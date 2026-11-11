@@ -46,6 +46,14 @@ class EditorControlsTest {
             val released = value()
             compose.mainClock.advanceTimeBy(1000)
             assertEquals(released, value())
+            plus.performTouchInput { down(center) }
+            compose.mainClock.advanceTimeBy(600)
+            plus.performTouchInput { moveTo(center - androidx.compose.ui.geometry.Offset(0f, 80f)) }
+            compose.mainClock.advanceTimeBy(150)
+            val canceled = value()
+            compose.mainClock.advanceTimeBy(1000)
+            assertEquals("Dragging the form must cancel held repetition", canceled, value())
+            plus.performTouchInput { up() }
             compose.mainClock.autoAdvance = true
             field.performTextReplacement("0:01")
             compose.onNodeWithContentDescription("− " + label(R.string.work)).assertIsNotEnabled()
