@@ -7,8 +7,8 @@ adb shell settings put system font_scale "$UX_FONT"
 adb install -r audit-apks/debug/app-debug.apk
 adb install -r audit-apks/androidTest/debug/app-debug-androidTest.apk
 collect() {
-  if [ -f ui-audit-results/record.pid ]; then
-    adb shell kill -2 "$(tr -d '\r\n' < ui-audit-results/record.pid)" || true
+  if [ "$UX_FEEL" = true ]; then
+    adb shell pkill -2 screenrecord || true
     sleep 2
   fi
   adb exec-out run-as ru.tabatabata tar -cf - -C files ux-audit > ui-audit-results/screens.tar || true
@@ -18,7 +18,7 @@ collect() {
 }
 trap collect EXIT
 if [ "$UX_FEEL" = true ]; then
-  adb shell 'screenrecord --time-limit 180 /sdcard/ui-audit-feel.mp4 >/dev/null 2>&1 & echo $!' > ui-audit-results/record.pid
+  timeout 110s adb shell screenrecord --size 720x1280 --bit-rate 2000000 --time-limit 90 /sdcard/ui-audit-feel.mp4 > ui-audit-results/record.log 2>&1 &
 fi
 adb shell am instrument -w -r \
   -e class "${UX_CLASS:-ru.tabatabata.UxAuditProbe}" \

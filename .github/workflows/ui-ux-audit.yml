@@ -35,6 +35,7 @@ jobs:
       max-parallel: 4
       matrix:
         include:
+          - {profile: ru-feel, api: 35, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'true'}
           - {profile: ru-narrow-200, api: 35, size: '960x1704', density: 480, font: '2.0', locale: ru, orientation: portrait, theme: light, feel: 'false'}
           - {profile: en-landscape-150, api: 35, size: '1080x1920', density: 480, font: '1.5', locale: en, orientation: landscape, theme: dark, feel: 'false'}
           - {profile: ru-landscape-200, api: 35, size: '1080x1920', density: 480, font: '2.0', locale: ru, orientation: landscape, theme: light, feel: 'false'}
@@ -58,7 +59,7 @@ jobs:
           UX_ORIENTATION: ${{ matrix.orientation }}
           UX_THEME: ${{ matrix.theme }}
           UX_FEEL: ${{ matrix.feel }}
-          UX_CLASS: ru.tabatabata.UxAuditProbe#c_historyLongNamesAndExpandedPlan
+          UX_CLASS: ${{ matrix.profile == 'ru-feel' && 'ru.tabatabata.UxAuditProbe#f_feelRealTransitionsAndPressResponse' || 'ru.tabatabata.UxAuditProbe#c_historyLongNamesAndExpandedPlan' }}
         with:
           api-level: ${{ matrix.api }}
           arch: x86_64
