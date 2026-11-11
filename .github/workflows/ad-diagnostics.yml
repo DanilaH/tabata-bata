@@ -7,13 +7,14 @@ permissions:
   contents: read
 jobs:
   banner:
-    name: Banner (${{ matrix.variant }})
+    name: Banner (${{ matrix.variant }}, ${{ matrix.format }})
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
-        variant: [current, early-init, cleartext]
+        variant: [current, attached-load, rebind-listener]
+        format: [yandex, html]
     env:
       ORG_GRADLE_PROJECT_bannerId: demo-banner-yandex
     steps:
@@ -28,10 +29,13 @@ jobs:
       - name: Prepare isolated comparison
         env:
           DIAGNOSTIC_VARIANT: ${{ matrix.variant }}
+          DIAGNOSTIC_FORMAT: ${{ matrix.format }}
         run: |
           cp scripts/ads/diagnostics/BannerDiagnosticTest.kt /tmp/BannerDiagnosticTest.kt
           cp scripts/ads/diagnostics/variant.py /tmp/variant.py
           cp scripts/ads/diagnostics/observe.py /tmp/observe.py
+          cp scripts/ads/diagnostics/run-probe.sh /tmp/run-probe.sh
+          if [ "$DIAGNOSTIC_FORMAT" = html ]; then echo 'ORG_GRADLE_PROJECT_bannerId=demo-banner-adfox-html' >> "$GITHUB_ENV"; fi
           if [ "$DIAGNOSTIC_VARIANT" = baseline ]; then git checkout --detach d401cd3496b2b3095349131b1b56c1fae6c31146; fi
           python3 /tmp/variant.py "$DIAGNOSTIC_VARIANT"
           mkdir -p diagnostic-evidence
@@ -52,18 +56,11 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: true
-          script: |
-            /tmp/ad-cdp/bin/python /tmp/observe.py > diagnostic-evidence/webview-network.jsonl 2>&1 &
-            observer_pid=$!
-            set +e
-            ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.tabatabata.BannerDiagnosticTest
-            probe_status=$?
-            kill "$observer_pid" || true
-            exit "$probe_status"
+          script: bash /tmp/run-probe.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: banner-diagnostic-${{ matrix.variant }}
+          name: banner-diagnostic-${{ matrix.variant }}-${{ matrix.format }}
           path: |
             diagnostic-evidence/
             app/build/reports/androidTests/

@@ -48,14 +48,15 @@ def observe(target, number):
             request_id = p.get("requestId")
             if method == "Network.requestWillBeSent":
                 requests[request_id] = origin(p["request"]["url"])
-                record(number, "request", origin=requests[request_id], type=p.get("type"))
+                record(number, "request", origin=requests[request_id], type=p.get("type"),
+                    route=urlsplit(p["request"]["url"]).path if requests[request_id] == "https://adlib-mock.yandex.net" else None)
             elif method == "Network.responseReceived":
                 response = p["response"]
                 record(number, "response", origin=origin(response["url"]), status=response["status"],
                     mime=response.get("mimeType"), type=p.get("type"))
             elif method == "Network.loadingFailed":
                 record(number, "network-failure", origin=requests.get(request_id),
-                    error=p.get("errorText"), blocked=p.get("blockedReason"), type=p.get("type"))
+                    error=p.get("errorText"), blocked=p.get("blockedReason"), cors=p.get("corsErrorStatus"), type=p.get("type"))
             elif method == "Runtime.exceptionThrown":
                 details = p.get("exceptionDetails", {})
                 record(number, "exception", text=scrub(details.get("text")),

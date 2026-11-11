@@ -4,6 +4,32 @@ import sys
 
 variant = sys.argv[1]
 build = Path("app/build.gradle.kts")
+if variant == "attached-load":
+    ads = Path("app/src/main/java/ru/tabatabata/Ads.kt")
+    source = ads.read_text().replace('import android.app.Activity', 'import android.app.Activity\nimport androidx.core.view.doOnAttach\nimport androidx.core.view.doOnLayout')
+    source = source.replace('''                            Telemetry.event("ad_request", mapOf("format" to "banner", "scope" to "initial_load"))
+                            loadAd(AdRequest.Builder(BuildConfig.BANNER_ID).build())''', '''                            doOnAttach {
+                                doOnLayout {
+                                    if (lease.alive && isAttachedToWindow && width > 0 && height > 0) {
+                                        Telemetry.event("ad_request", mapOf("format" to "banner", "scope" to "initial_load"))
+                                        loadAd(AdRequest.Builder(BuildConfig.BANNER_ID).build())
+                                    }
+                                }
+                            }''')
+    ads.write_text(source)
+if variant == "rebind-listener":
+    ads = Path("app/src/main/java/ru/tabatabata/Ads.kt")
+    source = ads.read_text().replace('''                            setBannerAdEventListener(
+                                object : BannerAdEventListener {''', '''                            lateinit var bannerListener: BannerAdEventListener
+                            bannerListener = object : BannerAdEventListener {''')
+    source = source.replace('''                                        Telemetry.event("ad_loaded", mapOf("format" to "banner"))''', '''                                        setBannerAdEventListener(bannerListener)
+                                        Telemetry.event("ad_loaded", mapOf("format" to "banner"))''')
+    source = source.replace('''                                }
+                            )
+                            Telemetry.event("ad_request"''', '''                                }
+                            setBannerAdEventListener(bannerListener)
+                            Telemetry.event("ad_request"''')
+    ads.write_text(source)
 if variant == "early-init":
     app = Path("app/src/main/java/ru/tabatabata/Telemetry.kt")
     app.write_text(app.read_text().replace('        Telemetry.activate(this)', '''        Telemetry.activate(this)

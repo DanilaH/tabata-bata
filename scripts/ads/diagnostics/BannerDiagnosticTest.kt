@@ -64,6 +64,10 @@ class BannerDiagnosticTest {
                     state:typeof mraid==='object'?mraid.getState():null,
                     viewable:typeof mraid==='object'?mraid.isViewable():null,
                     frames:window.frames.length,
+                    bridges:Object.keys(window).filter(function(k){return /mraid|yandex|impression|bridge|monetiz/i.test(k);}),
+                    snippets:Array.from(document.scripts).filter(function(s){return !s.src;}).map(function(s){
+                        return (s.textContent.match(/.{0,120}(?:impression|Impression|adlib-mock|fetch|mraid).{0,200}/g)||[]).slice(-20);
+                    }),
                     resources:performance.getEntriesByType('resource').slice(-60).map(function(r){
                         var origin;try{origin=new URL(r.name,document.baseURI).origin;}catch(e){origin='invalid';}
                         return {origin:origin,type:r.initiatorType,duration:r.duration,status:r.responseStatus||null};
@@ -81,7 +85,7 @@ class BannerDiagnosticTest {
     }
 
     @Test fun bannerRecordsSdkImpression() {
-        assertEquals("demo-banner-yandex", BuildConfig.BANNER_ID)
+        assertTrue(BuildConfig.BANNER_ID in listOf("demo-banner-yandex", "demo-banner-adfox-html"))
         assertTrue(BuildConfig.INTERSTITIAL_ID.isBlank())
         assertTrue(BuildConfig.APPMETRICA_KEY.isBlank())
         val dir = File(requireNotNull(InstrumentationRegistry.getArguments().getString("additionalTestOutputDir")),
@@ -91,6 +95,7 @@ class BannerDiagnosticTest {
         lateinit var ads: Ads
         compose.runOnUiThread {
             WebView.setWebContentsDebuggingEnabled(true)
+            com.yandex.mobile.ads.common.YandexAds.enableLogging(true)
             ads = Ads(compose.activity)
             ads.setPlacementAllowed(true)
             compose.activity.setContent {
