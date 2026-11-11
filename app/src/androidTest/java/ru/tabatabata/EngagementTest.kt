@@ -31,7 +31,13 @@ class EngagementTest {
     @Test fun supportReportShowsOnlySelectedTechnicalDataAndCopiesDraft() {
         val store=Store(context)
         val before=runBlocking { store.presets.first() }
+        val inst = InstrumentationRegistry.getInstrumentation()
+        fun shell(command: String) = android.os.ParcelFileDescriptor.AutoCloseInputStream(inst.uiAutomation.executeShellCommand(command))
+            .bufferedReader().use { it.readText().trim() }
+        val keyboard = shell("settings get secure show_ime_with_hard_keyboard")
         try {
+            // Exercise a phone-like software keyboard. Android restricts background clipboard reads.
+            shell("settings put secure show_ime_with_hard_keyboard 1")
             runBlocking { store.updatePreset(Preset("private-support-test","PRIVATE_TIMER_NAME",Plan())) }
             compose.onNodeWithText(text(R.string.settings)).performClick()
             compose.onNodeWithText(text(R.string.report_problem)).performScrollTo().assertIsDisplayed()
@@ -39,8 +45,7 @@ class EngagementTest {
             compose.onNodeWithText(text(R.string.report_problem)).performClick()
             compose.onNodeWithTag("support-technical").assertTextContains(BuildConfig.VERSION_NAME, substring = true)
             compose.onNodeWithText("PRIVATE_TIMER_NAME").assertDoesNotExist()
-            compose.onNodeWithTag("support-description").performScrollTo().performTextInput("Test: sound stopped")
-            compose.onNodeWithTag("support-description").performImeAction()
+            compose.onNodeWithTag("support-description").performScrollTo().performClick().performTextInput("Test: sound stopped")
             capture("support-report")
             compose.onNodeWithText(text(R.string.report_copy)).performScrollTo().performClick()
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
@@ -60,7 +65,11 @@ class EngagementTest {
             compose.onNodeWithTag("support-description").assertTextContains("Test: sound stopped")
             compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.review_store_link)).performScrollTo().assertIsDisplayed()
-        } finally { runBlocking { store.savePresets(before) } }
+        } finally {
+            if (keyboard == "null") shell("settings delete secure show_ime_with_hard_keyboard")
+            else shell("settings put secure show_ime_with_hard_keyboard $keyboard")
+            runBlocking { store.savePresets(before) }
+        }
     }
 
     @Test fun reportActionsRemainReachableWithLargeTextAndLandscape() {
