@@ -161,6 +161,7 @@ internal fun Workout(
                     }
                 }
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                    val detailsHeight = maxHeight * .4f
                     if (landscape)
                         Row(
                             Modifier.fillMaxSize(),
@@ -187,7 +188,7 @@ internal fun Workout(
                         ) {
                             ClockFace(s, Modifier.weight(1f).fillMaxWidth())
                             WorkoutPause(s, locked, foreground)
-                            Column(Modifier.fillMaxWidth().heightIn(max = maxHeight * .4f)
+                            Column(Modifier.fillMaxWidth().heightIn(max = detailsHeight)
                                 .verticalScroll(rememberScrollState()),
                                 horizontalAlignment = Alignment.CenterHorizontally) {
                             if (options.showStages) StageQueue(s, Modifier.height(72.dp * LocalDensity.current.fontScale))
