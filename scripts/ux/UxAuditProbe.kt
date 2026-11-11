@@ -274,6 +274,7 @@ class UxAuditProbe {
             capture("21-support")
             compose.onNodeWithTag("support-description").reveal().performTouchInput { click(center) }.performTextInput("UX audit: button and keyboard check")
             observeFor(600)
+            capture("22-native-input-before-check")
             compose.waitUntil(5000) { inst.uiAutomation.windows.any {
                 it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
             } }
@@ -435,6 +436,7 @@ class UxAuditProbe {
             capture("30-new-name-dialog")
             compose.onAllNodes(hasSetTextAction()).onLast().reveal().performTouchInput { click(center) }.performTextInput(longName)
             observeFor(600)
+            capture("31-native-input-before-check")
             compose.waitUntil(5000) { inst.uiAutomation.windows.any {
                 it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
             } }

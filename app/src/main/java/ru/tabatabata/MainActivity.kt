@@ -131,7 +131,8 @@ class MainActivity : ComponentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         // Android can restore decor flags after onCreate; reapply after recreation/dialog dismissal.
-        if (hasFocus) updateSystemBars(barsDark ?: false, barsBackground ?: android.graphics.Color.TRANSPARENT, force = true)
+        if (hasFocus && Build.VERSION.SDK_INT < 36)
+            updateSystemBars(barsDark ?: false, barsBackground ?: android.graphics.Color.TRANSPARENT, force = true)
     }
 
 }
