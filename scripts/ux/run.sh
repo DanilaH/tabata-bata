@@ -5,15 +5,40 @@ adb shell settings put secure show_ime_with_hard_keyboard 1
 adb shell settings put system font_scale "$UX_FONT"
 adb install -r audit-apks/debug/app-debug.apk
 adb install -r audit-apks/androidTest/debug/app-debug-androidTest.apk
+collect_screens() {
+  local pending
+  pending=$(mktemp ui-audit-results/screens.XXXXXX)
+  if timeout 15s adb exec-out run-as ru.tabatabata tar -cf - -C files ux-audit > "$pending" 2>> ui-audit-results/collection.log &&
+      tar -tf "$pending" > /dev/null 2>&1; then
+    mv "$pending" ui-audit-results/screens.tar
+  else
+    rm -f "$pending"
+  fi
+}
+# Keep the last valid capture if the emulator disappears before the final trap.
+(
+  while sleep 20; do
+    date -u
+    free -m
+    ps -eo pid,rss,comm --sort=-rss | head -12
+    collect_screens
+  done
+) > ui-audit-results/host-memory.txt 2>&1 &
+monitor_pid=$!
+adb logcat -v threadtime -s AndroidRuntime:E TabataEvents:D > ui-audit-results/logcat.txt 2>&1 &
+logcat_pid=$!
 collect() {
+  kill "$monitor_pid" "$logcat_pid" 2>/dev/null || true
+  wait "$monitor_pid" "$logcat_pid" 2>/dev/null || true
   if [ "$UX_FEEL" = true ]; then
     timeout 10s adb shell pkill -2 screenrecord || true
     sleep 2
   fi
-  timeout 15s adb exec-out run-as ru.tabatabata tar -cf - -C files ux-audit > ui-audit-results/screens.tar || true
+  collect_screens
   tar -xf ui-audit-results/screens.tar -C ui-audit-results/ || true
-  timeout 15s adb pull /sdcard/ui-audit-feel.mp4 ui-audit-results/feel.mp4 || true
-  timeout 10s adb logcat -d -s AndroidRuntime:E TabataEvents:D > ui-audit-results/logcat.txt || true
+  if [ "$UX_FEEL" = true ]; then
+    timeout 15s adb pull /sdcard/ui-audit-feel.mp4 ui-audit-results/feel.mp4 || true
+  fi
 }
 trap collect EXIT
 if [ "$UX_FEEL" = true ]; then
