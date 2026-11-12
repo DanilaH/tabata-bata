@@ -1,5 +1,5 @@
 name: System bars after full UI and IME sequence
-# Retain native SystemUI/taskbar diagnostics after the observed keyboard sequence.
+# Retain native SystemUI/taskbar diagnostics and assert physical-pixel icon contrast.
 on:
   push:
     branches: [main]
