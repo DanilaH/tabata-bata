@@ -11,8 +11,8 @@ android {
         applicationId = "ru.tabatabata"
         minSdk = 26
         targetSdk = 36
-        versionCode = 24
-        versionName = "0.11.3"
+        versionCode = 25
+        versionName = "0.11.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField(
             "String",
