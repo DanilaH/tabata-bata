@@ -60,6 +60,7 @@ jobs:
           - banner: html
             bannerId: demo-banner-adfox-html
     env:
+      QEMU_AUDIO_DRV: pa
       ORG_GRADLE_PROJECT_bannerId: ${{ matrix.bannerId }}
       ORG_GRADLE_PROJECT_interstitialId: demo-interstitial-yandex
       ORG_GRADLE_PROJECT_supportEmail: hityov.danila@yandex.ru
@@ -78,6 +79,9 @@ jobs:
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=ci_audio
           pactl set-default-sink ci_audio
+          echo "PULSE_SERVER=$(pactl info | sed -n 's/^Server String: //p')" >> "$GITHUB_ENV"
+          pactl info
+          pactl list short sinks
       - name: Install isolated demo probe
         run: cp scripts/ads/AdsDemoTest.kt app/src/androidTest/java/ru/tabatabata/
       - name: Enable KVM
@@ -88,10 +92,11 @@ jobs:
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
+          target: google_apis
           arch: x86_64
           profile: pixel_2
           disable-animations: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none -dns-server 8.8.8.8,8.8.4.4
           script: |
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.tabatabata.AdsDemoTest
             bash scripts/ads/minified-offline.sh
