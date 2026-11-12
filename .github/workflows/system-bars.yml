@@ -65,6 +65,7 @@ jobs:
           UX_CLASS: ru.tabatabata.UxAuditProbe
         with:
           api-level: ${{ matrix.api }}
+          ram-size: 3072
           target: google_apis
           arch: x86_64
           profile: pixel_2
