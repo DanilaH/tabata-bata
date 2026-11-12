@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['scripts/ux/native-navigation.py', '.github/workflows/native-ui-audit.yml', 'app/src/main/java/ru/tabatabata/MainActivity.kt', 'app/src/main/res/values/styles.xml', 'app/src/main/res/values-night/styles.xml']
+    paths: ['scripts/ux/native-navigation.py', 'scripts/ux/reboot-device.py', '.github/workflows/native-ui-audit.yml', 'app/src/main/java/ru/tabatabata/MainActivity.kt', 'app/src/main/res/values/styles.xml', 'app/src/main/res/values-night/styles.xml']
 permissions:
   contents: read
 concurrency:
@@ -66,14 +66,7 @@ jobs:
             adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton
             # Rebuild launcher/taskbar against the final display metrics at boot.
             # Resizing a phone AVD into a tablet can otherwise retain a stale surface position.
-            adb reboot
-            adb wait-for-device
-            for attempt in $(seq 1 90); do
-              if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; then break; fi
-              sleep 2
-            done
-            test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
-            adb shell input keyevent 82
+            python3 scripts/ux/reboot-device.py
             adb install -r native-apk/app-debug.apk
             python3 scripts/ux/native-navigation.py
       - uses: actions/upload-artifact@v4
