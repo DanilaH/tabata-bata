@@ -88,7 +88,11 @@ class UxAuditProbe {
         val launcherAnr = inst.uiAutomation.rootInActiveWindow
             ?.findAccessibilityNodeInfosByText("Quickstep isn't responding")?.isNotEmpty() == true
         val image = requireNotNull(inst.uiAutomation.takeScreenshot())
-        File(output,"$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
+        try {
+            val pending = File(output,"$name.png.tmp")
+            pending.outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
+            check(pending.renameTo(File(output,"$name.png")))
+        } finally { image.recycle() }
         assertFalse("Emulator SystemUI: Quickstep ANR obscures the app; screenshot is not valid UI evidence", launcherAnr)
         val nodes = compose.onAllNodes(SemanticsMatcher("Text layout") {
             it.config.contains(SemanticsActions.GetTextLayoutResult)
@@ -277,6 +281,9 @@ class UxAuditProbe {
             capture("18-settings-finish")
             at(R.string.vibration_preview).reveal().assertIsDisplayed()
             capture("19-settings-vibration")
+            at(R.string.halfway).reveal().performClick()
+            at(R.string.halfway_preview).reveal().assertIsDisplayed()
+            capture("19-settings-halfway")
             at(R.string.show_ready_modes).reveal().assertIsDisplayed()
             capture("20-settings-options")
             at(R.string.voice).reveal().performClick()
