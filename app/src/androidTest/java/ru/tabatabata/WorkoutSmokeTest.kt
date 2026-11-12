@@ -170,7 +170,8 @@ class WorkoutSmokeTest {
 
     @Test
     fun editingPresetSurvivesActivityRecreation() {
-        val store = Store(InstrumentationRegistry.getInstrumentation().targetContext)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = Store(context)
         val before = kotlinx.coroutines.runBlocking { store.presets.first() }
         try {
             val preset = Preset(name = "Короткие интервалы", plan = Plan())
@@ -185,7 +186,15 @@ class WorkoutSmokeTest {
                 .onAllNodes(hasSetTextAction())
                 .onFirst()
                 .performTextReplacement("Rotation edited")
+            // Recreate only after the IME edit has reached the real editor draft.
+            compose.waitUntil(10000) {
+                EditorDrafts(context).read(preset.id)?.let {
+                    org.json.JSONObject(it).optString("name") == "Rotation edited"
+                } == true
+            }
+            compose.onAllNodes(hasSetTextAction()).onFirst().assertTextContains("Rotation edited")
             compose.activityRule.scenario.recreate()
+            compose.onAllNodes(hasSetTextAction()).onFirst().assertTextContains("Rotation edited")
             compose.runOnUiThread {
                 androidx.core.view.WindowCompat.getInsetsController(compose.activity.window,
                     compose.activity.window.decorView).hide(androidx.core.view.WindowInsetsCompat.Type.ime())
