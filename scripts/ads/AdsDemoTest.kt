@@ -11,6 +11,8 @@ import android.view.KeyEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -380,7 +382,9 @@ class AdsDemoTest {
             prefs.edit().clear().commit()
             ads = Ads(compose.activity)
             compose.activity.setContent { MaterialTheme {
-                if (ads.foreground && !ads.fullscreen) AdBanner(ads)
+                Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+                    if (ads.foreground && !ads.fullscreen) AdBanner(ads)
+                }
             } }
             ads.setPlacementAllowed(true)
             ads.completed("first-demo")
