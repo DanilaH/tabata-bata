@@ -76,6 +76,9 @@ jobs:
           pactl load-module module-null-sink sink_name=ci_audio
           pactl set-default-sink ci_audio
           echo "PULSE_SERVER=$(pactl info | sed -n 's/^Server String: //p')" >> "$GITHUB_ENV"
+          echo "QEMU_PA_SERVER=unix:$(pactl info | sed -n 's/^Server String: //p')" >> "$GITHUB_ENV"
+          echo "QEMU_PA_SINK=ci_audio" >> "$GITHUB_ENV"
+          echo "QEMU_PA_SOURCE=ci_audio.monitor" >> "$GITHUB_ENV"
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
