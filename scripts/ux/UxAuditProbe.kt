@@ -624,4 +624,36 @@ class UxAuditProbe {
             }
         } finally { finalCapture("n-final") }
     }
+
+    @Test fun o_historyLegacyStoppedAndPagination() {
+        try {
+            val repository = HistoryRepository(context)
+            val now = System.currentTimeMillis()
+            repeat(51) { index ->
+                repository.enqueue(WorkoutRecord("ux-page-$index",presets[0].plan,
+                    if (index == 0) longName else "Workout ${index + 1}","blue",0,
+                    finishedAt=now-index*1000L,completed=index > 0 && index % 2 == 0,
+                    activeMs=if(index == 0) 0 else 20000,completedRounds=0,statsAvailable=index != 0))
+            }
+            runBlocking { repository.load() }
+            compose.onNodeWithContentDescription(text(R.string.history_open)).performClick()
+            compose.waitUntil(10000) { compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty() }
+            at(R.string.history_partial_week).reveal().assertIsDisplayed()
+            capture("52-history-partial-week")
+            val list = compose.onNodeWithTag("history-list")
+            list.performScrollToNode(hasTestTag("history-ux-page-0"))
+            at(R.string.history_partial_record).reveal().assertIsDisplayed()
+            capture("53-history-legacy-stopped")
+            list.performScrollToNode(hasText(text(R.string.history_more)))
+            at(R.string.history_more).assertIsDisplayed()
+            capture("54-history-more")
+            at(R.string.history_more).performClick()
+            compose.waitUntil(10000) { compose.onAllNodesWithText(text(R.string.history_more)).fetchSemanticsNodes().isEmpty() }
+            list.performScrollToNode(hasTestTag("history-ux-page-50"))
+            compose.onNodeWithTag("history-ux-page-50").assertIsDisplayed()
+            capture("55-history-oldest-page")
+            list.performScrollToNode(hasText(text(R.string.history_clear)))
+            at(R.string.history_clear).assertIsDisplayed()
+        } finally { finalCapture("o-final") }
+    }
 }
