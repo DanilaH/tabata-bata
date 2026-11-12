@@ -9,7 +9,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.activity.ComponentActivity
-import androidx.activity.SystemBarStyle
 import androidx.activity.compose.*
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +26,7 @@ import androidx.compose.ui.*
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -115,18 +115,32 @@ class MainActivity : ComponentActivity() {
     }
     private var barsDark: Boolean? = null
     private var barsBackground: Int? = null
-    internal fun updateSystemBars(dark: Boolean, background: Int, force: Boolean = false) {
+    private var barsButtonNavigation = true
+    @Suppress("DEPRECATION") // navigationBarColor still controls 3-button protection on API 35+.
+    internal fun updateSystemBars(dark: Boolean, background: Int,
+        buttonNavigation: Boolean = barsButtonNavigation, force: Boolean = false) {
         if (barsBackground != background) {
             barsBackground = background
             window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(background))
         }
-        if (force || barsDark != dark) {
+        if (force || barsDark != dark || barsButtonNavigation != buttonNavigation) {
             barsDark = dark
+            barsButtonNavigation = buttonNavigation
+            // Some Android 15 taskbars override icon tint with the device theme after IME.
+            // Give button navigation a matching OS-themed surface, independent of stage colors.
+            // Gesture navigation keeps the transparent stage background.
+            val deviceDark = resources.configuration.uiMode and
+                android.content.res.Configuration.UI_MODE_NIGHT_MASK ==
+                android.content.res.Configuration.UI_MODE_NIGHT_YES
+            val navigationDark = if (buttonNavigation) deviceDark else dark
+            window.navigationBarColor = if (!buttonNavigation) android.graphics.Color.TRANSPARENT
+                else if (deviceDark) 0xFF111522.toInt() else 0xFFF6F7FC.toInt()
+            if (Build.VERSION.SDK_INT >= 29) window.isNavigationBarContrastEnforced = buttonNavigation
             // Edge-to-edge is installed once. Reinstalling it adds protection views on API 35+
             // and reconfigures the window while dialogs/IME are changing focus.
             androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
                 isAppearanceLightStatusBars = !dark
-                isAppearanceLightNavigationBars = !dark
+                isAppearanceLightNavigationBars = !navigationDark
             }
         }
     }
@@ -281,9 +295,14 @@ private fun App() {
     val darkSurface = MaterialTheme.colorScheme.background.red < .3f
     val systemBackground = if (running) workoutBackground(snapshot?.interval?.stage, darkSurface)
         else MaterialTheme.colorScheme.background
+    val density = LocalDensity.current
+    val tappable = WindowInsets.tappableElement
+    val buttonNavigation = tappable.getBottom(density) > 0 ||
+        tappable.getLeft(density, androidx.compose.ui.unit.LayoutDirection.Ltr) > 0 ||
+        tappable.getRight(density, androidx.compose.ui.unit.LayoutDirection.Ltr) > 0
     SideEffect {
         activity.updateSystemBars(running || darkSurface,
-            systemBackground.toArgb())
+            systemBackground.toArgb(), buttonNavigation)
     }
     val screen = when {
         running -> "workout"
