@@ -372,7 +372,9 @@ class UxAuditProbe {
                     val density = compose.activity.resources.displayMetrics.density
                     assertTrue("Clock too small: $clock", clock.height >= 48f * density)
                     val content = compose.onNodeWithTag("app-content").fetchSemanticsNode().boundsInWindow
-                    assertTrue("Clock loses visual priority: $clock", clock.width >= minOf(content.width * .5f, 160f * density))
+                    // Glyph width changes when 1:00 becomes 59; size priority is vertical.
+                    assertTrue("Clock loses visual priority: $clock",
+                        clock.height >= minOf(content.height * .2f, 160f * density))
                 }
                 val clockVisible=runCatching { compose.onNodeWithTag("workout-clock").assertIsDisplayed() }.isSuccess
                 val controlsVisible=runCatching {
