@@ -381,6 +381,27 @@ class UxAuditProbe {
                     assertTrue("Rest control cropped under resume: $rest / $primary", rest.top >= primary.bottom)
                 }
                 if (index in listOf(0,4,8)) capture("24-controls-$index")
+                s.next?.let { next ->
+                    val caption = compose.activity.getString(R.string.next_stage,
+                        text(stageString(next.stage)), formatTime(next.duration))
+                    val upcoming = compose.onNodeWithText(caption).reveal()
+                    upcoming.assertIsDisplayed()
+                    val layouts = mutableListOf<TextLayoutResult>()
+                    upcoming.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+                    assertTrue("Next-stage caption clips or truncates: $caption", layouts.isNotEmpty() && layouts.all { layout ->
+                        (0 until layout.lineCount).all { line ->
+                            !layout.isLineEllipsized(line) && layout.getLineLeft(line) >= -1f &&
+                                layout.getLineRight(line) <= layout.size.width + 1f &&
+                                layout.getLineTop(line) >= -1f && layout.getLineBottom(line) <= layout.size.height + 1f
+                        }
+                    })
+                    val bounds = upcoming.getUnclippedBoundsInRoot()
+                    val root = compose.onRoot().getUnclippedBoundsInRoot()
+                    assertTrue("Next-stage caption is outside the viewport: $bounds / $root",
+                        bounds.left >= root.left && bounds.right <= root.right &&
+                            bounds.top >= root.top && bounds.bottom <= root.bottom)
+                    capture("24-upcoming-$index")
+                }
                 frames.put(JSONObject().put("stage",s.interval?.stage?.name).put("clock",clock.toString())
                     .put("clockVisible",clockVisible).put("controlsVisible",controlsVisible))
                 File(output,"clock-positions.json").writeText(frames.toString(2))
@@ -700,5 +721,51 @@ class UxAuditProbe {
             compose.onNodeWithText("+ "+text(R.string.new_timer)).assertIsDisplayed()
             capture("60-legacy-result-return-home")
         } finally { finalCapture("q-final") }
+    }
+
+    @Test fun r_historyRepeatedNavigationAndWorkoutReturn() {
+        if (args.getString("uxOrientation") == "landscape" || context.resources.configuration.fontScale < 1.99f) return
+        val repository = HistoryRepository(context)
+        val originalOrientation = compose.activity.requestedOrientation
+        try {
+            repository.enqueue(WorkoutRecord("ux-history-reopen",Plan(0,1,0,1),longName,"blue",0,
+                finishedAt=System.currentTimeMillis(),completed=true,activeMs=1000,completedRounds=1))
+            runBlocking { repository.load() }
+            repeat(5) { attempt ->
+                compose.onNodeWithContentDescription(text(R.string.history_open)).reveal().performClick()
+                fun awaitHistory() {
+                    compose.onNodeWithTag("history-list").performScrollToIndex(0)
+                    compose.waitUntil(10000) {
+                        compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty()
+                    }
+                    compose.onNodeWithTag("history-list").performScrollToNode(hasTestTag("history-ux-history-reopen"))
+                    compose.onNodeWithTag("history-ux-history-reopen").assertIsDisplayed()
+                }
+                awaitHistory()
+                if (attempt < 2) {
+                    compose.runOnUiThread { compose.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
+                    compose.waitUntil(10000) { compose.activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE }
+                    awaitHistory()
+                    capture("61-history-reopen-$attempt-landscape")
+                    compose.runOnUiThread { compose.activity.requestedOrientation = originalOrientation }
+                    compose.waitUntil(10000) { compose.activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT }
+                    awaitHistory()
+                }
+                capture("61-history-reopen-$attempt")
+                if (attempt >= 2) {
+                    compose.onNode(hasText(text(R.string.repeat)) and hasAnyAncestor(hasTestTag("history-ux-history-reopen")))
+                        .reveal().performClick()
+                    compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
+                    at(R.string.home).reveal().performClick()
+                } else compose.onNodeWithContentDescription("← " + text(R.string.saved)).performClick()
+                compose.onNodeWithText("+ " + text(R.string.new_timer)).assertIsDisplayed()
+            }
+        } catch (failure: Throwable) {
+            File(output,"61-history-reopen-failure-tree.txt").writeText(compose.onRoot(useUnmergedTree=true).printToString(50))
+            File(output,"61-history-reopen-failure-state.txt").writeText(
+                "lifecycle=${compose.activity.lifecycle.currentState}\n" +
+                    runBlocking { runCatching { repository.load().toString() }.toString() })
+            throw failure
+        } finally { finalCapture("r-final") }
     }
 }
