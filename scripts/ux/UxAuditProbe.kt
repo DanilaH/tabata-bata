@@ -185,6 +185,9 @@ class UxAuditProbe {
             capture("05-editor-top")
             val work=compose.onNodeWithContentDescription(text(R.string.work))
             work.reveal().performTouchInput { click(center) }.performTextReplacement("60:00")
+            compose.waitUntil(10000) { inst.uiAutomation.windows.any {
+                it.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD
+            } }
             observeFor(600)
             work.assertIsDisplayed()
             val inputBounds = work.getUnclippedBoundsInRoot()
