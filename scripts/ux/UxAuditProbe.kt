@@ -31,6 +31,8 @@ class UxAuditProbe {
     }
     private fun text(id: Int) = compose.activity.getString(id)
     private fun captureSystem(name: String) {
+        // Keep the app frame clock moving until the external Activity transition draws.
+        observeFor(800)
         inst.waitForIdleSync()
         inst.uiAutomation.waitForIdle(300,5000)
         SystemClock.sleep(300)
@@ -95,15 +97,16 @@ class UxAuditProbe {
         compose.waitForIdle()
         inst.waitForIdleSync()
         SystemClock.sleep(150)
-        val launcherAnr = inst.uiAutomation.rootInActiveWindow
-            ?.findAccessibilityNodeInfosByText("Quickstep isn't responding")?.isNotEmpty() == true
+        val blockedByAnr = listOf("isn't responding", "не отвечает").any { message ->
+            inst.uiAutomation.rootInActiveWindow?.findAccessibilityNodeInfosByText(message)?.isNotEmpty() == true
+        }
         val image = requireNotNull(inst.uiAutomation.takeScreenshot())
         try {
             val pending = File(output,"$name.png.tmp")
             pending.outputStream().use { image.compress(Bitmap.CompressFormat.PNG,100,it) }
             check(pending.renameTo(File(output,"$name.png")))
         } finally { image.recycle() }
-        assertFalse("Emulator SystemUI: Quickstep ANR obscures the app; screenshot is not valid UI evidence", launcherAnr)
+        assertFalse("An ANR window obscures the app; screenshot is not valid UI evidence", blockedByAnr)
         val nodes = compose.onAllNodes(SemanticsMatcher("Text layout") {
             it.config.contains(SemanticsActions.GetTextLayoutResult)
         },useUnmergedTree=true).fetchSemanticsNodes()
@@ -289,6 +292,9 @@ class UxAuditProbe {
             capture("16-history-clear")
             at(R.string.cancel).reveal().assertIsDisplayed()
             assertTrue("Physical clear-history tap did not open dialog; semantic diagnostic used",physicalOpened)
+        } catch (failure: Throwable) {
+            File(output,"11-history-body-failure.txt").writeText(failure.stackTraceToString())
+            throw failure
         } finally { finalCapture("c-final") }
     }
     @Test fun d_settingsSoundsSupportAndKeyboard() {
@@ -305,6 +311,9 @@ class UxAuditProbe {
             at(R.string.show_ready_modes).reveal().assertIsDisplayed()
             capture("20-settings-options")
             at(R.string.voice).reveal().performClick()
+            compose.waitUntil(5000) {
+                compose.onAllNodesWithText(text(R.string.voice_stages_rounds),useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()
+            }
             compose.onNodeWithText(text(R.string.voice_stages_rounds),useUnmergedTree=true).reveal().assertIsDisplayed()
             capture("20-settings-voice")
             at(R.string.voice).reveal().performClick()
@@ -364,7 +373,9 @@ class UxAuditProbe {
                     val density = compose.activity.resources.displayMetrics.density
                     assertTrue("Clock too small: $clock", clock.height >= 48f * density)
                     val content = compose.onNodeWithTag("app-content").fetchSemanticsNode().boundsInWindow
-                    assertTrue("Clock loses visual priority: $clock", clock.width >= minOf(content.width * .5f, 160f * density))
+                    // Glyph width changes when 1:00 becomes 59; size priority is vertical.
+                    assertTrue("Clock loses visual priority: $clock",
+                        clock.height >= minOf(content.height * .2f, 160f * density))
                 }
                 val clockVisible=runCatching { compose.onNodeWithTag("workout-clock").assertIsDisplayed() }.isSuccess
                 val controlsVisible=runCatching {
@@ -379,6 +390,28 @@ class UxAuditProbe {
                     assertTrue("Rest control cropped under resume: $rest / $primary", rest.top >= primary.bottom)
                 }
                 if (index in listOf(0,4,8)) capture("24-controls-$index")
+                s.next?.let { next ->
+                    val caption = compose.activity.getString(R.string.next_stage,
+                        text(stageString(next.stage)), formatTime(next.duration))
+                    val upcoming = compose.onNodeWithText(caption).reveal()
+                    upcoming.assertIsDisplayed()
+                    val layouts = mutableListOf<TextLayoutResult>()
+                    upcoming.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
+                    assertTrue("Next-stage caption clips or truncates: $caption", layouts.isNotEmpty() && layouts.all { layout ->
+                        (0 until layout.lineCount).all { line ->
+                            // Center alignment uses paragraph coordinates; compare the glyph span.
+                            !layout.isLineEllipsized(line) &&
+                                layout.getLineRight(line) - layout.getLineLeft(line) <= layout.size.width + 1f &&
+                                layout.getLineTop(line) >= -1f && layout.getLineBottom(line) <= layout.size.height + 1f
+                        }
+                    })
+                    val bounds = upcoming.getUnclippedBoundsInRoot()
+                    val root = compose.onRoot().getUnclippedBoundsInRoot()
+                    assertTrue("Next-stage caption is outside the viewport: $bounds / $root",
+                        bounds.left >= root.left && bounds.right <= root.right &&
+                            bounds.top >= root.top && bounds.bottom <= root.bottom)
+                    capture("24-upcoming-$index")
+                }
                 frames.put(JSONObject().put("stage",s.interval?.stage?.name).put("clock",clock.toString())
                     .put("clockVisible",clockVisible).put("controlsVisible",controlsVisible))
                 File(output,"clock-positions.json").writeText(frames.toString(2))
@@ -677,5 +710,72 @@ class UxAuditProbe {
             capture("58-returned-draft")
             assertEquals(3,runBlocking { store.presets.first().size })
         } finally { finalCapture("p-final") }
+    }
+
+    @Test fun q_completedLegacySessionWithoutStatistics() {
+        try {
+            // A checkpoint from before session statistics existed must not invent a result.
+            context.getSharedPreferences("session",0).edit().putString("active",JSONObject()
+                .put("plan",Plan(0,1,0,1).json()).put("index",0).put("remaining",1000)
+                .put("sessionId","ux-legacy-result").toString()).commit()
+            compose.activityRule.scenario.recreate()
+            at(R.string.recover).reveal().performClick()
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.INTERRUPTED }
+            assertFalse(requireNotNull(TimerService.state.value).statsAvailable)
+            at(R.string.resume).performClick()
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
+            at(R.string.result_unknown).reveal().assertIsDisplayed()
+            capture("59-completed-legacy-result")
+            at(R.string.repeat).reveal().assertIsDisplayed()
+            at(R.string.home).reveal().assertIsDisplayed().performClick()
+            compose.onNodeWithText("+ "+text(R.string.new_timer)).assertIsDisplayed()
+            capture("60-legacy-result-return-home")
+        } finally { finalCapture("q-final") }
+    }
+
+    @Test fun r_historyRepeatedNavigationAndWorkoutReturn() {
+        if (args.getString("uxOrientation") == "landscape" || context.resources.configuration.fontScale < 1.99f) return
+        val repository = HistoryRepository(context)
+        val originalOrientation = compose.activity.requestedOrientation
+        try {
+            repository.enqueue(WorkoutRecord("ux-history-reopen",Plan(0,1,0,1),longName,"blue",0,
+                finishedAt=System.currentTimeMillis(),completed=true,activeMs=1000,completedRounds=1))
+            runBlocking { repository.load() }
+            repeat(5) { attempt ->
+                compose.onNodeWithContentDescription(text(R.string.history_open)).reveal().performClick()
+                fun awaitHistory() {
+                    compose.onNodeWithTag("history-list").performScrollToIndex(0)
+                    compose.waitUntil(10000) {
+                        compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty()
+                    }
+                    compose.onNodeWithTag("history-list").performScrollToNode(hasTestTag("history-ux-history-reopen"))
+                    compose.onNodeWithTag("history-ux-history-reopen").assertIsDisplayed()
+                }
+                awaitHistory()
+                if (attempt < 2) {
+                    compose.runOnUiThread { compose.activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
+                    compose.waitUntil(10000) { compose.activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE }
+                    awaitHistory()
+                    capture("61-history-reopen-$attempt-landscape")
+                    compose.runOnUiThread { compose.activity.requestedOrientation = originalOrientation }
+                    compose.waitUntil(10000) { compose.activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT }
+                    awaitHistory()
+                }
+                capture("61-history-reopen-$attempt")
+                if (attempt >= 2) {
+                    compose.onNode(hasText(text(R.string.repeat)) and hasAnyAncestor(hasTestTag("history-ux-history-reopen")))
+                        .reveal().performClick()
+                    compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
+                    at(R.string.home).reveal().performClick()
+                } else compose.onNodeWithContentDescription("← " + text(R.string.saved)).performClick()
+                compose.onNodeWithText("+ " + text(R.string.new_timer)).assertIsDisplayed()
+            }
+        } catch (failure: Throwable) {
+            File(output,"61-history-reopen-failure-tree.txt").writeText(compose.onRoot(useUnmergedTree=true).printToString(50))
+            File(output,"61-history-reopen-failure-state.txt").writeText(
+                "lifecycle=${compose.activity.lifecycle.currentState}\n" +
+                    runBlocking { runCatching { repository.load().toString() }.toString() })
+            throw failure
+        } finally { finalCapture("r-final") }
     }
 }

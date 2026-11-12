@@ -1,5 +1,7 @@
 name: Independent UI UX and feel audit
 on:
+  pull_request:
+    paths: ['scripts/ux/**', 'app/src/main/**', '.github/workflows/ui-ux-audit.yml']
   push:
     branches: [main]
     paths: ['scripts/ux/**', '!scripts/ux/native-navigation.py', 'app/src/main/res/**', 'app/src/main/AndroidManifest.xml', '.github/workflows/ui-ux-audit.yml', 'app/src/main/java/ru/tabatabata/*Screen.kt', 'app/src/main/java/ru/tabatabata/AppLayouts.kt', 'app/src/main/java/ru/tabatabata/SupportDialog.kt', 'app/src/main/java/ru/tabatabata/MainActivity.kt', 'app/src/main/java/ru/tabatabata/PlanPreviewDialog.kt']
@@ -12,8 +14,11 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.profiles.outputs.matrix }}
     env:
       ORG_GRADLE_PROJECT_bannerId: demo-banner-adfox-html
+      ORG_GRADLE_PROJECT_privacyUrl: https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -21,6 +26,25 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+      - name: Select focused PR checks or the complete release matrix
+        id: profiles
+        env:
+          UI_AUDIT_EVENT: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY_MATRIX' >> "$GITHUB_OUTPUT"
+          import json, os
+          from pathlib import Path
+          profiles = json.loads(Path('scripts/ux/profiles.json').read_text())
+          if os.environ['UI_AUDIT_EVENT'] == 'pull_request':
+              names = {'ru-narrow-200', 'en-narrow-200', 'ru-landscape-200', 'en-landscape-200-caption'}
+              profiles = [p for p in profiles if p['profile'] in names]
+              assert len(profiles) == 4
+              for profile in profiles:
+                  methods = ['c_historyLongNamesAndExpandedPlan', 'e_workoutAllStagesClockGridAndLock',
+                             'r_historyRepeatedNavigationAndWorkoutReturn'] if profile['orientation'] == 'portrait' else ['e_workoutAllStagesClockGridAndLock']
+                  profile['classes'] = ','.join('ru.tabatabata.UxAuditProbe#' + method for method in methods)
+          print('matrix=' + json.dumps({'include': profiles}, separators=(',', ':')))
+          PY_MATRIX
       - run: cp scripts/ux/UxAuditProbe.kt app/src/androidTest/java/ru/tabatabata/
       - run: ./gradlew assembleDebug assembleDebugAndroidTest
       - uses: actions/upload-artifact@v4
@@ -36,23 +60,22 @@ jobs:
     timeout-minutes: 25
     strategy:
       fail-fast: false
-      max-parallel: 7
-      matrix:
-        include:
-          - {profile: ru-normal, api: 35, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'true'}
-          - {profile: ru-narrow-200, api: 35, size: '960x1704', density: 480, font: '2.0', locale: ru, orientation: portrait, theme: light, feel: 'false'}
-          - {profile: en-narrow-150, api: 35, size: '960x1704', density: 480, font: '1.5', locale: en, orientation: portrait, theme: dark, feel: 'false'}
-          - {profile: en-narrow-200, api: 35, size: '960x1704', density: 480, font: '2.0', locale: en, orientation: portrait, theme: light, feel: 'false'}
-          - {profile: en-landscape-150, api: 35, size: '1080x1920', density: 480, font: '1.5', locale: en, orientation: landscape, theme: dark, feel: 'false'}
-          - {profile: ru-landscape-200, api: 35, size: '1080x1920', density: 480, font: '2.0', locale: ru, orientation: landscape, theme: light, feel: 'false'}
-          - {profile: ru-tablet, api: 35, size: '1200x1920', density: 240, font: '1.0', locale: ru, orientation: portrait, theme: dark, feel: 'false'}
-          - {profile: en-android16, api: 36, size: '1080x1920', density: 420, font: '1.0', locale: en, orientation: portrait, theme: light, feel: 'true'}
+      max-parallel: 9
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: ux-audit-apks
           path: audit-apks
+      - name: Start audio sink for demo banner video
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci_audio
+          pactl set-default-sink ci_audio
+          echo "PULSE_SERVER=$(pactl info | sed -n 's/^Server String: //p')" >> "$GITHUB_ENV"
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -67,7 +90,9 @@ jobs:
           UX_ORIENTATION: ${{ matrix.orientation }}
           UX_THEME: ${{ matrix.theme }}
           UX_FEEL: ${{ matrix.feel }}
-          UX_CLASS: ru.tabatabata.UxAuditProbe
+          UX_CLASS: ${{ matrix.classes || 'ru.tabatabata.UxAuditProbe' }}
+          UX_PICKERS: ${{ matrix.feel }}
+          QEMU_AUDIO_DRV: pa
         with:
           api-level: ${{ matrix.api }}
           avd-name: tabata-ui
@@ -77,7 +102,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: false
-          emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -no-boot-anim -camera-back none
           script: bash scripts/ux/run.sh
       - name: Retain host failure evidence
         if: always()
@@ -85,6 +110,7 @@ jobs:
           mkdir -p ui-audit-results
           free -m > ui-audit-results/host-memory-final.txt
           sudo journalctl -k --since '-25 minutes' --no-pager > ui-audit-results/host-kernel.txt
+          sudo coredumpctl --no-pager info --since '-25 minutes' > ui-audit-results/host-coredumps.txt 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:

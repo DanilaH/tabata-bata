@@ -31,7 +31,7 @@ collect_video() {
   done
 ) > ui-audit-results/host-memory.txt 2>&1 &
 monitor_pid=$!
-adb logcat -v threadtime -s AndroidRuntime:E TabataEvents:D > ui-audit-results/logcat.txt 2>&1 &
+adb logcat -v threadtime -s AndroidRuntime:E UxAudit:E TabataEvents:D > ui-audit-results/logcat.txt 2>&1 &
 logcat_pid=$!
 collect() {
   kill "$monitor_pid" "$logcat_pid" 2>/dev/null || true
