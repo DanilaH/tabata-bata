@@ -1,4 +1,4 @@
-name: Focused editor keyboard check
+name: Focused UI regressions
 on:
   workflow_dispatch:
   push:
@@ -13,6 +13,12 @@ jobs:
   editor:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {profile: ru-portrait-200, locale: ru, orientation: portrait}
+          - {profile: en-landscape-200, locale: en, orientation: landscape}
     env:
       ORG_GRADLE_PROJECT_bannerId: demo-banner-adfox-html
     steps:
@@ -38,11 +44,11 @@ jobs:
           UX_SIZE: 960x1704
           UX_DENSITY: '480'
           UX_FONT: '2.0'
-          UX_LOCALE: ru
-          UX_ORIENTATION: portrait
+          UX_LOCALE: ${{ matrix.locale }}
+          UX_ORIENTATION: ${{ matrix.orientation }}
           UX_THEME: light
           UX_FEEL: 'false'
-          UX_CLASS: ru.tabatabata.UxAuditProbe#j_rotationKeepsPausedClockAndSession,ru.tabatabata.UxAuditProbe#h_notificationExplanation,ru.tabatabata.UxAuditProbe#b_editorValidationAppearanceAndLeaveDialog
+          UX_CLASS: ru.tabatabata.UxAuditProbe#j_rotationKeepsPausedClockAndSession,ru.tabatabata.UxAuditProbe#h_notificationExplanation,ru.tabatabata.UxAuditProbe#b_editorValidationAppearanceAndLeaveDialog,ru.tabatabata.UxAuditProbe#n_filePickerCancellationAndThemePersistence
         with:
           api-level: 35
           avd-name: tabata-ui
@@ -57,5 +63,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: editor-keyboard-ru-200
+          name: focused-ui-${{ matrix.profile }}
           path: ui-audit-results/
