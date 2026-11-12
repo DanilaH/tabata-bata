@@ -30,6 +30,14 @@ class UxAuditProbe {
         check(isDirectory || mkdirs()) { "Cannot create private audit output" }
     }
     private fun text(id: Int) = compose.activity.getString(id)
+    private fun captureSystem(name: String) {
+        inst.waitForIdleSync()
+        val bitmap = requireNotNull(inst.uiAutomation.takeScreenshot())
+        try {
+            File(output,"$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
+        } finally { bitmap.recycle() }
+        File(output,"$name-window.txt").writeText(inst.uiAutomation.rootInActiveWindow.toString())
+    }
     private val longName = "Силовая тренировка — ноги, спина, плечи, три серии с длинным отдыхом и разминкой перед занятием".take(100)
     private val presets get() = listOf(
         Preset("ux-short", "Табата 20/10", Plan(), "green", 2),
@@ -569,5 +577,37 @@ class UxAuditProbe {
             assertTrue("Restored workout has a mismatched system bar: $mismatch", mismatch < 80)
             at(R.string.resume).assertIsDisplayed()
         } finally { finalCapture("i-final") }
+    }
+
+    @Test fun n_filePickerCancellationAndThemePersistence() {
+        try {
+            compose.onNodeWithContentDescription(text(R.string.settings)).performClick()
+            for ((theme,label) in listOf("dark" to R.string.theme_dark,"light" to R.string.theme_light)) {
+                at(label).reveal().performClick()
+                compose.waitUntil(5000) { runBlocking { store.options.first().theme } == theme }
+                capture("43-settings-$theme-selected")
+            }
+            at(R.string.export).reveal().performClick()
+            compose.waitUntil(10000) {
+                inst.uiAutomation.rootInActiveWindow?.packageName?.toString()?.contains("documentsui") == true
+            }
+            captureSystem("44-system-export-picker")
+            back()
+            at(R.string.import_timers).reveal().assertIsDisplayed()
+            capture("45-export-cancelled")
+            at(R.string.import_timers).performClick()
+            compose.waitUntil(10000) {
+                inst.uiAutomation.rootInActiveWindow?.packageName?.toString()?.contains("documentsui") == true
+            }
+            captureSystem("46-system-import-picker")
+            back()
+            at(R.string.import_timers).reveal().assertIsDisplayed()
+            val restored = if (args.getString("uxTheme") == "dark") R.string.theme_dark else R.string.theme_light
+            at(restored).reveal().performClick()
+            compose.activityRule.scenario.recreate()
+            at(restored).reveal().assertIsSelected()
+            assertEquals(3,runBlocking { store.presets.first().size })
+            capture("47-settings-theme-restored")
+        } finally { finalCapture("n-final") }
     }
 }
