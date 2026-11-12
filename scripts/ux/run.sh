@@ -15,6 +15,12 @@ collect_screens() {
     rm -f "$pending"
   fi
 }
+collect_video() {
+  if [ "$UX_FEEL" = true ] &&
+      timeout 15s adb pull /sdcard/ui-audit-feel.mp4 ui-audit-results/feel.pending.mp4 >> ui-audit-results/collection.log 2>&1; then
+    mv ui-audit-results/feel.pending.mp4 ui-audit-results/feel.mp4
+  fi
+}
 # Keep the last valid capture if the emulator disappears before the final trap.
 (
   while sleep 20; do
@@ -37,7 +43,7 @@ collect() {
   collect_screens
   tar -xf ui-audit-results/screens.tar -C ui-audit-results/ || true
   if [ "$UX_FEEL" = true ]; then
-    timeout 15s adb pull /sdcard/ui-audit-feel.mp4 ui-audit-results/feel.mp4 || true
+    collect_video
   fi
 }
 trap collect EXIT
@@ -58,7 +64,9 @@ match=re.search(r'^OK \([0-9]+ tests?\)\r?$',text,re.M)
 if match is None: sys.exit('Instrumented audit contains failures; see evidence')
 print(match.group(0))
 PY
+collect_screens
+collect_video
 # Distinguish actual SystemUI appearance from instrumentation-owned window focus.
-if [ "$UX_FEEL" = true ]; then
+if [ "$UX_FEEL" = true ] || [ "${UX_NATIVE:-false}" = true ]; then
   python3 scripts/ux/native-navigation.py
 fi
