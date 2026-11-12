@@ -62,7 +62,8 @@ jobs:
           - banner: html
             bannerId: demo-banner-adfox-html
     env:
-      QEMU_AUDIO_DRV: pa
+      QEMU_AUDIO_DRV: wav
+      QEMU_WAV_PATH: /tmp/tabata-demo-audio.wav
       ORG_GRADLE_PROJECT_bannerId: ${{ matrix.bannerId }}
       ORG_GRADLE_PROJECT_interstitialId: demo-interstitial-yandex
       ORG_GRADLE_PROJECT_supportEmail: hityov.danila@yandex.ru
@@ -74,19 +75,6 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
-      - name: Start audio sink for real SDK video playback
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq pulseaudio
-          pulseaudio --start --exit-idle-time=-1
-          pactl load-module module-null-sink sink_name=ci_audio
-          pactl set-default-sink ci_audio
-          echo "PULSE_SERVER=$(pactl info | sed -n 's/^Server String: //p')" >> "$GITHUB_ENV"
-          echo "QEMU_PA_SERVER=unix:$(pactl info | sed -n 's/^Server String: //p')" >> "$GITHUB_ENV"
-          echo "QEMU_PA_SINK=ci_audio" >> "$GITHUB_ENV"
-          echo "QEMU_PA_SOURCE=ci_audio.monitor" >> "$GITHUB_ENV"
-          pactl info
-          pactl list short sinks
       - name: Install isolated demo probe
         run: cp scripts/ads/AdsDemoTest.kt app/src/androidTest/java/ru/tabatabata/
       - name: Enable KVM
@@ -101,16 +89,25 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: false
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none -dns-server 8.8.8.8,8.8.4.4
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -no-boot-anim -camera-back none -dns-server 8.8.8.8,8.8.4.4
           script: |
-            pactl list short clients
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.tabatabata.AdsDemoTest
+            test "$(stat -c %s "$QEMU_WAV_PATH")" -gt 44
             bash scripts/ads/minified-offline.sh
+      - name: Retain emulator host evidence
+        if: always()
+        run: |
+          mkdir -p ad-host-evidence
+          stat "$QEMU_WAV_PATH" > ad-host-evidence/audio-file.txt 2>&1 || true
+          free -m > ad-host-evidence/memory.txt
+          sudo journalctl -k --since '-25 minutes' --no-pager > ad-host-evidence/kernel.txt
+          sudo coredumpctl --no-pager info --since '-25 minutes' > ad-host-evidence/coredumps.txt 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: demo-ads-evidence-${{ matrix.banner }}
           path: |
+            ad-host-evidence/
             app/build/reports/androidTests/
             app/build/reports/demo-release-offline/
             app/build/outputs/androidTest-results/
