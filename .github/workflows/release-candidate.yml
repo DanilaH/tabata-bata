@@ -1,6 +1,8 @@
 name: Configured release candidate and demo ads
 on:
   workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/release-candidate.yml', 'scripts/ads/**', 'app/src/main/java/ru/tabatabata/Ads.kt']
   push:
     branches: [main]
     paths: ['.github/workflows/release-candidate.yml', 'scripts/ads/**', 'docs/privacy-policy.md', 'app/src/main/**', 'app/build.gradle.kts']
@@ -80,6 +82,9 @@ jobs:
           pactl load-module module-null-sink sink_name=ci_audio
           pactl set-default-sink ci_audio
           echo "PULSE_SERVER=$(pactl info | sed -n 's/^Server String: //p')" >> "$GITHUB_ENV"
+          echo "QEMU_PA_SERVER=unix:$(pactl info | sed -n 's/^Server String: //p')" >> "$GITHUB_ENV"
+          echo "QEMU_PA_SINK=ci_audio" >> "$GITHUB_ENV"
+          echo "QEMU_PA_SOURCE=ci_audio.monitor" >> "$GITHUB_ENV"
           pactl info
           pactl list short sinks
       - name: Install isolated demo probe
@@ -98,6 +103,7 @@ jobs:
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none -dns-server 8.8.8.8,8.8.4.4
           script: |
+            pactl list short clients
             ./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=ru.tabatabata.AdsDemoTest
             bash scripts/ads/minified-offline.sh
       - uses: actions/upload-artifact@v4
