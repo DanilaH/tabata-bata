@@ -40,6 +40,9 @@ def screenshot(name):
     # A matching accessibility tree can precede the SurfaceFlinger frame.
     time.sleep(1)
     (out / (name + '.png')).write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
+    (out / (name + '-window.txt')).write_text(adb('shell', 'dumpsys', 'window'))
+    (out / (name + '-statusbar.txt')).write_text(adb('shell', 'dumpsys', 'statusbar'))
+    (out / (name + '-ime.txt')).write_text(adb('shell', 'dumpsys', 'input_method'))
 
 adb('shell', 'am', 'force-stop', 'ru.tabatabata')
 adb('shell', 'am', 'start', '-W', '-n', 'ru.tabatabata/.MainActivity')
@@ -51,6 +54,19 @@ wait_for(lambda n: text_is(n, 'history_this_week'))
 history_seconds = time.monotonic() - history_started
 screenshot('41-native-history')
 tap(wait_for(lambda n: n.get('content-desc') in {'← ' + s for s in labels('saved')}))
+# Reproduce native IME ownership changes before the workout, without test hooks.
+tap(wait_for(lambda n: any(v in n.get('text', '') for v in labels('new_timer'))))
+field = wait_for(lambda n: n.get('class') == 'android.widget.EditText')
+tap(field)
+adb('shell', 'input', 'text', 'NativeProbe')
+time.sleep(1)
+screenshot('41-native-editor-ime')
+adb('shell', 'input', 'keyevent', '4')
+time.sleep(1)
+tap(wait_for(lambda n: n.get('content-desc') in {'← ' + s for s in labels('saved')}))
+tap(wait_for(lambda n: text_is(n, 'discard')))
+wait_for(lambda n: text_is(n, 'start'))
+screenshot('41-native-after-ime-home')
 tap(wait_for(lambda n: text_is(n, 'start')))
 prompt_dismissed = False
 deadline = time.monotonic() + 25
