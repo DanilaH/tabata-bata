@@ -192,7 +192,14 @@ class UxAuditProbe {
             assertTrue("Focused input extends outside the resized window: $inputBounds / $rootBounds",
                 inputBounds.top >= rootBounds.top && inputBounds.bottom <= rootBounds.bottom)
             capture("06-editor-input-keyboard")
-            compose.onNodeWithText(text(R.string.start)).reveal().assertIsDisplayed()
+            val start = compose.onNodeWithText(text(R.string.start)).reveal()
+            try {
+                start.assertIsDisplayed()
+            } catch (failure: AssertionError) {
+                File(output,"06-editor-start-failure-semantics.txt").writeText(compose.onRoot().printToString())
+                capture("06-editor-start-failure")
+                throw failure
+            }
             compose.onNodeWithText(text(R.string.save)).reveal().assertIsDisplayed()
             capture("06-editor-keyboard")
             hideKeyboard()
