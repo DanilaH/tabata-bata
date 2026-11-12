@@ -3,6 +3,7 @@ package ru.tabatabata
 import android.content.ClipboardManager
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -49,9 +50,15 @@ class EngagementTest {
             capture("support-report")
             compose.onNodeWithText(text(R.string.report_copy)).performScrollTo().performClick()
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
-            // The system clipboard preview can own window focus after Copy.
-            // Return focus by a real touch before reading the clipboard from the app.
-            compose.onNodeWithTag("support-description").performScrollTo().performTouchInput { click(center) }
+            // Compose input alone need not transfer system window focus from clipboard preview.
+            // Locate the actual field on screen and inject a native touch through Android.
+            compose.onNodeWithTag("support-description").performScrollTo()
+            val field = compose.onNodeWithTag("support-description").fetchSemanticsNode()
+            val coordinates = field.layoutInfo.coordinates
+            val localCenter = field.boundsInWindow.center - coordinates.localToWindow(Offset.Zero)
+            val point = coordinates.localToScreen(localCenter)
+            assertTrue("Description must have a screen position", point.x.isFinite() && point.y.isFinite())
+            shell("input tap ${point.x.toInt()} ${point.y.toInt()}")
             var clip = ""
             compose.waitUntil(10000) {
                 compose.runOnUiThread {
@@ -68,6 +75,15 @@ class EngagementTest {
             compose.onNodeWithTag("support-description").assertTextContains("Test: sound stopped")
             compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.review_store_link)).performScrollTo().assertIsDisplayed()
+        } catch (failure: Throwable) {
+            runCatching { capture("support-report-failure") }
+            runCatching {
+                val output = requireNotNull(InstrumentationRegistry.getArguments().getString("additionalTestOutputDir"))
+                File(output, "support-report-failure.txt").writeText(
+                    "activeWindowPackage=${inst.uiAutomation.rootInActiveWindow?.packageName}\n" +
+                        compose.onRoot(useUnmergedTree = true).printToString(40))
+            }
+            throw failure
         } finally {
             if (keyboard == "null") shell("settings delete secure show_ime_with_hard_keyboard")
             else shell("settings put secure show_ime_with_hard_keyboard $keyboard")

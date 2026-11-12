@@ -744,6 +744,11 @@ class UxAuditProbe {
             repeat(5) { attempt ->
                 compose.onNodeWithContentDescription(text(R.string.history_open)).reveal().performClick()
                 fun awaitHistory() {
+                    // Rotation recreates the lazy list before its async history page arrives.
+                    compose.waitUntil(10000) {
+                        compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty() ||
+                            compose.onAllNodesWithTag("history-ux-history-reopen").fetchSemanticsNodes().isNotEmpty()
+                    }
                     compose.onNodeWithTag("history-list").performScrollToIndex(0)
                     compose.waitUntil(10000) {
                         compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty()

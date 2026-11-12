@@ -39,6 +39,7 @@ class TimerService : Service() {
     private var wake: PowerManager.WakeLock? = null
     private var ticker: Job? = null
     private var finishJob: Job? = null
+    private var latestStartId = 0
     private var lastIndex = -1
     private var lastSecond = -1L
     private var lastRemaining = Long.MAX_VALUE
@@ -86,6 +87,7 @@ class TimerService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        latestStartId = startId
         val now = SystemClock.elapsedRealtime()
         // Fulfil startForegroundService's contract even if input is rejected below.
         if (intent?.action in listOf("start", "recover") && engine == null) foreground()
@@ -200,7 +202,7 @@ class TimerService : Service() {
                 finish(false)
             }
         }
-        if (engine == null) stopSelf()
+        if (engine == null) stopSelf(startId)
         return START_NOT_STICKY
     }
 
@@ -356,15 +358,17 @@ class TimerService : Service() {
         if (!completed) cues.cancel()
         if (!completed) stopForeground(STOP_FOREGROUND_REMOVE)
         finishJob?.cancel()
+        val finishedStartId = latestStartId
         if (completed)
             finishJob = scope.launch {
                 delay(4500)
                 if (engine == null) {
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
+                    // A newer Android start request may still be queued on the main looper.
+                    // Its startId already belongs to the system, even before onStartCommand.
+                    if (stopSelfResult(finishedStartId)) stopForeground(STOP_FOREGROUND_REMOVE)
                 }
             }
-        else stopSelf()
+        else stopSelf(finishedStartId)
     }
 
     private fun notification(): Notification {
