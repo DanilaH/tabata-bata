@@ -31,6 +31,8 @@ class UxAuditProbe {
     }
     private fun text(id: Int) = compose.activity.getString(id)
     private fun captureSystem(name: String) {
+        // Keep the app frame clock moving until the external Activity transition draws.
+        observeFor(800)
         inst.waitForIdleSync()
         inst.uiAutomation.waitForIdle(300,5000)
         SystemClock.sleep(300)
@@ -677,5 +679,26 @@ class UxAuditProbe {
             capture("58-returned-draft")
             assertEquals(3,runBlocking { store.presets.first().size })
         } finally { finalCapture("p-final") }
+    }
+
+    @Test fun q_completedLegacySessionWithoutStatistics() {
+        try {
+            // A checkpoint from before session statistics existed must not invent a result.
+            context.getSharedPreferences("session",0).edit().putString("active",JSONObject()
+                .put("plan",Plan(0,1,0,1).json()).put("index",0).put("remaining",1000)
+                .put("sessionId","ux-legacy-result").toString()).commit()
+            compose.activityRule.scenario.recreate()
+            at(R.string.recover).reveal().performClick()
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.INTERRUPTED }
+            assertFalse(requireNotNull(TimerService.state.value).statsAvailable)
+            at(R.string.resume).performClick()
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
+            at(R.string.result_unknown).reveal().assertIsDisplayed()
+            capture("59-completed-legacy-result")
+            at(R.string.repeat).reveal().assertIsDisplayed()
+            at(R.string.home).reveal().assertIsDisplayed().performClick()
+            compose.onNodeWithText("+ "+text(R.string.new_timer)).assertIsDisplayed()
+            capture("60-legacy-result-return-home")
+        } finally { finalCapture("q-final") }
     }
 }
