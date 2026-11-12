@@ -32,6 +32,8 @@ class UxAuditProbe {
     private fun text(id: Int) = compose.activity.getString(id)
     private fun captureSystem(name: String) {
         inst.waitForIdleSync()
+        inst.uiAutomation.waitForIdle(300,5000)
+        SystemClock.sleep(300)
         val bitmap = requireNotNull(inst.uiAutomation.takeScreenshot())
         try {
             File(output,"$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }
@@ -240,7 +242,15 @@ class UxAuditProbe {
     @Test fun c_historyLongNamesAndExpandedPlan() {
         try {
             compose.onNodeWithContentDescription(text(R.string.history_open)).reveal().performClick()
-            compose.waitUntil(10000) { compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty() }
+            try {
+                compose.waitUntil(10000) { compose.onAllNodesWithTag("history-week-counts").fetchSemanticsNodes().isNotEmpty() }
+            } catch (failure: Throwable) {
+                File(output,"11-history-load-failure-tree.txt").writeText(compose.onRoot(useUnmergedTree=true).printToString(50))
+                File(output,"11-history-load-failure-state.txt").writeText(
+                    "lifecycle=${compose.activity.lifecycle.currentState}\n" +
+                        runBlocking { runCatching { HistoryRepository(context).load().toString() }.toString() })
+                throw failure
+            }
             compose.onNodeWithTag("history-list").performScrollToNode(hasText(text(R.string.history_empty_title)))
             capture("11-history-empty")
             val repo=HistoryRepository(context)
@@ -295,7 +305,7 @@ class UxAuditProbe {
             at(R.string.show_ready_modes).reveal().assertIsDisplayed()
             capture("20-settings-options")
             at(R.string.voice).reveal().performClick()
-            at(R.string.voice_stages_rounds).reveal()
+            compose.onNodeWithText(text(R.string.voice_stages_rounds),useUnmergedTree=true).reveal().assertIsDisplayed()
             capture("20-settings-voice")
             at(R.string.voice).reveal().performClick()
             at(R.string.theme_dark).reveal()
@@ -608,6 +618,10 @@ class UxAuditProbe {
             at(restored).reveal().assertIsSelected()
             assertEquals(3,runBlocking { store.presets.first().size })
             capture("47-settings-theme-restored")
+            if (BuildConfig.PRIVACY_URL.isNotBlank()) {
+                at(R.string.privacy).reveal().assertIsDisplayed()
+                capture("48-settings-privacy")
+            }
         } finally { finalCapture("n-final") }
     }
 }
