@@ -15,8 +15,15 @@ resources = [ET.parse(Path('app/src/main/res') / p / 'strings.xml').getroot()
 def labels(key):
     return {''.join(n.itertext()) for r in resources for n in r if n.get('name') == key}
 def adb(*args, binary=False):
-    p = subprocess.run(['adb', *args], check=True, capture_output=True)
-    return p.stdout if binary else p.stdout.decode('utf-8', errors='replace')
+    read_only = args[:2] in [('shell', 'dumpsys'), ('shell', 'uiautomator'), ('exec-out', 'screencap')]
+    for attempt in range(3 if read_only else 1):
+        p = subprocess.run(['adb', *args], capture_output=True)
+        if p.returncode == 0:
+            return p.stdout if binary else p.stdout.decode('utf-8', errors='replace')
+        if read_only and attempt < 2:
+            time.sleep(1)
+    raise RuntimeError(f'adb {args} failed ({p.returncode}): {p.stderr.decode(errors="replace")[:2000]}')
+
 def dump():
     adb('shell', 'uiautomator', 'dump', '/sdcard/ux-native.xml')
     xml = adb('shell', 'cat', '/sdcard/ux-native.xml')
@@ -42,11 +49,10 @@ def screenshot(name):
     # A matching accessibility tree can precede the SurfaceFlinger frame.
     time.sleep(1)
     (out / (name + '.png')).write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
-    (out / (name + '-window.txt')).write_text(adb('shell', 'dumpsys', 'window'))
-    (out / (name + '-statusbar.txt')).write_text(adb('shell', 'dumpsys', 'statusbar'))
-    (out / (name + '-systemui.txt')).write_text(adb('shell', 'dumpsys', 'activity', 'service', 'com.android.systemui/.SystemUIService'))
-    (out / (name + '-launcher.txt')).write_text(adb('shell', 'dumpsys', 'activity', 'service', 'com.android.launcher3/com.android.quickstep.TouchInteractionService'))
-    (out / (name + '-ime.txt')).write_text(adb('shell', 'dumpsys', 'input_method'))
+    # Full SystemUI/launcher dumps are intrusive on busy emulators. The failure
+    # was localized with them; ordinary regressions retain only the needed inset.
+    if 'workout' in name:
+        (out / (name + '-window.txt')).write_text(adb('shell', 'dumpsys', 'window'))
 
 def navigation_contrast(name="41-native-workout"):
     # Physical pixels, independent of the app's requested appearance flags.
