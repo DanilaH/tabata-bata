@@ -1,4 +1,5 @@
 name: Native UI navigation outside instrumentation
+# Physical contrast is checked in both device light and device dark modes.
 on:
   workflow_dispatch:
   push:
