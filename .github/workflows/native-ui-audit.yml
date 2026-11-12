@@ -62,6 +62,17 @@ jobs:
           script: |
             adb shell wm size "$UX_SIZE"
             adb shell wm density "$UX_DENSITY"
+            adb shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton
+            # Rebuild launcher/taskbar against the final display metrics at boot.
+            # Resizing a phone AVD into a tablet can otherwise retain a stale surface position.
+            adb reboot
+            adb wait-for-device
+            for attempt in $(seq 1 90); do
+              if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; then break; fi
+              sleep 2
+            done
+            test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
+            adb shell input keyevent 82
             adb install -r native-apk/app-debug.apk
             python3 scripts/ux/native-navigation.py
       - uses: actions/upload-artifact@v4
