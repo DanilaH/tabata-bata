@@ -3,9 +3,7 @@ package ru.tabatabata
 import android.content.ClipboardManager
 import android.content.pm.ActivityInfo
 import android.graphics.Bitmap
-import android.graphics.Rect
-import android.accessibilityservice.AccessibilityServiceInfo
-import android.view.accessibility.AccessibilityNodeInfo
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
@@ -38,11 +36,7 @@ class EngagementTest {
         fun shell(command: String) = android.os.ParcelFileDescriptor.AutoCloseInputStream(inst.uiAutomation.executeShellCommand(command))
             .bufferedReader().use { it.readText().trim() }
         val keyboard = shell("settings get secure show_ime_with_hard_keyboard")
-        val originalAccessibilityFlags = inst.uiAutomation.serviceInfo.flags
         try {
-            inst.uiAutomation.serviceInfo = inst.uiAutomation.serviceInfo.apply {
-                flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
-            }
             // Exercise a phone-like software keyboard. Android restricts background clipboard reads.
             shell("settings put secure show_ime_with_hard_keyboard 1")
             runBlocking { store.updatePreset(Preset("private-support-test","PRIVATE_TIMER_NAME",Plan())) }
@@ -59,24 +53,12 @@ class EngagementTest {
             // Compose input alone need not transfer system window focus from clipboard preview.
             // Locate the actual field on screen and inject a native touch through Android.
             compose.onNodeWithTag("support-description").performScrollTo()
-            fun descriptionField(node: AccessibilityNodeInfo?): AccessibilityNodeInfo? {
-                if (node == null) return null
-                if (node.packageName?.toString() == context.packageName &&
-                    node.className?.toString() == "android.widget.EditText" && node.isVisibleToUser &&
-                    node.text?.toString()?.contains("Test: sound stopped") == true) return node
-                for (i in 0 until node.childCount) descriptionField(node.getChild(i))?.let { return it }
-                return null
-            }
-            compose.waitUntil(5000) {
-                val field = inst.uiAutomation.windows.asSequence().mapNotNull { descriptionField(it.root) }.firstOrNull()
-                if (field == null) false else {
-                    val bounds = Rect(); field.getBoundsInScreen(bounds)
-                    if (bounds.isEmpty) false else {
-                        shell("input tap ${bounds.centerX()} ${bounds.centerY()}")
-                        true
-                    }
-                }
-            }
+            val field = compose.onNodeWithTag("support-description").fetchSemanticsNode()
+            val coordinates = field.layoutInfo.coordinates
+            val localCenter = field.boundsInWindow.center - coordinates.localToWindow(Offset.Zero)
+            val point = coordinates.localToScreen(localCenter)
+            assertTrue("Description must have a screen position", point.x.isFinite() && point.y.isFinite())
+            shell("input tap ${point.x.toInt()} ${point.y.toInt()}")
             var clip = ""
             compose.waitUntil(10000) {
                 compose.runOnUiThread {
@@ -93,8 +75,16 @@ class EngagementTest {
             compose.onNodeWithTag("support-description").assertTextContains("Test: sound stopped")
             compose.onNodeWithText(text(R.string.preview_close)).performScrollTo().performClick()
             compose.onNodeWithText(text(R.string.review_store_link)).performScrollTo().assertIsDisplayed()
+        } catch (failure: Throwable) {
+            runCatching { capture("support-report-failure") }
+            runCatching {
+                val output = requireNotNull(InstrumentationRegistry.getArguments().getString("additionalTestOutputDir"))
+                File(output, "support-report-failure.txt").writeText(
+                    "activeWindowPackage=${inst.uiAutomation.rootInActiveWindow?.packageName}\n" +
+                        compose.onRoot(useUnmergedTree = true).printToString(40))
+            }
+            throw failure
         } finally {
-            inst.uiAutomation.serviceInfo = inst.uiAutomation.serviceInfo.apply { flags = originalAccessibilityFlags }
             if (keyboard == "null") shell("settings delete secure show_ime_with_hard_keyboard")
             else shell("settings put secure show_ime_with_hard_keyboard $keyboard")
             runBlocking { store.savePresets(before) }
