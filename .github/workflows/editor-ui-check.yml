@@ -42,7 +42,7 @@ jobs:
           UX_ORIENTATION: portrait
           UX_THEME: light
           UX_FEEL: 'false'
-          UX_CLASS: ru.tabatabata.UxAuditProbe#b_editorValidationAppearanceAndLeaveDialog
+          UX_CLASS: ru.tabatabata.UxAuditProbe#j_rotationKeepsPausedClockAndSession,ru.tabatabata.UxAuditProbe#h_notificationExplanation,ru.tabatabata.UxAuditProbe#b_editorValidationAppearanceAndLeaveDialog
         with:
           api-level: 35
           avd-name: tabata-ui
