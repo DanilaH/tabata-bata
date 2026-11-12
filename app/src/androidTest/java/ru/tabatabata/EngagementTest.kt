@@ -49,6 +49,9 @@ class EngagementTest {
             capture("support-report")
             compose.onNodeWithText(text(R.string.report_copy)).performScrollTo().performClick()
             compose.waitUntil(5000) { compose.onAllNodesWithText(text(R.string.report_copied)).fetchSemanticsNodes().isNotEmpty() }
+            // The system clipboard preview can own window focus after Copy.
+            // Return focus by a real touch before reading the clipboard from the app.
+            compose.onNodeWithTag("support-description").performScrollTo().performTouchInput { click(center) }
             var clip = ""
             compose.waitUntil(10000) {
                 compose.runOnUiThread {
