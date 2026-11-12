@@ -79,6 +79,12 @@ jobs:
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -camera-back none
           script: bash scripts/ux/run.sh
+      - name: Retain host failure evidence
+        if: always()
+        run: |
+          mkdir -p ui-audit-results
+          free -m > ui-audit-results/host-memory-final.txt
+          sudo journalctl -k --since '-25 minutes' --no-pager > ui-audit-results/host-kernel.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:
