@@ -44,6 +44,7 @@ def screenshot(name):
     (out / (name + '-statusbar.txt')).write_text(adb('shell', 'dumpsys', 'statusbar'))
     (out / (name + '-ime.txt')).write_text(adb('shell', 'dumpsys', 'input_method'))
 
+adb('shell', 'settings', 'put', 'secure', 'show_ime_with_hard_keyboard', '1')
 adb('shell', 'am', 'force-stop', 'ru.tabatabata')
 adb('shell', 'am', 'start', '-W', '-n', 'ru.tabatabata/.MainActivity')
 wait_for(lambda n: text_is(n, 'start'))
@@ -59,7 +60,14 @@ tap(wait_for(lambda n: any(v in n.get('text', '') for v in labels('new_timer')))
 field = wait_for(lambda n: n.get('class') == 'android.widget.EditText')
 tap(field)
 adb('shell', 'input', 'text', 'NativeProbe')
-time.sleep(1)
+deadline = time.monotonic() + 10
+while time.monotonic() < deadline:
+    if re.search(r'mInputShown=true|mIsInputViewShown=true', adb('shell', 'dumpsys', 'input_method')):
+        break
+    time.sleep(.3)
+else:
+    screenshot('41-native-ime-not-shown')
+    raise RuntimeError('Native keyboard did not open')
 screenshot('41-native-editor-ime')
 adb('shell', 'input', 'keyevent', '4')
 time.sleep(1)
