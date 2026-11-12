@@ -12,16 +12,13 @@ concurrency:
 jobs:
   editor:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         include:
-          - {profile: ru-normal-core, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'true', classes: 'ru.tabatabata.UxAuditProbe#e_workoutAllStagesClockGridAndLock,ru.tabatabata.UxAuditProbe#f_feelRealTransitionsAndPressResponse,ru.tabatabata.UxAuditProbe#l_bannerLoadingSequence'}
-          - {profile: ru-normal-forms, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'false', classes: 'ru.tabatabata.UxAuditProbe#a_homeMenuAndLongSavedNames,ru.tabatabata.UxAuditProbe#c_historyLongNamesAndExpandedPlan,ru.tabatabata.UxAuditProbe#d_settingsSoundsSupportAndKeyboard,ru.tabatabata.UxAuditProbe#g_newTimerNamingAndKeyboard,ru.tabatabata.UxAuditProbe#i_recoveryAndInterruptedLayout,ru.tabatabata.UxAuditProbe#k_queueAndLargeSupportContent,ru.tabatabata.UxAuditProbe#n_filePickerCancellationAndThemePersistence'}
-          - {profile: en-narrow-200-tail, size: '960x1704', density: 480, font: '2.0', locale: en, orientation: portrait, theme: light, feel: 'false', classes: 'ru.tabatabata.UxAuditProbe#c_historyLongNamesAndExpandedPlan,ru.tabatabata.UxAuditProbe#d_settingsSoundsSupportAndKeyboard,ru.tabatabata.UxAuditProbe#n_filePickerCancellationAndThemePersistence'}
-          - {profile: ru-narrow-200-tail, size: '960x1704', density: 480, font: '2.0', locale: ru, orientation: portrait, theme: light, feel: 'false', classes: 'ru.tabatabata.UxAuditProbe#a_homeMenuAndLongSavedNames,ru.tabatabata.UxAuditProbe#k_queueAndLargeSupportContent,ru.tabatabata.UxAuditProbe#n_filePickerCancellationAndThemePersistence'}
-          - {profile: ru-landscape-200-tail, size: '1080x1920', density: 480, font: '2.0', locale: ru, orientation: landscape, theme: light, feel: 'false', classes: 'ru.tabatabata.UxAuditProbe#a_homeMenuAndLongSavedNames,ru.tabatabata.UxAuditProbe#k_queueAndLargeSupportContent,ru.tabatabata.UxAuditProbe#n_filePickerCancellationAndThemePersistence'}
+          - {profile: ru-normal-full-lavapipe, api: 35, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'true', classes: 'ru.tabatabata.UxAuditProbe'}
+          - {profile: en-android16-tail-lavapipe, api: 36, size: '1080x1920', density: 420, font: '1.0', locale: en, orientation: portrait, theme: light, feel: 'false', classes: 'ru.tabatabata.UxAuditProbe#a_homeMenuAndLongSavedNames,ru.tabatabata.UxAuditProbe#k_queueAndLargeSupportContent,ru.tabatabata.UxAuditProbe#n_filePickerCancellationAndThemePersistence'}
     env:
       ORG_GRADLE_PROJECT_bannerId: demo-banner-adfox-html
       ORG_GRADLE_PROJECT_privacyUrl: https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md
@@ -61,9 +58,11 @@ jobs:
           UX_THEME: ${{ matrix.theme }}
           UX_FEEL: ${{ matrix.feel }}
           UX_CLASS: ${{ matrix.classes }}
+          UX_NATIVE: true
+          UX_PICKERS: true
           QEMU_AUDIO_DRV: pa
         with:
-          api-level: 35
+          api-level: ${{ matrix.api }}
           avd-name: tabata-ui
           pre-emulator-launch-script: python3 scripts/ux/configure-avd.py
           ram-size: 3072
@@ -71,7 +70,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: false
-          emulator-options: -no-window -gpu swiftshader -no-snapshot -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -no-boot-anim -camera-back none
           script: bash scripts/ux/run.sh
       - name: Retain emulator host diagnostics
         if: always()
