@@ -103,6 +103,29 @@ wait_for(lambda n: text_is(n, 'history_this_week'))
 history_seconds = time.monotonic() - history_started
 screenshot('41-native-history')
 tap(wait_for(lambda n: n.get('content-desc') in {'← ' + s for s in labels('saved')}))
+if os.environ.get('UX_PICKERS') == 'true':
+    tap(wait_for(lambda n: n.get('content-desc') in labels('settings')))
+    def scroll_to(key):
+        for _ in range(12):
+            nodes = dump()
+            found = next((n for n in nodes if text_is(n, key)), None)
+            if found is not None:
+                return found
+            bounds = list(map(int, re.findall(r'\d+', nodes[0].get('bounds', ''))))
+            assert len(bounds) == 4
+            width, height = bounds[2], bounds[3]
+            adb('shell', 'input', 'swipe', str(width // 2), str(height * 4 // 5),
+                str(width // 2), str(height // 3), '300')
+        raise RuntimeError(f'Settings action {key} not reachable through native scrolling')
+    for key, name in [('export', '49-native-export-picker'), ('import_timers', '50-native-import-picker')]:
+        tap(scroll_to(key))
+        wait_for(lambda n: 'documentsui' in n.get('package', ''))
+        screenshot(name)
+        (out / (name + '.xml')).write_text(adb('shell', 'cat', '/sdcard/ux-native.xml'))
+        adb('shell', 'input', 'keyevent', '4')
+        wait_for(lambda n: n.get('content-desc') in {'← ' + s for s in labels('saved')})
+    screenshot('51-native-after-file-pickers')
+    tap(wait_for(lambda n: n.get('content-desc') in {'← ' + s for s in labels('saved')}))
 # Reproduce native IME ownership changes before the workout, without test hooks.
 tap(wait_for(lambda n: any(v in n.get('text', '') for v in labels('new_timer'))))
 field = wait_for(lambda n: n.get('class') == 'android.widget.EditText')
