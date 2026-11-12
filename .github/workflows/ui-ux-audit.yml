@@ -50,6 +50,7 @@ jobs:
           - {profile: ru-landscape-200, api: 35, size: '1080x1920', density: 480, font: '2.0', locale: ru, orientation: landscape, theme: light, feel: 'false'}
           - {profile: ru-tablet, api: 35, size: '1200x1920', density: 240, font: '1.0', locale: ru, orientation: portrait, theme: dark, feel: 'false'}
           - {profile: en-android16, api: 36, size: '1080x1920', density: 420, font: '1.0', locale: en, orientation: portrait, theme: light, feel: 'true'}
+          - {profile: en-landscape-200-caption, api: 35, size: '1080x1920', density: 480, font: '2.0', locale: en, orientation: landscape, theme: dark, feel: 'false', classes: 'ru.tabatabata.UxAuditProbe#e_workoutAllStagesClockGridAndLock'}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -78,7 +79,7 @@ jobs:
           UX_ORIENTATION: ${{ matrix.orientation }}
           UX_THEME: ${{ matrix.theme }}
           UX_FEEL: ${{ matrix.feel }}
-          UX_CLASS: ru.tabatabata.UxAuditProbe
+          UX_CLASS: ${{ matrix.classes || 'ru.tabatabata.UxAuditProbe' }}
           UX_PICKERS: ${{ matrix.feel }}
           QEMU_AUDIO_DRV: pa
         with:
