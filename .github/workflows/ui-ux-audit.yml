@@ -14,6 +14,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.profiles.outputs.matrix }}
     env:
       ORG_GRADLE_PROJECT_bannerId: demo-banner-adfox-html
       ORG_GRADLE_PROJECT_privacyUrl: https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md
@@ -24,6 +26,25 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
+      - name: Select focused PR checks or the complete release matrix
+        id: profiles
+        env:
+          UI_AUDIT_EVENT: ${{ github.event_name }}
+        run: |
+          python3 - <<'PY_MATRIX' >> "$GITHUB_OUTPUT"
+          import json, os
+          from pathlib import Path
+          profiles = json.loads(Path('scripts/ux/profiles.json').read_text())
+          if os.environ['UI_AUDIT_EVENT'] == 'pull_request':
+              names = {'ru-narrow-200', 'en-narrow-200', 'ru-landscape-200', 'en-landscape-200-caption'}
+              profiles = [p for p in profiles if p['profile'] in names]
+              assert len(profiles) == 4
+              for profile in profiles:
+                  methods = ['c_historyLongNamesAndExpandedPlan', 'e_workoutAllStagesClockGridAndLock',
+                             'r_historyRepeatedNavigationAndWorkoutReturn'] if profile['orientation'] == 'portrait' else ['e_workoutAllStagesClockGridAndLock']
+                  profile['classes'] = ','.join('ru.tabatabata.UxAuditProbe#' + method for method in methods)
+          print('matrix=' + json.dumps({'include': profiles}, separators=(',', ':')))
+          PY_MATRIX
       - run: cp scripts/ux/UxAuditProbe.kt app/src/androidTest/java/ru/tabatabata/
       - run: ./gradlew assembleDebug assembleDebugAndroidTest
       - uses: actions/upload-artifact@v4
@@ -40,17 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       max-parallel: 7
-      matrix:
-        include:
-          - {profile: ru-normal, api: 35, size: '1080x1920', density: 420, font: '1.0', locale: ru, orientation: portrait, theme: light, feel: 'true'}
-          - {profile: ru-narrow-200, api: 35, size: '960x1704', density: 480, font: '2.0', locale: ru, orientation: portrait, theme: light, feel: 'false'}
-          - {profile: en-narrow-150, api: 35, size: '960x1704', density: 480, font: '1.5', locale: en, orientation: portrait, theme: dark, feel: 'false'}
-          - {profile: en-narrow-200, api: 35, size: '960x1704', density: 480, font: '2.0', locale: en, orientation: portrait, theme: light, feel: 'false'}
-          - {profile: en-landscape-150, api: 35, size: '1080x1920', density: 480, font: '1.5', locale: en, orientation: landscape, theme: dark, feel: 'false'}
-          - {profile: ru-landscape-200, api: 35, size: '1080x1920', density: 480, font: '2.0', locale: ru, orientation: landscape, theme: light, feel: 'false'}
-          - {profile: ru-tablet, api: 35, size: '1200x1920', density: 240, font: '1.0', locale: ru, orientation: portrait, theme: dark, feel: 'false'}
-          - {profile: en-android16, api: 36, size: '1080x1920', density: 420, font: '1.0', locale: en, orientation: portrait, theme: light, feel: 'true'}
-          - {profile: en-landscape-200-caption, api: 35, size: '1080x1920', density: 480, font: '2.0', locale: en, orientation: landscape, theme: dark, feel: 'false', classes: 'ru.tabatabata.UxAuditProbe#e_workoutAllStagesClockGridAndLock'}
+      matrix: ${{ fromJSON(needs.build.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
