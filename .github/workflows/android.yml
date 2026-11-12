@@ -49,6 +49,9 @@ jobs:
   emulator:
     name: emulator (API ${{ matrix.api }})
     runs-on: ubuntu-latest
+    env:
+      QEMU_AUDIO_DRV: wav
+      QEMU_WAV_PATH: /tmp/tabata-android-audio.wav
     strategy:
       fail-fast: false
       matrix:
@@ -70,13 +73,23 @@ jobs:
           api-level: ${{ matrix.api }}
           arch: x86_64
           profile: pixel_2
+          ram-size: 3072
           disable-animations: true
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -no-boot-anim -camera-back none
           script: |
             ./gradlew connectedDebugAndroidTest
             python3 scripts/android-system-check.py
             ./gradlew assembleRelease writeDebugKeystorePath
             $ANDROID_HOME/build-tools/36.0.0/apksigner sign --ks "$(cat app/build/debug-keystore-path.txt)" --ks-pass pass:android --key-pass pass:android --out /tmp/tabata-release-smoke.apk app/build/outputs/apk/release/app-release-unsigned.apk
             SMOKE_RELEASE=1 SMOKE_APK=/tmp/tabata-release-smoke.apk SMOKE_OUT=app/build/reports/release-system-check python3 scripts/android-system-check.py
+      - name: Retain emulator host evidence
+        if: always()
+        run: |
+          mkdir -p app/build/reports/emulator-host
+          stat "$QEMU_WAV_PATH" > app/build/reports/emulator-host/audio-file.txt 2>&1 || true
+          free -m > app/build/reports/emulator-host/memory.txt
+          sudo journalctl -k --since '-25 minutes' --no-pager > app/build/reports/emulator-host/kernel.txt
+          sudo coredumpctl --no-pager info --since '-25 minutes' > app/build/reports/emulator-host/coredumps.txt 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -86,6 +99,7 @@ jobs:
             app/build/outputs/androidTest-results/
             app/build/reports/system-check/
             app/build/reports/release-system-check/
+            app/build/reports/emulator-host/
 
       - uses: actions/upload-artifact@v4
         if: always()
