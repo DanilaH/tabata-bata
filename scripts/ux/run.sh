@@ -2,18 +2,7 @@
 set -euo pipefail
 mkdir -p ui-audit-results
 adb shell settings put secure show_ime_with_hard_keyboard 1
-adb shell wm size "$UX_SIZE"
-adb shell wm density "$UX_DENSITY"
 adb shell settings put system font_scale "$UX_FONT"
-# Launcher/taskbar must initialize from final metrics, especially tablet profiles.
-adb reboot
-adb wait-for-device
-for attempt in $(seq 1 90); do
-  if [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1 ]; then break; fi
-  sleep 2
-done
-test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = 1
-adb shell input keyevent 82
 adb install -r audit-apks/debug/app-debug.apk
 adb install -r audit-apks/androidTest/debug/app-debug-androidTest.apk
 collect() {
