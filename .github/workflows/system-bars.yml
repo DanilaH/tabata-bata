@@ -1,4 +1,5 @@
 name: System bars after full UI and IME sequence
+# Retain native SystemUI/taskbar diagnostics after the observed keyboard sequence.
 on:
   push:
     branches: [main]
