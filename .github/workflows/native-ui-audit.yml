@@ -54,6 +54,7 @@ jobs:
           UX_DENSITY: ${{ matrix.density }}
         with:
           api-level: 35
+          ram-size: 3072
           target: google_apis
           arch: x86_64
           profile: pixel_2
