@@ -127,6 +127,10 @@ class AdsDemoTest {
     private var lastStoryBack = 0L
     private var storyBackCount = 0
     private fun dismissDemoInterstitial(): Boolean {
+        // A sleep/SDK callback can return to the app between loop iterations.
+        // Never send Back or an SDK-control tap into the app's banner/menu.
+        if (event("ad_closed", "interstitial") ||
+            compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) return false
         val root = instrumentation.uiAutomation.rootInActiveWindow ?: return false
         if (root.packageName?.toString() != "ru.tabatabata") return false
         if (dismissControl(root) || dismissObservedStory() || dismissObservedSdkHeader(root)) return true
@@ -350,9 +354,13 @@ class AdsDemoTest {
             val deadline = SystemClock.elapsedRealtime() + 90000
             while (!event("ad_closed", "interstitial") && SystemClock.elapsedRealtime() < deadline) {
                 SystemClock.sleep(1000)
-                dismissDemoInterstitial()
+                if (!event("ad_closed", "interstitial")) dismissDemoInterstitial()
             }
             await("Actual UI demo did not close", 5000) { event("ad_closed", "interstitial") }
+            compose.waitUntil(10000) {
+                compose.activity.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) &&
+                    compose.activity.window.decorView.hasWindowFocus()
+            }
             compose.onNodeWithText(compose.activity.getString(R.string.new_timer), substring = true).assertIsDisplayed()
             assertNull(TimerService.state.value)
             capture("actual-result-menu-interstitial")
@@ -419,7 +427,7 @@ class AdsDemoTest {
             val deadline = SystemClock.elapsedRealtime() + 60000
             while (!event("ad_closed", "interstitial") && SystemClock.elapsedRealtime() < deadline) {
                 SystemClock.sleep(1000)
-                dismissDemoInterstitial()
+                if (!event("ad_closed", "interstitial")) dismissDemoInterstitial()
             }
             await("Demo close callback missing", 5000) { event("ad_closed", "interstitial") }
             compose.runOnUiThread {
