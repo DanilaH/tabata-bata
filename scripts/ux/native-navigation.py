@@ -3,6 +3,8 @@ from pathlib import Path
 import json
 import re
 import subprocess
+import struct
+import os
 import time
 import xml.etree.ElementTree as ET
 
@@ -46,6 +48,43 @@ def screenshot(name):
     (out / (name + '-launcher.txt')).write_text(adb('shell', 'dumpsys', 'activity', 'service', 'com.android.launcher3/com.android.quickstep.TouchInteractionService'))
     (out / (name + '-ime.txt')).write_text(adb('shell', 'dumpsys', 'input_method'))
 
+def navigation_contrast():
+    # Physical pixels, independent of the app's requested appearance flags.
+    # In the controlled portrait 3-button phone profile Home is centered in its inset.
+    raw = adb('exec-out', 'screencap', binary=True)
+    width, height, pixel_format = struct.unpack_from('<III', raw)
+    assert pixel_format == 1, 'Expected Android RGBA_8888 screenshot'
+    offset = len(raw) - width * height * 4
+    assert offset in (12, 16), 'Unexpected raw screenshot header'
+    density = int(os.environ.get('UX_DENSITY', '420'))
+    if width * 160 / density >= 600:
+        return {'scope': 'tablet taskbar reviewed separately'}
+    window = (out / '41-native-workout-window.txt').read_text()
+    match = re.search(r'type=navigationBars frame=\[(\d+),(\d+)\]\[(\d+),(\d+)\]', window)
+    assert match, 'Navigation inset missing'
+    left, top, right, bottom = map(int, match.groups())
+    assert bottom == height and bottom > top and right == width, 'Expected bottom 3-button bar'
+    def sample(x, y):
+        values = [raw[offset + ((y + dy) * width + x + dx) * 4:
+                      offset + ((y + dy) * width + x + dx) * 4 + 3]
+                  for dy in range(-2, 3) for dx in range(-2, 3)]
+        return [sorted(v[channel] for v in values)[12] for channel in range(3)]
+    def luminance(rgb):
+        channels = [v / 255 for v in rgb]
+        channels = [v / 12.92 if v <= .04045 else ((v + .055) / 1.055) ** 2.4 for v in channels]
+        return sum(v * w for v, w in zip(channels, (.2126, .7152, .0722)))
+    foreground = sample((left + right) // 2, (top + bottom) // 2)
+    background = sample(left + 10, (top + bottom) // 2)
+    lights = sorted((luminance(foreground), luminance(background)))
+    contrast = (lights[1] + .05) / (lights[0] + .05)
+    result = {'scope': 'portrait three-button phone', 'foreground_rgb': foreground,
+              'background_rgb': background, 'ratio': round(contrast, 3), 'minimum': 3.0}
+    (out / '41-native-navigation-contrast.json').write_text(json.dumps(result, indent=2))
+    assert contrast >= 3, f'Navigation icon contrast below 3:1: {result}'
+    return result
+
+adb('shell', 'cmd', 'overlay', 'enable-exclusive', '--category',
+    'com.android.internal.systemui.navbar.threebutton')
 adb('shell', 'settings', 'put', 'secure', 'show_ime_with_hard_keyboard', '1')
 adb('shell', 'am', 'force-stop', 'ru.tabatabata')
 adb('shell', 'am', 'start', '-W', '-n', 'ru.tabatabata/.MainActivity')
@@ -97,10 +136,11 @@ else:
     raise RuntimeError('Native Start did not reach running workout')
 wait_for(lambda n: text_is(n, 'resume'))
 screenshot('41-native-workout')
+contrast = navigation_contrast()
 (out / '41-native-result.json').write_text(json.dumps({
     'history_loaded': True, 'workout_paused': True,
     'history_observation_seconds_including_ui_dump': round(history_seconds, 3),
-    'input': 'adb system touch', 'instrumentation': False,
+    'input': 'adb system touch', 'instrumentation': False, 'navigation_contrast': contrast,
 }, indent=2))
 adb('shell', 'am', 'force-stop', 'ru.tabatabata')
 print('Native history and workout reached through system input; screenshots saved')
