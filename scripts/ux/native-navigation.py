@@ -48,7 +48,7 @@ def screenshot(name):
     (out / (name + '-launcher.txt')).write_text(adb('shell', 'dumpsys', 'activity', 'service', 'com.android.launcher3/com.android.quickstep.TouchInteractionService'))
     (out / (name + '-ime.txt')).write_text(adb('shell', 'dumpsys', 'input_method'))
 
-def navigation_contrast():
+def navigation_contrast(name="41-native-workout"):
     # Physical pixels, independent of the app's requested appearance flags.
     # In the controlled portrait 3-button phone profile Home is centered in its inset.
     raw = adb('exec-out', 'screencap', binary=True)
@@ -59,7 +59,7 @@ def navigation_contrast():
     density = int(os.environ.get('UX_DENSITY', '420'))
     if width * 160 / density >= 600:
         return {'scope': 'tablet taskbar reviewed separately'}
-    window = (out / '41-native-workout-window.txt').read_text()
+    window = (out / (name + '-window.txt')).read_text()
     match = re.search(r'type=navigationBars frame=\[(\d+),(\d+)\]\[(\d+),(\d+)\]', window)
     assert match, 'Navigation inset missing'
     left, top, right, bottom = map(int, match.groups())
@@ -79,10 +79,11 @@ def navigation_contrast():
     contrast = (lights[1] + .05) / (lights[0] + .05)
     result = {'scope': 'portrait three-button phone', 'foreground_rgb': foreground,
               'background_rgb': background, 'ratio': round(contrast, 3), 'minimum': 3.0}
-    (out / '41-native-navigation-contrast.json').write_text(json.dumps(result, indent=2))
+    (out / (name + '-contrast.json')).write_text(json.dumps(result, indent=2))
     assert contrast >= 3, f'Navigation icon contrast below 3:1: {result}'
     return result
 
+adb('shell', 'cmd', 'uimode', 'night', 'no')
 adb('shell', 'cmd', 'overlay', 'enable-exclusive', '--category',
     'com.android.internal.systemui.navbar.threebutton')
 adb('shell', 'settings', 'put', 'secure', 'show_ime_with_hard_keyboard', '1')
@@ -137,10 +138,15 @@ else:
 wait_for(lambda n: text_is(n, 'resume'))
 screenshot('41-native-workout')
 contrast = navigation_contrast()
+adb('shell', 'cmd', 'uimode', 'night', 'yes')
+wait_for(lambda n: text_is(n, 'resume'))
+time.sleep(1)
+screenshot('42-native-dark-workout')
+dark_contrast = navigation_contrast('42-native-dark-workout')
 (out / '41-native-result.json').write_text(json.dumps({
     'history_loaded': True, 'workout_paused': True,
     'history_observation_seconds_including_ui_dump': round(history_seconds, 3),
-    'input': 'adb system touch', 'instrumentation': False, 'navigation_contrast': contrast,
+    'input': 'adb system touch', 'instrumentation': False, 'navigation_contrast': contrast, 'dark_navigation_contrast': dark_contrast,
 }, indent=2))
 adb('shell', 'am', 'force-stop', 'ru.tabatabata')
 print('Native history and workout reached through system input; screenshots saved')
