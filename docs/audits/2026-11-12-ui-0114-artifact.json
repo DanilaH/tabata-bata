@@ -1,0 +1,29 @@
+{
+  "filename": "tabata-bata-0.11.4.apk",
+  "bytes": 5870955,
+  "sha256": "5141ffc4fd3dcfc9629c94d6685fd15570ec3b7406b36601dde441b1c3a4576f",
+  "certificate_sha256": "1ac792b1f821fac59532fdc3121827732c8ffea4104bfa6b456d9d4d770684de",
+  "package": "ru.tabatabata",
+  "versionName": "0.11.4",
+  "versionCode": 25,
+  "minSdk": 26,
+  "targetSdk": 36,
+  "source_commit": "6ba22f03e50ae6063f713841878d254c35b06d35",
+  "configured_release_run": 43266280337,
+  "signature_verified": true,
+  "alignment_16kb_verified": true,
+  "activity_adjust_resize": true,
+  "unsigned_artifact_id": 13966806268,
+  "unsigned_apk_sha256": "3d46f6b3b8f40c28505123df75335cf190e6312c8a02490b9d2eac7a047b0e2f",
+  "temporary_key_material_removed": true,
+  "validation_runs": {
+    "primary_ci": 43266280371,
+    "timer_audit": 43266280294,
+    "configured_and_demo": 43266280337,
+    "ui_full": 43266280411
+  },
+  "physical_device_tested": false,
+  "validation_result": "success",
+  "ui_full_attempt": 2,
+  "demo_interstitial_close_callbacks": 4
+}

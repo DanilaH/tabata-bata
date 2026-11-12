@@ -1,0 +1,78 @@
+{
+  "run_id": 43254961337,
+  "source_commit": "7a0c5f3c7596cd1db27b465b4e08030015531747",
+  "profile_count": 9,
+  "retained_frames": 907,
+  "overview_sheets_reviewed": 42,
+  "result": "PASS",
+  "visual_observations": [
+    "Full next-stage duration wraps without ellipsis in RU/EN 200%",
+    "Clock area stays fixed through all nine stage transitions",
+    "Short landscape detail panel scrolls; primary pause/resume stays fixed",
+    "No additional visual blocker found in reviewed overviews; suspect rotated panel checked at original size"
+  ],
+  "profiles": [
+    {
+      "profile": "en-android16",
+      "frames": 115,
+      "artifact_id": 13961284441,
+      "job_result": "success"
+    },
+    {
+      "profile": "en-landscape-150",
+      "frames": 106,
+      "artifact_id": 13959764836,
+      "job_result": "success"
+    },
+    {
+      "profile": "en-landscape-200-caption",
+      "frames": 25,
+      "artifact_id": 13960344520,
+      "job_result": "success"
+    },
+    {
+      "profile": "en-narrow-150",
+      "frames": 106,
+      "artifact_id": 13962000979,
+      "job_result": "success"
+    },
+    {
+      "profile": "en-narrow-200",
+      "frames": 114,
+      "artifact_id": 13960824638,
+      "job_result": "success"
+    },
+    {
+      "profile": "ru-landscape-200",
+      "frames": 106,
+      "artifact_id": 13961851359,
+      "job_result": "success"
+    },
+    {
+      "profile": "ru-narrow-200",
+      "frames": 114,
+      "artifact_id": 13961069646,
+      "job_result": "success"
+    },
+    {
+      "profile": "ru-normal",
+      "frames": 115,
+      "artifact_id": 13959994702,
+      "job_result": "success"
+    },
+    {
+      "profile": "ru-tablet",
+      "frames": 106,
+      "artifact_id": 13962390297,
+      "job_result": "success"
+    }
+  ],
+  "inspection": "Overview of all 42 contact sheets; suspicious rotated panel also inspected at original resolution. Functional and text layout assertions are retained in the workflow artifacts.",
+  "layout_unchanged_through_commit": "6ba22f03e50ae6063f713841878d254c35b06d35",
+  "final_acceptance_run_id": 43266280411,
+  "final_acceptance_status": "success",
+  "final_acceptance_attempt": 2,
+  "repeated_profile": "en-landscape-150",
+  "repeated_profile_artifact_id": 13968715213,
+  "repeat_reason": "ADB transport interruption after 16 completed scenarios; cause unproven; repeat passed all 18 scenarios."
+}
