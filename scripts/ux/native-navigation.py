@@ -42,6 +42,8 @@ def screenshot(name):
     (out / (name + '.png')).write_bytes(adb('exec-out', 'screencap', '-p', binary=True))
     (out / (name + '-window.txt')).write_text(adb('shell', 'dumpsys', 'window'))
     (out / (name + '-statusbar.txt')).write_text(adb('shell', 'dumpsys', 'statusbar'))
+    (out / (name + '-systemui.txt')).write_text(adb('shell', 'dumpsys', 'activity', 'service', 'com.android.systemui/.SystemUIService'))
+    (out / (name + '-launcher.txt')).write_text(adb('shell', 'dumpsys', 'activity', 'service', 'com.android.launcher3/com.android.quickstep.TouchInteractionService'))
     (out / (name + '-ime.txt')).write_text(adb('shell', 'dumpsys', 'input_method'))
 
 adb('shell', 'settings', 'put', 'secure', 'show_ime_with_hard_keyboard', '1')
