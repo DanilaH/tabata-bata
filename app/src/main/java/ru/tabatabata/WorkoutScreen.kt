@@ -504,11 +504,19 @@ private fun WorkoutUpcoming(s: Snapshot, queue: Boolean, compact: Boolean) {
             }
         }
     } else if (queue) StageQueue(s, Modifier.height(72.dp))
-    else Text(stringResource(R.string.next_stage, stringResource(stageString(s.next?.stage ?: Stage.WORK)),
-        formatTime(s.next?.duration ?: 0)), style = if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium,
-        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-        modifier = Modifier.fillMaxWidth().hiddenWhen(s.next == null),
-        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    else {
+        val intervals = remember(s.plan) { s.plan.stages().distinctBy { it.stage } }
+        val next = s.next ?: intervals.first()
+        val caption = stringResource(R.string.next_stage, stringResource(stageString(next.stage)), formatTime(next.duration))
+        val captions = intervals.map {
+            stringResource(R.string.next_stage, stringResource(stageString(it.stage)), formatTime(it.duration))
+        }
+        // Reserve the tallest caption for the whole plan, including wrapped large text.
+        // A different next stage must not move or resize the clock.
+        StableText(caption, captions,
+            Modifier.fillMaxWidth().testTag("workout-upcoming").hiddenWhen(s.next == null),
+            if (compact) MaterialTheme.typography.bodySmall else MaterialTheme.typography.bodyMedium)
+    }
 }
 
 @Composable
