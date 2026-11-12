@@ -1,5 +1,7 @@
 name: Independent UI UX and feel audit
 on:
+  pull_request:
+    paths: ['scripts/ux/**', 'app/src/main/**', '.github/workflows/ui-ux-audit.yml']
   push:
     branches: [main]
     paths: ['scripts/ux/**', '!scripts/ux/native-navigation.py', 'app/src/main/res/**', 'app/src/main/AndroidManifest.xml', '.github/workflows/ui-ux-audit.yml', 'app/src/main/java/ru/tabatabata/*Screen.kt', 'app/src/main/java/ru/tabatabata/AppLayouts.kt', 'app/src/main/java/ru/tabatabata/SupportDialog.kt', 'app/src/main/java/ru/tabatabata/MainActivity.kt', 'app/src/main/java/ru/tabatabata/PlanPreviewDialog.kt']
@@ -14,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ORG_GRADLE_PROJECT_bannerId: demo-banner-adfox-html
+      ORG_GRADLE_PROJECT_privacyUrl: https://github.com/DanilaH/tabata-bata/blob/main/docs/privacy-policy.md
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -53,6 +56,14 @@ jobs:
         with:
           name: ux-audit-apks
           path: audit-apks
+      - name: Start audio sink for demo banner video
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=ci_audio
+          pactl set-default-sink ci_audio
+          echo "PULSE_SERVER=$(pactl info | sed -n 's/^Server String: //p')" >> "$GITHUB_ENV"
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -68,6 +79,8 @@ jobs:
           UX_THEME: ${{ matrix.theme }}
           UX_FEEL: ${{ matrix.feel }}
           UX_CLASS: ru.tabatabata.UxAuditProbe
+          UX_PICKERS: ${{ matrix.feel }}
+          QEMU_AUDIO_DRV: pa
         with:
           api-level: ${{ matrix.api }}
           avd-name: tabata-ui
@@ -77,7 +90,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           disable-animations: false
-          emulator-options: -no-window -gpu swiftshader -no-snapshot -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -no-boot-anim -camera-back none
           script: bash scripts/ux/run.sh
       - name: Retain host failure evidence
         if: always()
@@ -85,6 +98,7 @@ jobs:
           mkdir -p ui-audit-results
           free -m > ui-audit-results/host-memory-final.txt
           sudo journalctl -k --since '-25 minutes' --no-pager > ui-audit-results/host-kernel.txt
+          sudo coredumpctl --no-pager info --since '-25 minutes' > ui-audit-results/host-coredumps.txt 2>&1 || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
