@@ -656,4 +656,26 @@ class UxAuditProbe {
             at(R.string.history_clear).assertIsDisplayed()
         } finally { finalCapture("o-final") }
     }
+
+    @Test fun p_completedDraftActionsAndReturn() {
+        try {
+            compose.onNodeWithText("+ "+text(R.string.new_timer)).performClick()
+            for ((label,value) in listOf(R.string.work to "0:01",R.string.rest to "0:00",
+                R.string.reps to "1",R.string.prepare to "0:00")) {
+                compose.onNodeWithContentDescription(text(label)).reveal().performTextReplacement(value)
+            }
+            hideKeyboard()
+            at(R.string.start).reveal().performClick()
+            compose.waitUntil(10000) { TimerService.state.value?.status == Status.COMPLETED }
+            capture("56-completed-draft-initial")
+            at(R.string.repeat).reveal().assertIsDisplayed()
+            at(R.string.home).reveal().assertIsDisplayed()
+            at(R.string.return_draft).reveal().assertIsDisplayed()
+            capture("57-completed-draft-actions")
+            at(R.string.return_draft).performClick()
+            compose.onNodeWithContentDescription(text(R.string.work)).reveal().assertTextContains("0:01")
+            capture("58-returned-draft")
+            assertEquals(3,runBlocking { store.presets.first().size })
+        } finally { finalCapture("p-final") }
+    }
 }
