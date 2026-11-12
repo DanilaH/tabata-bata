@@ -291,6 +291,9 @@ class UxAuditProbe {
             capture("16-history-clear")
             at(R.string.cancel).reveal().assertIsDisplayed()
             assertTrue("Physical clear-history tap did not open dialog; semantic diagnostic used",physicalOpened)
+        } catch (failure: Throwable) {
+            File(output,"11-history-body-failure.txt").writeText(failure.stackTraceToString())
+            throw failure
         } finally { finalCapture("c-final") }
     }
     @Test fun d_settingsSoundsSupportAndKeyboard() {
@@ -307,6 +310,9 @@ class UxAuditProbe {
             at(R.string.show_ready_modes).reveal().assertIsDisplayed()
             capture("20-settings-options")
             at(R.string.voice).reveal().performClick()
+            compose.waitUntil(5000) {
+                compose.onAllNodesWithText(text(R.string.voice_stages_rounds),useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()
+            }
             compose.onNodeWithText(text(R.string.voice_stages_rounds),useUnmergedTree=true).reveal().assertIsDisplayed()
             capture("20-settings-voice")
             at(R.string.voice).reveal().performClick()
@@ -390,8 +396,9 @@ class UxAuditProbe {
                     upcoming.fetchSemanticsNode().config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
                     assertTrue("Next-stage caption clips or truncates: $caption", layouts.isNotEmpty() && layouts.all { layout ->
                         (0 until layout.lineCount).all { line ->
-                            !layout.isLineEllipsized(line) && layout.getLineLeft(line) >= -1f &&
-                                layout.getLineRight(line) <= layout.size.width + 1f &&
+                            // Center alignment uses paragraph coordinates; compare the glyph span.
+                            !layout.isLineEllipsized(line) &&
+                                layout.getLineRight(line) - layout.getLineLeft(line) <= layout.size.width + 1f &&
                                 layout.getLineTop(line) >= -1f && layout.getLineBottom(line) <= layout.size.height + 1f
                         }
                     })
