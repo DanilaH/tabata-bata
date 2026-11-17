@@ -21,15 +21,15 @@ RUN = 43266280411
 ARTIFACT = 13967411191
 CARDS = [
     dict(name="01-timer", source="29-feel-running.png", title=["Интервальный", "таймер"],
-         subtitle="Крупные цифры. Звуки и вибрация.", bg="#073DFC", fg="#FFFFFF", accent="#9BFF5C", crop=[0,72,1080,1860]),
-    dict(name="02-intervals", source="05-editor-top.png", title=["Свои интервалы", "работы и отдыха"],
-         subtitle="Подготовка, раунды, серии и заминка.", bg="#F3F5FB", fg="#151B30", accent="#3049C7", crop=[0,72,1080,1860]),
-    dict(name="03-modes", source="40-home-everyday.png", title=["Любимые режимы", "под рукой"],
-         subtitle="Сохраняйте, копируйте и запускайте.", bg="#E9EDFF", fg="#151B30", accent="#3049C7", crop=[0,72,1080,1550], width=920),
-    dict(name="04-plan", source="09-editor-preview.png", title=["План занятия", "перед стартом"],
-         subtitle="Все этапы и длительность тренировки.", bg="#111A32", fg="#FFFFFF", accent="#9BFF5C", crop=[0,72,1080,1860]),
-    dict(name="05-history", source="12-history-week.png", title=["История", "ваших занятий"],
-         subtitle="Активное время, раунды и повтор.", bg="#F3F5FB", fg="#151B30", accent="#3049C7", crop=[0,72,1080,1860]),
+         bg="#073DFC", fg="#FFFFFF", accent="#9BFF5C", crop=[0,72,1080,1860]),
+    dict(name="02-intervals", source="05-editor-top.png", title=["Свои", "интервалы"],
+         bg="#F3F5FB", fg="#151B30", accent="#3049C7", crop=[0,72,1080,1860]),
+    dict(name="03-modes", source="40-home-everyday.png", title=["Любимые", "режимы"],
+         bg="#E9EDFF", fg="#151B30", accent="#3049C7", crop=[0,72,1080,1550], width=920),
+    dict(name="04-plan", source="09-editor-preview.png", title=["План занятия", "до старта"],
+         bg="#111A32", fg="#FFFFFF", accent="#9BFF5C", crop=[0,72,1080,1860]),
+    dict(name="05-history", source="12-history-week.png", title=["История", "тренировок"],
+         bg="#F3F5FB", fg="#151B30", accent="#3049C7", crop=[0,72,1080,1860]),
 ]
 
 def sha(path):
@@ -54,10 +54,12 @@ def render():
     for i,c in enumerate(CARDS,1):
         source=OUT/"source/captures"/c["source"]
         assert Image.open(source).size==(1080,1920)
-        font=ImageFont.truetype(FONT,86)
+        title_size=120
+        while max(ImageFont.truetype(FONT,title_size).getlength(line) for line in c["title"])>936:
+            title_size-=2
+        font=ImageFont.truetype(FONT,title_size)
         for line in c["title"]:
             assert font.getlength(line)<=936, line
-        assert ImageFont.truetype(FONT.replace("-Bold",""),34).getlength(c["subtitle"])<=936
         left,top,right,bottom=c["crop"]
         width=c.get("width",800)
         height=width*(bottom-top)/(right-left)
@@ -70,21 +72,15 @@ def render():
         svg=[f'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1080" height="1920" viewBox="0 0 1080 1920">',
              f'<rect width="1080" height="1920" fill="{bg}"/>',
              f'<circle cx="1100" cy="1510" r="610" fill="none" stroke="{accent}" stroke-opacity=".065" stroke-width="110"/>',
-             '<g font-family="DejaVu Sans,sans-serif">',
-             text(72,84,"ТАБАТА БАТА",26,fg,700,'letter-spacing="3" opacity=".8"'),
-             text(1008,84,f"0{i} / 05",25,fg,400,'text-anchor="end" opacity=".7"'),
-             f'<rect x="72" y="123" width="72" height="7" rx="3.5" fill="{accent}"/>']
+             '<g font-family="DejaVu Sans,sans-serif">']
         for j,line in enumerate(c["title"]):
-            svg.append(text(68,244+j*105,line,86,fg,700,'letter-spacing="-2"'))
-        svg.append(text(72,426,c["subtitle"],34,fg,400,'opacity=".88"'))
+            svg.append(text(68,220+j*140,line,title_size,fg,700,'letter-spacing="-2"'))
         # App viewport is separate from the design; clipping never covers app controls.
         svg += [f'<rect x="{x-14}" y="{y-8}" width="{width+28}" height="{height+28}" rx="35" fill="#030819" opacity=".12"/>',
                 f'<rect x="{x-6}" y="{y-6}" width="{width+12}" height="{height+12}" rx="29" fill="#FFFFFF" fill-opacity=".8"/>',
                 f'<defs><clipPath id="viewport"><rect x="{x}" y="{y}" width="{width}" height="{height}" rx="24"/></clipPath></defs>',
                 f'<g clip-path="url(#viewport)"><svg x="{x}" y="{y}" width="{width}" height="{height}" viewBox="{left} {top} {right-left} {bottom-top}">',
                 f'<image width="1080" height="1920" xlink:href="data:image/png;base64,{data}"/></svg></g>']
-        for dot in range(5):
-            svg.append(f'<circle cx="{492+dot*24}" cy="1885" r="4" fill="{accent if dot==i-1 else fg}" opacity="{1 if dot==i-1 else .2}"/>')
         svg.append('</g></svg>')
         svgpath=OUT/"source/svg"/(c["name"]+".svg")
         svgpath.write_text("".join(svg))
@@ -93,7 +89,7 @@ def render():
         image=Image.open(target)
         assert image.size==(1080,1920)
         assert target.stat().st_size<3_000_000
-        manifest["cards"].append({**c,"source_sha256":sha(source),"output_sha256":sha(target),"output_bytes":target.stat().st_size,
+        manifest["cards"].append({**c,"title_font_px":title_size,"source_sha256":sha(source),"output_sha256":sha(target),"output_bytes":target.stat().st_size,
                                   "viewport":[x,y,width,height]})
     (OUT/"source.json").write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+"\n")
     print(json.dumps({"cards":len(CARDS),"output":str(OUT),"max_bytes":max(c["output_bytes"] for c in manifest["cards"])},ensure_ascii=False))

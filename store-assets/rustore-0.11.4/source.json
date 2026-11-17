@@ -18,7 +18,6 @@
         "Интервальный",
         "таймер"
       ],
-      "subtitle": "Крупные цифры. Звуки и вибрация.",
       "bg": "#073DFC",
       "fg": "#FFFFFF",
       "accent": "#9BFF5C",
@@ -28,9 +27,10 @@
         1080,
         1860
       ],
+      "title_font_px": 110,
       "source_sha256": "b0d047819a917ff2a60d91939a4dc73f08d661713d6839a2a8df83ac145c1cad",
-      "output_sha256": "60fcbdb50e648bf412f93f571a1ac7fcfea9f44e3b05c27aaf47dbc12aa842c7",
-      "output_bytes": 100687,
+      "output_sha256": "fa97b68abad47a88314fe1edb7bc8ac6988e29c5cbdb5ff3167103d9d9670d19",
+      "output_bytes": 88441,
       "viewport": [
         141.34228187919462,
         520,
@@ -42,10 +42,9 @@
       "name": "02-intervals",
       "source": "05-editor-top.png",
       "title": [
-        "Свои интервалы",
-        "работы и отдыха"
+        "Свои",
+        "интервалы"
       ],
-      "subtitle": "Подготовка, раунды, серии и заминка.",
       "bg": "#F3F5FB",
       "fg": "#151B30",
       "accent": "#3049C7",
@@ -55,9 +54,10 @@
         1080,
         1860
       ],
+      "title_font_px": 120,
       "source_sha256": "de056a83a706155d90322a400681310a842bcdab1d2dac0800a76343dfa03834",
-      "output_sha256": "9d5019b0f9dc9c6208219760d539e41e51cd592f021ba6e1d4d65ec50a566f14",
-      "output_bytes": 175822,
+      "output_sha256": "ee07d3a4e6fdb571eaad7461b9d9d748d780ab67e66743df83a35199b66e383b",
+      "output_bytes": 147949,
       "viewport": [
         141.34228187919462,
         520,
@@ -69,10 +69,9 @@
       "name": "03-modes",
       "source": "40-home-everyday.png",
       "title": [
-        "Любимые режимы",
-        "под рукой"
+        "Любимые",
+        "режимы"
       ],
-      "subtitle": "Сохраняйте, копируйте и запускайте.",
       "bg": "#E9EDFF",
       "fg": "#151B30",
       "accent": "#3049C7",
@@ -83,9 +82,10 @@
         1550
       ],
       "width": 920,
+      "title_font_px": 120,
       "source_sha256": "4e77ecedf1d56f395b3b12b03585c7cb2b4358f5f4f328025766fb5c0aac7713",
-      "output_sha256": "3c2b354ae3c2253305c892c91458d4573459fcd067a253c70f183e9e10e45a66",
-      "output_bytes": 178314,
+      "output_sha256": "f2eccbcd6e7127e702228ce054e8e13e5f2b16e36bfe6af83274eec49ce82653",
+      "output_bytes": 155656,
       "viewport": [
         80.0,
         580.962962962963,
@@ -98,9 +98,8 @@
       "source": "09-editor-preview.png",
       "title": [
         "План занятия",
-        "перед стартом"
+        "до старта"
       ],
-      "subtitle": "Все этапы и длительность тренировки.",
       "bg": "#111A32",
       "fg": "#FFFFFF",
       "accent": "#9BFF5C",
@@ -110,9 +109,10 @@
         1080,
         1860
       ],
+      "title_font_px": 120,
       "source_sha256": "092503c27053e08f65a165a34df696cc9ca39c04f633b3a1004f261a1944f790",
-      "output_sha256": "3423babfbedcd1a2fb45e3024bb5f6c1c76dc86713e59052a2f4f26db699c7c8",
-      "output_bytes": 158963,
+      "output_sha256": "228cffe52a819454893a5a2ca97050c1d24f0ae25a6b3c5e5e6d2ac02729af56",
+      "output_bytes": 143199,
       "viewport": [
         141.34228187919462,
         520,
@@ -125,9 +125,8 @@
       "source": "12-history-week.png",
       "title": [
         "История",
-        "ваших занятий"
+        "тренировок"
       ],
-      "subtitle": "Активное время, раунды и повтор.",
       "bg": "#F3F5FB",
       "fg": "#151B30",
       "accent": "#3049C7",
@@ -137,9 +136,10 @@
         1080,
         1860
       ],
+      "title_font_px": 120,
       "source_sha256": "f00dbbc0467064413a79338c4c295e7e129bc1ab2d2d648fbdfffe12bac2509f",
-      "output_sha256": "52c2c2bd01b34a778ce6fa44c983fb9f813cc11a3ec258228078706a49b9d288",
-      "output_bytes": 222853,
+      "output_sha256": "00052abaebec8f716a27fa5be6be35d42bb499e6f53c87f04212ee01bea18799",
+      "output_bytes": 212352,
       "viewport": [
         141.34228187919462,
         520,
