@@ -1,0 +1,151 @@
+{
+  "version": "0.11.4",
+  "production_source_commit": "6ba22f03e50ae6063f713841878d254c35b06d35",
+  "capture_workflow_run": 43266280411,
+  "capture_artifact_id": 13967411191,
+  "capture_profile": "ru-normal / API35 / font 100%",
+  "dimensions": [
+    1080,
+    1920
+  ],
+  "icon_sha256": "12eff36666922b6361e507561161171aac4d0cb24178feee2044319d9949ab54",
+  "method": "SVG composition around original PNGs; uniform scaling and explicit crops only. No redrawn UI.",
+  "cards": [
+    {
+      "name": "01-timer",
+      "source": "29-feel-running.png",
+      "title": [
+        "Интервальный",
+        "таймер"
+      ],
+      "subtitle": "Крупные цифры. Звуки и вибрация.",
+      "bg": "#073DFC",
+      "fg": "#FFFFFF",
+      "accent": "#9BFF5C",
+      "crop": [
+        0,
+        72,
+        1080,
+        1860
+      ],
+      "source_sha256": "b0d047819a917ff2a60d91939a4dc73f08d661713d6839a2a8df83ac145c1cad",
+      "output_sha256": "60fcbdb50e648bf412f93f571a1ac7fcfea9f44e3b05c27aaf47dbc12aa842c7",
+      "output_bytes": 100687,
+      "viewport": [
+        141.34228187919462,
+        520,
+        797.3154362416108,
+        1320
+      ]
+    },
+    {
+      "name": "02-intervals",
+      "source": "05-editor-top.png",
+      "title": [
+        "Свои интервалы",
+        "работы и отдыха"
+      ],
+      "subtitle": "Подготовка, раунды, серии и заминка.",
+      "bg": "#F3F5FB",
+      "fg": "#151B30",
+      "accent": "#3049C7",
+      "crop": [
+        0,
+        72,
+        1080,
+        1860
+      ],
+      "source_sha256": "de056a83a706155d90322a400681310a842bcdab1d2dac0800a76343dfa03834",
+      "output_sha256": "9d5019b0f9dc9c6208219760d539e41e51cd592f021ba6e1d4d65ec50a566f14",
+      "output_bytes": 175822,
+      "viewport": [
+        141.34228187919462,
+        520,
+        797.3154362416108,
+        1320
+      ]
+    },
+    {
+      "name": "03-modes",
+      "source": "40-home-everyday.png",
+      "title": [
+        "Любимые режимы",
+        "под рукой"
+      ],
+      "subtitle": "Сохраняйте, копируйте и запускайте.",
+      "bg": "#E9EDFF",
+      "fg": "#151B30",
+      "accent": "#3049C7",
+      "crop": [
+        0,
+        72,
+        1080,
+        1550
+      ],
+      "width": 920,
+      "source_sha256": "4e77ecedf1d56f395b3b12b03585c7cb2b4358f5f4f328025766fb5c0aac7713",
+      "output_sha256": "3c2b354ae3c2253305c892c91458d4573459fcd067a253c70f183e9e10e45a66",
+      "output_bytes": 178314,
+      "viewport": [
+        80.0,
+        580.962962962963,
+        920,
+        1259.037037037037
+      ]
+    },
+    {
+      "name": "04-plan",
+      "source": "09-editor-preview.png",
+      "title": [
+        "План занятия",
+        "перед стартом"
+      ],
+      "subtitle": "Все этапы и длительность тренировки.",
+      "bg": "#111A32",
+      "fg": "#FFFFFF",
+      "accent": "#9BFF5C",
+      "crop": [
+        0,
+        72,
+        1080,
+        1860
+      ],
+      "source_sha256": "092503c27053e08f65a165a34df696cc9ca39c04f633b3a1004f261a1944f790",
+      "output_sha256": "3423babfbedcd1a2fb45e3024bb5f6c1c76dc86713e59052a2f4f26db699c7c8",
+      "output_bytes": 158963,
+      "viewport": [
+        141.34228187919462,
+        520,
+        797.3154362416108,
+        1320
+      ]
+    },
+    {
+      "name": "05-history",
+      "source": "12-history-week.png",
+      "title": [
+        "История",
+        "ваших занятий"
+      ],
+      "subtitle": "Активное время, раунды и повтор.",
+      "bg": "#F3F5FB",
+      "fg": "#151B30",
+      "accent": "#3049C7",
+      "crop": [
+        0,
+        72,
+        1080,
+        1860
+      ],
+      "source_sha256": "f00dbbc0467064413a79338c4c295e7e129bc1ab2d2d648fbdfffe12bac2509f",
+      "output_sha256": "52c2c2bd01b34a778ce6fa44c983fb9f813cc11a3ec258228078706a49b9d288",
+      "output_bytes": 222853,
+      "viewport": [
+        141.34228187919462,
+        520,
+        797.3154362416108,
+        1320
+      ]
+    }
+  ]
+}
